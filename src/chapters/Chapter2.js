@@ -321,15 +321,25 @@ export function buildChapter2(ctx) {
   // CORRIDOR + PAINT SHOP
   // ==========================================================================
 
+  // The corridor runs from the carving room to the paint shop's south wall.
+  //
+  // It used to stop half a metre short of that wall, leaving a strip with no
+  // floor between two solid walls — and the paint shop had no south opening at
+  // all, so the keypad door unbolted onto plaster. Same fault as the stage
+  // door in Chapter 1: an opening in one room is not an opening in the room
+  // on the other side of it.
+  //
+  // `walls.n: false` because the paint shop's south wall stands here; building
+  // both would put two coincident slabs in the same place and make them fight.
   kit.room({
-    width: 3.2, depth: 12, height: 3.2, x: 5, z: -13,
+    width: 3.2, depth: 12.5, height: 3.2, x: 5, z: -13.25,
     floorMat: material('tileFloor', { repeat: 3 }),
     wallMat: material('wallPlasterClean', { repeat: 3 }),
     ceilMat: material('ceiling', { repeat: 2 }),
     surface: 'tile',
+    walls: { n: false, s: true, e: true, w: true },
     openings: [
       { side: 's', at: -0.75, width: 1.5, top: 2.3 },
-      { side: 'n', at: 0, width: 1.6, top: 2.3 },
     ],
   });
   kit.sconce(3.5, 2.3, -11, { rotY: -Math.PI / 2, intensity: 7, flicker: { chance: 0.6, severity: 0.8, seed: 51 } });
@@ -395,7 +405,7 @@ export function buildChapter2(ctx) {
   keypadGroup.add(readout);
 
   const paintDoor = kit.door({
-    x: 4.2, z: -19.1, width: 1.6, height: 2.3, locked: true, name: 'paint-shop',
+    x: 4.15, z: -19.35, width: 1.7, height: 2.3, locked: true, name: 'paint-shop',
   });
 
   const pressKey = (digit) => {
@@ -461,7 +471,10 @@ export function buildChapter2(ctx) {
     ceilMat: material('ceiling', { repeat: 3 }),
     surface: 'tile',
     openings: [
-      { side: 'e', at: 5.5, width: 1.6, top: 2.3 },
+      // The corridor arrives through the SOUTH wall at x = 5. The old opening
+      // was on the east wall at the extreme south-east corner, half of it
+      // hanging off the end of the wall, and connected to nothing.
+      { side: 's', at: 5, width: 1.8, top: 2.4 },
       { side: 'w', at: 0, width: 1.6, top: 2.3 },   // to the kiln
     ],
   });
