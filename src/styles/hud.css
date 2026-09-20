@@ -181,3 +181,316 @@
     rgba(0, 0, 0, 0.6) 100%);
   transition: opacity 400ms linear;
 }
+
+/* ==========================================================================
+   The Veilmask — the porcelain frame the player looks through
+   ========================================================================== */
+
+#mask-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  --lens-tint: #6fe3d4;
+  --danger: 0;
+}
+
+#mask-overlay .mask-frame,
+#mask-overlay .mask-cracks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The glaze cracks pick up the lens colour, so the mask feels lit from within
+   by whichever lens is loaded. */
+#mask-overlay .mask-cracks path {
+  stroke: color-mix(in srgb, var(--lens-tint) 55%, rgba(232, 224, 210, 0.7));
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+  transition: stroke-dashoffset 420ms var(--ease-out);
+}
+
+/* Nose bridge: a soft wedge that turns the vignette into a face. */
+#mask-overlay .mask-bridge {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 26vh;
+  height: 22vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(6, 5, 4, 0.92) 0%,
+    rgba(6, 5, 4, 0.55) 45%,
+    transparent 72%);
+}
+
+#mask-overlay .mask-strain {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  width: 210px;
+  height: 42px;
+  transform: translateX(-50%);
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.9));
+}
+#mask-overlay .mask-strain path { transition: stroke-dashoffset 120ms linear; }
+
+#mask-overlay .mask-lens-label {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-transform: uppercase;
+  color: var(--lens-tint);
+  opacity: 0.5;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.95);
+}
+#mask-overlay .mask-lens-label.flash { animation: lens-flash 1.6s var(--ease-out); }
+@keyframes lens-flash {
+  0%   { opacity: 1; letter-spacing: 0.6em; }
+  100% { opacity: 0.5; letter-spacing: 0.34em; }
+}
+
+/* Near overload the frame breathes. Suppressed by reduce-flashing. */
+#mask-overlay.straining { animation: mask-strain-pulse 0.9s ease-in-out infinite; }
+@keyframes mask-strain-pulse {
+  50% { filter: brightness(calc(1 + var(--danger) * 0.55)); }
+}
+body.reduce-flashing #mask-overlay.straining { animation: none; }
+
+/* ==========================================================================
+   Prompt states, hold ring
+   ========================================================================== */
+
+#interact-prompt.disabled .key { border-color: rgba(232, 224, 210, 0.2); color: rgba(232, 224, 210, 0.35); }
+#interact-prompt.disabled .label { color: rgba(232, 224, 210, 0.42); font-style: italic; }
+
+.hold-ring {
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translateY(-50%) rotate(-90deg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-out);
+}
+#interact-prompt.holding .hold-ring { opacity: 1; }
+.hold-ring circle {
+  fill: none;
+  stroke: var(--blood-lit);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+#interact-prompt.hold .key::after {
+  content: 'HOLD';
+  position: absolute;
+  left: 50%;
+  bottom: -13px;
+  transform: translateX(-50%);
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  opacity: 0.55;
+}
+#interact-prompt .key { position: relative; }
+
+/* ==========================================================================
+   Flashlight battery
+   ========================================================================== */
+
+#torch-meter {
+  position: absolute;
+  left: 34px;
+  bottom: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
+}
+#torch-meter.show { opacity: 0.85; }
+#torch-meter.off { opacity: 0.35; }
+
+#torch-meter .cell {
+  display: block;
+  width: 54px;
+  height: 9px;
+  border: 1px solid rgba(232, 224, 210, 0.45);
+  padding: 1px;
+  position: relative;
+}
+/* The little nub on the end of a battery. */
+#torch-meter .cell::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 4px;
+  background: rgba(232, 224, 210, 0.45);
+}
+#torch-meter .cell > b {
+  display: block;
+  height: 100%;
+  background: var(--bone);
+  transition: width 400ms linear, background 600ms var(--ease-out);
+}
+#torch-meter.low .cell > b {
+  background: var(--blood-lit);
+  animation: torch-low 1.4s ease-in-out infinite;
+}
+@keyframes torch-low { 50% { opacity: 0.35; } }
+body.reduce-flashing #torch-meter.low .cell > b { animation: none; }
+
+#torch-meter .spares {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--bone-dim);
+}
+
+/* ==========================================================================
+   Hint card
+   ========================================================================== */
+
+#hint-card {
+  position: absolute;
+  right: 34px;
+  bottom: 90px;
+  width: min(370px, 46vw);
+  padding: 16px 20px 14px;
+  background: linear-gradient(180deg, rgba(10, 9, 8, 0.95), rgba(5, 4, 4, 0.97));
+  border-left: 2px solid var(--brass);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  transform: translateX(14px);
+  transition: opacity 340ms var(--ease-out), transform 340ms var(--ease-out);
+  pointer-events: none;
+}
+#hint-card.show { opacity: 1; transform: none; }
+
+.hint-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 9px;
+}
+.hint-tier {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+.hint-count {
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: rgba(232, 224, 210, 0.3);
+}
+.hint-body {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(232, 224, 210, 0.86);
+}
+.hint-foot {
+  margin-top: 11px;
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.28);
+}
+
+/* ==========================================================================
+   Checkpoint
+   ========================================================================== */
+
+#checkpoint-note {
+  position: absolute;
+  right: 34px;
+  top: 34px;
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.5);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out);
+}
+#checkpoint-note.show { opacity: 1; transform: none; }
+
+/* ==========================================================================
+   Death
+   ========================================================================== */
+
+#death-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1200ms var(--ease-out);
+}
+#death-screen.show { opacity: 1; }
+
+.death-line {
+  font-family: var(--ui-font);
+  font-style: italic;
+  font-size: clamp(20px, 2.6vw, 30px);
+  color: rgba(232, 224, 210, 0.55);
+  text-align: center;
+  max-width: 24ch;
+  line-height: 1.5;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95);
+}
+
+/* ==========================================================================
+   Chapter title card
+   ========================================================================== */
+
+#chapter-card {
+  position: absolute;
+  left: clamp(34px, 6vw, 90px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-18px);
+  opacity: 0;
+  transition: opacity 1400ms var(--ease-out), transform 1400ms var(--ease-out);
+  pointer-events: none;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.98);
+}
+#chapter-card.show { opacity: 1; transform: translateY(-50%); }
+
+#chapter-card .num {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--blood-lit);
+  margin-bottom: 10px;
+}
+#chapter-card .name {
+  font-family: var(--title-font);
+  font-size: clamp(32px, 5vw, 62px);
+  letter-spacing: 0.06em;
+  color: var(--bone);
+  line-height: 1;
+}
+#chapter-card .sub {
+  font-family: var(--ui-font);
+  font-style: italic;
+  font-size: clamp(15px, 1.6vw, 20px);
+  color: rgba(232, 224, 210, 0.5);
+  margin-top: 12px;
+}

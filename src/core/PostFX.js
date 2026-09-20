@@ -210,7 +210,7 @@ export class PostFX {
 
     // ---- smooth the gameplay-driven effect values ------------------------
     const sm = this._smoothed;
-    sm.fade = damp(sm.fade, this.fx.fade, 9, dt);
+    sm.fade = damp(sm.fade, this.fx.fade, 9, dt);   // signed: -1 white … +1 black
     sm.mask = damp(sm.mask, this.fx.maskAmount, 11, dt);
     sm.strain = damp(sm.strain, this.fx.strain, 4, dt);
     sm.damage = damp(sm.damage, this.fx.damage, 6, dt);
@@ -326,9 +326,13 @@ export class PostFX {
     renderer.setRenderTarget(null);
   }
 
-  /** Convenience used by transitions: fade to black / back in. */
+  /**
+   * Transition fade. Signed: +1 is fully black, -1 is fully white.
+   * The white end is used by the Veilmask overload, which flares rather than
+   * cuts to black.
+   */
   setFade(v) {
-    this.fx.fade = clamp(v, 0, 1);
+    this.fx.fade = clamp(v, -1, 1);
   }
 
   dispose() {

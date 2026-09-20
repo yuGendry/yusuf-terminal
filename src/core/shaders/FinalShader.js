@@ -139,7 +139,13 @@ export const FinalShader = {
         color += (n - 0.5) * uGrain * 0.11 * (grainWeight * 0.8 + 0.2);
       }
 
-      color *= (1.0 - uFade);
+      // uFade is signed: positive fades to black (transitions, death), negative
+      // flares to white (the Veilmask overloading and blinding the player).
+      if (uFade >= 0.0) {
+        color *= (1.0 - uFade);
+      } else {
+        color = mix(color, vec3(1.0), min(-uFade, 1.0));
+      }
 
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }

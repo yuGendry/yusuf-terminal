@@ -13,6 +13,7 @@
 import './styles/main.css';
 import './styles/menu.css';
 import './styles/hud.css';
+import './styles/reader.css';
 
 import * as THREE from 'three';
 
@@ -22,6 +23,7 @@ import { Settings } from './core/Settings.js';
 import { Physics, initPhysics } from './core/Physics.js';
 import { Audio } from './audio/AudioEngine.js';
 import { Save } from './save/SaveSystem.js';
+import { CHAPTERS } from './chapters/ChapterData.js';
 import { setTextureAnisotropy } from './world/Textures.js';
 
 import { MenuScene } from './menu/MenuScene.js';
@@ -29,8 +31,9 @@ import { MainMenu } from './ui/MainMenu.js';
 import { SettingsMenu } from './ui/SettingsMenu.js';
 import { HUD } from './ui/HUD.js';
 
-import { PlayerController } from './player/PlayerController.js';
-import { buildSandbox } from './chapters/Sandbox.js';
+import { installGameSounds } from './audio/GameSounds.js';
+import { MusicEngine } from './audio/MusicEngine.js';
+import { Game } from './core/Game.js';
 
 const boot = document.getElementById('boot');
 const bootBar = boot.querySelector('#boot-bar > i');
@@ -105,6 +108,9 @@ class App {
 
     // ---- audio (graph only; it stays suspended until a click) --------------
     Audio.init();
+    installGameSounds(Audio);
+    this.music = new MusicEngine(Audio);
+    Audio.onUnlocked(() => this.music.start());
 
     // ---- accessibility flags that live on <body> ---------------------------
     document.body.classList.toggle('reduce-flashing', Settings.get('reduceFlashing'));
@@ -120,9 +126,19 @@ class App {
       },
     });
 
+    this.game = new Game({
+      engine: this.engine,
+      input: this.input,
+      physics: this.physics,
+      audio: Audio,
+      music: this.music,
+      hud: this.hud,
+    });
+    this.game.on('chapterComplete', (n) => this.onChapterComplete(n));
+
     this.mainMenu = new MainMenu({
       settingsMenu: this.settingsMenu,
-      onNewGame: () => this.startGame({ fresh: true }),
+      onNewGame: () => this.startGame({ fresh: true, chapter: 1 }),
       onContinue: () => this.startGame({ fresh: false }),
       onChapterSelect: (id) => this.startGame({ fresh: true, chapter: id }),
     });
@@ -178,61 +194,101 @@ class App {
     this.mainMenu.show();
   }
 
-  startGame({ fresh = true, chapter = 1 } = {}) {
+  async startGame({ fresh = true, chapter = 1 } = {}) {
     this.mainMenu.hide();
-
-    // Fade out, build, fade in — building a level takes long enough that a cut
-    // would be jarring.
     this.engine.postfx.setFade(1);
+    this.state = 'loading';
 
-    setTimeout(async () => {
+    const saved = fresh ? null : Game.loadSlot(0);
+    const targetChapter = saved?.chapter ?? chapter;
+
+    // Let the fade actually reach black, and the boot bar repaint, before the
+    // main thread disappears into texture generation.
+    await wait(430);
+    setProgress(0.1, 'setting the stage');
+    boot.classList.remove('gone');
+
+    try {
+      if (this.game.level) this.game.unload();
       await nextFrame();
 
-      if (this.level) this.disposeLevel();
+      await this.game.load(targetChapter, { restore: saved });
 
       this.state = 'play';
       this.paused = false;
       this.input.enabled = true;
-      this.playStartedAt = performance.now();
+      this._hadLock = false;
 
-      // Chapters 1–5 arrive in later phases; the proving ground exercises the
-      // controller, physics, lighting and post stack end to end.
-      this.level = buildSandbox({ physics: this.physics, engine: this.engine });
-      this.engine.setScene(this.level.scene);
-      this.engine.postfx.fx.saturation = 1;
-
-      // The level just created every one of its colliders. Rapier only rebuilds
-      // its broad phase inside step(), so without this the player's first update
-      // would query an empty world and fall through the floor it is standing on.
-      this.physics.refreshQueries();
-
-      this.player = new PlayerController({
-        engine: this.engine,
-        input: this.input,
-        physics: this.physics,
-        spawn: this.level.spawn.clone(),
-        yaw: this.level.spawnYaw ?? 0,
-      });
-
-      this.player.on('footstep', (info) => this.level.onFootstep?.(info));
-
+      const ch = CHAPTERS.find((c) => c.id === targetChapter);
       this.hud.show();
-      this.hud.setObjective(
-        chapter === 1
-          ? 'Proving ground — Chapter 1 arrives in the next phase'
-          : `Chapter ${chapter}`
-      );
+      this.hud.setObjective(this.game.puzzles.active?.objective ?? ch?.title ?? '');
 
+      setProgress(1, 'ready');
+      boot.classList.add('gone');
+
+      this.music.setMood('calm');
       this.input.requestLock();
       this.engine.postfx.setFade(0);
-    }, 420);
+
+      this.showChapterCard(ch);
+    } catch (err) {
+      console.error('[game] could not start chapter', err);
+      boot.classList.add('failed');
+      bootStatus.textContent = `chapter ${targetChapter} failed to open`;
+      this.state = 'menu';
+      setTimeout(() => {
+        boot.classList.add('gone');
+        boot.classList.remove('failed');
+        this.enterMenu();
+        this.engine.postfx.setFade(0);
+      }, 2600);
+    }
+  }
+
+  /** The chapter title card: a beat of quiet before the level starts. */
+  showChapterCard(ch) {
+    if (!ch) return;
+    const card = document.createElement('div');
+    card.id = 'chapter-card';
+    card.innerHTML =
+      `<div class="num">Chapter ${ch.id}</div>` +
+      `<div class="name">${ch.title}</div>` +
+      `<div class="sub">${ch.subtitle}</div>`;
+    document.getElementById('game-layer').appendChild(card);
+    void card.offsetWidth;
+    card.classList.add('show');
+    setTimeout(() => {
+      card.classList.remove('show');
+      setTimeout(() => card.remove(), 1800);
+    }, 4200);
+  }
+
+  onChapterComplete(n) {
+    this.input.releaseLock();
+    this.input.enabled = false;
+    this.engine.postfx.setFade(1);
+    this.music.setMood('silent');
+
+    setTimeout(async () => {
+      const next = n + 1;
+      if (CHAPTER_AVAILABLE.includes(next)) {
+        await this.startGame({ fresh: true, chapter: next });
+      } else {
+        // Beyond the built chapters, return to the menu with the unlock.
+        this.game.unload();
+        this.enterMenu();
+        this.engine.postfx.setFade(0);
+        this.hud.say(
+          `Chapter ${n} complete. The next chapter is not built yet — thank you for playing this far.`,
+          { duration: 9 }
+        );
+      }
+    }, 1800);
   }
 
   disposeLevel() {
     this._hadLock = false;
-    this.level?.dispose?.();
-    this.level = null;
-    this.player = null;
+    this.game?.unload();
   }
 
   quitToBoot() {
@@ -267,6 +323,7 @@ class App {
 
     if (this.state === 'menu') {
       this.menuScene.update(dt);
+      this.music?.update(dt);
     } else if (this.state === 'play') {
       this._updatePlay(dt);
     }
@@ -283,22 +340,21 @@ class App {
     // pause the game immediately on the first frame after starting, before the
     // browser has granted the lock. Only a lock that was actually held and then
     // lost should pause.
-    const lockLost = this._hadLock && !this.input.locked;
-    if (this.input.pressed('pause') || (lockLost && !this.paused && !this.settingsMenu.open)) {
+    //
+    // A reader (note, tape, stub) is not a pause: the game freezes itself while
+    // it is open, and Escape is handled by the reader.
+    const readerOpen = this.game.reader.open;
+    const lockLost = this._hadLock && !this.input.locked && !readerOpen;
+
+    if ((this.input.pressed('pause') && !readerOpen) ||
+        (lockLost && !this.paused && !this.settingsMenu.open)) {
       this.togglePause();
     }
 
-    if (this.paused) {
-      this.level.update?.(dt, this.engine.elapsed, this.player);
-      return;
-    }
+    if (this.paused) return;
 
-    this.player.update(dt);
-    this.physics.step(dt);
-    this.level.update?.(dt, this.engine.elapsed, this.player);
-    this.hud.update(dt, this.player, this.engine);
-
-    Save.profile.totalPlaytime += dt;
+    this.game.update(dt);
+    Save.profile.totalPlaytime += 0;   // Game owns the accounting
   }
 
   togglePause() {
@@ -309,6 +365,7 @@ class App {
       this.input.enabled = false;
       this.hud.showPause({
         onResume: () => this.togglePause(),
+        onHint: () => this.game.puzzles?.requestHint(),
         onSettings: () => this.settingsMenu.show(),
         onMenu: () => {
           this.paused = false;
@@ -328,6 +385,13 @@ class App {
 function nextFrame() {
   return new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 }
+
+function wait(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Chapters that actually exist. The menu unlocks beyond this; the game stops. */
+const CHAPTER_AVAILABLE = [1, 2];
 
 // ---------------------------------------------------------------------------
 
