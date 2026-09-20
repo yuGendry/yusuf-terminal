@@ -382,7 +382,12 @@ export function buildChapter2(ctx) {
     surface: 'tile',
     walls: { n: false, s: true, e: true, w: true },
     openings: [
-      { side: 's', at: -0.75, width: 1.5, top: 2.3 },
+      // `at` is measured from the ROOM's centre, not from world zero. The
+      // corridor is centred at x = 5 and the carving room's doorway is at
+      // world x 4.25..5.75, so this must be 0, not -0.75. At -0.75 the
+      // corridor's own south wall covered x 5.00..5.75 — half the doorway,
+      // with the door itself visible behind it.
+      { side: 's', at: 0, width: 1.6, top: 2.3 },
     ],
   });
   kit.sconce(3.5, 2.3, -11, { rotY: -Math.PI / 2, intensity: 7, flicker: { chance: 0.6, severity: 0.8, seed: 51 } });

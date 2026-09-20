@@ -14,7 +14,8 @@
     "chaptertest": "node scripts/chaptertest.mjs",
     "chasetest": "node scripts/chasetest.mjs",
     "look": "node scripts/look.mjs",
-    "controlstest": "node scripts/controlstest.mjs"
+    "controlstest": "node scripts/controlstest.mjs",
+    "doorcheck": "node scripts/doorcheck.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

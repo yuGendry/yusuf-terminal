@@ -34,6 +34,8 @@ with no server-side component.
 npm run smoke        # headless launch check: boots the game, reports errors
 npm run playtest     # movement, collision, stairs, ramps, crouch headroom
 npm run chaptertest  # drives a chapter's puzzle chain (CHAPTER=2 for the second)
+npm run doorcheck    # proves every doorway in every chapter is actually passable
+npm run controlstest # every control, through real KeyboardEvents
 npm run chasetest    # exercises Mister Tangle's rail AI and catch volume
 npm run beauty       # renders framed screenshots at a chosen quality preset
 ```

@@ -23,6 +23,8 @@ export class LevelKit {
 
     this.updaters = [];
     this.interactables = [];
+    /** Every door built through this kit, so they can be validated in bulk. */
+    this.doors = [];
     this.rng = makeRng(1234);
   }
 
@@ -244,6 +246,13 @@ export class LevelKit {
       state.angle = damp(state.angle, state.target, 6, dt);
       pivot.rotation.y = rotY + state.angle;
     });
+
+    // Recorded so `scripts/doorcheck.mjs` can prove every doorway is actually
+    // passable. Three separate chapters have shipped a door that unbolted onto
+    // a solid wall, because cutting an opening in one room's wall says nothing
+    // about the room on the other side of it.
+    controller.metrics = { x, y, z, width, height, rotY, name };
+    this.doors.push(controller);
 
     return controller;
   }
