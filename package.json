@@ -15,7 +15,11 @@
     "chasetest": "node scripts/chasetest.mjs",
     "look": "node scripts/look.mjs",
     "controlstest": "node scripts/controlstest.mjs",
-    "doorcheck": "node scripts/doorcheck.mjs"
+    "doorcheck": "node scripts/doorcheck.mjs",
+    "reachcheck": "node scripts/reachcheck.mjs",
+    "cinetest": "node scripts/cinetest.mjs",
+    "tour": "node scripts/tour.mjs",
+    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

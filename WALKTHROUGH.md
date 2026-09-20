@@ -6,6 +6,24 @@ the answer once you have been stuck a while.
 
 ---
 
+## Before anything else
+
+A new game opens on the drive out — forty-eight seconds in a car, arriving at
+the factory. Then each chapter shows a title page; **press any key** when it
+says so. Then a camera move through the room you are about to be standing in,
+which hands the camera to you at the end of it.
+
+You can **hold `Space`** to skip any cinematic, and skipping never costs you
+anything: every beat still fires, so a cutscene that unlocks a door still
+unlocks it. If you would rather never see them, turn them off in
+**Settings → Accessibility → Play cutscenes**.
+
+If a chapter starts and the mouse does not turn the camera, the browser has
+refused pointer lock because too long passed since your last click — the game
+puts up **"Click to take control"**; click anywhere.
+
+---
+
 ## Controls
 
 | Action | Key |
