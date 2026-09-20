@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { material } from './Materials.js';
 import { createDust, createGodRay, createHangingLight, Flicker } from './Atmosphere.js';
 import { buildPuppet, animateHang } from './Puppet.js';
@@ -181,6 +182,14 @@ export class LevelKit {
      *
      * @param {'x'|'z'} axis  which way the segment runs
      */
+    // Trim and pilasters are collected rather than added, and merged into one
+    // mesh each at the end of the room. A room's mouldings are two dozen small
+    // static boxes that share a material and never move — exactly the case
+    // where a draw call each is pure waste. Merged, a fully trimmed room costs
+    // two calls instead of thirty.
+    const trimGeos = [];
+    const pierGeos = [];
+
     const addTrim = (axis, off, len, cy, sideSign, along) => {
       if (!trim || len < 0.5) return;
 
@@ -198,8 +207,9 @@ export class LevelKit {
         const d = axis === 'x' ? PROUD * 2 : len;
         const px = axis === 'x' ? x + off : along + sideSign * PROUD;
         const pz = axis === 'x' ? along + sideSign * PROUD : z + off;
-        this.box(w, piece.h, d, px, piece.at, pz, piece.mat,
-          { surface, shadow: false, solid: false });
+        const g = new THREE.BoxGeometry(w, piece.h, d);
+        g.translate(px, piece.at, pz);
+        trimGeos.push(g);
       }
 
       // Pilasters.
@@ -220,8 +230,10 @@ export class LevelKit {
           const pd = axis === 'x' ? DEPTH * 2 : 0.52;
           const px = axis === 'x' ? x + at : along + sideSign * DEPTH;
           const pz = axis === 'x' ? along + sideSign * DEPTH : z + at;
-          this.box(pw, height * 0.985, pd, px, y + height / 2, pz, wallMat,
-            { surface, shadow: false, solid: false, tile: wallTile });
+          const g = new THREE.BoxGeometry(pw, height * 0.985, pd);
+          tileBoxUVs(g, pw, height * 0.985, pd, wallTile, wallMat);
+          g.translate(px, y + height / 2, pz);
+          pierGeos.push(g);
         }
       }
     };
@@ -261,6 +273,16 @@ export class LevelKit {
       this.box(T, h, len, x + halfW, cy, z + off, wallMat, { surface, shadow: false, tile: wallTile });
       if (kind === 'full') addTrim('z', off, len, cy, -1, x + halfW - T / 2);
     });
+
+    for (const [geos, mat] of [[trimGeos, trimMat], [pierGeos, wallMat]]) {
+      if (!geos.length) continue;
+      const merged = mergeGeometries(geos, false);
+      for (const g of geos) g.dispose();
+      if (!merged) continue;
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+    }
 
     return { x, z, y, width, depth, height };
   }

@@ -1022,7 +1022,11 @@ export function buildChapter1(ctx) {
   // ==========================================================================
 
   placeNote(kit, interaction, scene, reader, save, 'ch1-note-timecard', new THREE.Vector3(12.9, 1.1, -4.4), 0.4);
-  placeNote(kit, interaction, scene, reader, save, 'ch1-note-boxoffice', new THREE.Vector3(-3.4, 1.1, 5.6), -0.2);
+  placeNote(kit, interaction, scene, reader, save, 'ch1-note-boxoffice',
+    // On the box office table (top at y 0.81, x -3.2..-1.6, z 5.2..6.0), not
+    // beside it: at x -3.4 it hung 20cm off the end of the table and 30cm above
+    // the surface, which reads as a bug the moment a torch finds it.
+    new THREE.Vector3(-2.9, 0.85, 5.86), -0.2);
   placeNote(kit, interaction, scene, reader, save, 'ch1-note-child', new THREE.Vector3(-9.5, 0.55, 1.2), 1.1);
 
   placeStub(kit, interaction, scene, reader, save, 'ch1-stub-1', new THREE.Vector3(8.2, 0.08, 6.6));

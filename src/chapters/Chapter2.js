@@ -80,8 +80,13 @@ export function buildChapter2(ctx) {
   // CARVING ROOM
   // ==========================================================================
 
+  // 24 x 18. The north wall stays exactly where it was, at z = -7, because the
+  // paint shop corridor is attached to it — so the extra depth is taken to the
+  // SOUTH by moving the room's centre, not by growing symmetrically. Growing
+  // symmetrically would have pulled that wall away from the corridor and left
+  // a doorway opening onto a gap.
   kit.room({
-    width: 18, depth: 14, height: 7.4, x: 0, z: 0,
+    width: 24, depth: 18, height: 7.4, x: 0, z: 2,
     floorMat: material('lobbyFloor', { repeat: 5 }),
     wallMat: material('wallPlaster', { repeat: 4 }),
     ceilMat: material('ceiling', { repeat: 3 }),
@@ -92,19 +97,38 @@ export function buildChapter2(ctx) {
     ],
   });
 
-  kit.window(-8.9, 3.4, -3, { width: 1.4, height: 2.2, rotY: Math.PI / 2, boarded: true, rayLength: 7, rayIntensity: 0.2 });
-  kit.window(-8.9, 3.4, 3, { width: 1.4, height: 2.2, rotY: Math.PI / 2, boarded: true, rayLength: 7, rayIntensity: 0.2 });
-  kit.dust(new THREE.Vector3(0, 2.6, 0), new THREE.Vector3(18, 5, 14), { count: 1100, seed: 21 });
+  kit.window(-11.9, 3.8, -3, { width: 1.4, height: 2.2, rotY: Math.PI / 2, boarded: true, rayLength: 8, rayIntensity: 0.2 });
+  kit.window(-11.9, 3.8, 3, { width: 1.4, height: 2.2, rotY: Math.PI / 2, boarded: true, rayLength: 8, rayIntensity: 0.2 });
+  kit.window(-11.9, 3.8, 8, { width: 1.4, height: 2.2, rotY: Math.PI / 2, boarded: true, rayLength: 8, rayIntensity: 0.2 });
+  kit.dust(new THREE.Vector3(0, 3.2, 2), new THREE.Vector3(24, 7, 18), { count: 1400, seed: 21 });
 
-  kit.practical(-3, 5.0, 0, { intensity: 20, distance: 11, flicker: { chance: 0.5, severity: 0.85, seed: 41 } });
-  kit.practical(4, 5.0, -4, { intensity: 16, distance: 9, flicker: { chance: 0.7, severity: 0.9, seed: 42 } });
+  kit.practical(-3, 6.6, 0, { intensity: 34, distance: 15, flicker: { chance: 0.5, severity: 0.85, seed: 41 } });
+  kit.practical(4, 6.6, -4, { intensity: 28, distance: 13, castShadow: false, flicker: { chance: 0.7, severity: 0.9, seed: 42 } });
+  // Fill only, and deliberately shadowless.
+  //
+  // A shadow-casting point light is six renders of every shadow caster in the
+  // scene — adding three of them to Chapter 2 took it from 959 draw calls to
+  // 2141. One or two casters per room give the shapes their shadows; the rest
+  // of the lighting only has to put light in the room, and nobody can tell
+  // which lamp a shadow came from.
+  kit.practical(-1, 6.6, 7, { intensity: 26, distance: 13, castShadow: false, flicker: { chance: 0.4, severity: 0.7, seed: 43 } });
 
   // Benches down the middle, with a lathe at the end.
   for (let i = 0; i < 3; i++) {
     kit.table(-4 + i * 4, 0, 2.5, { width: 2.6, depth: 1.0, height: 0.86 });
   }
-  kit.shelving(-8.4, 0, 3, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
-  kit.shelving(-8.4, 0, -3, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
+  kit.shelving(-11.4, 0, 3, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
+  kit.shelving(-11.4, 0, -3, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
+  kit.shelving(-11.4, 0, 8, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
+
+  // The south end of the enlarged room: timber stock, stacked against the wall
+  // it came in through.
+  for (let i = 0; i < 7; i++) {
+    kit.box(0.16, 0.16, 3.4, -6 + i * 0.22, 0.09 + (i % 3) * 0.02, 9.2,
+      material('paintedWood', { color: 0x6b5238 }), { surface: 'wood', rotY: 0.04 * i, shadow: false });
+  }
+  kit.table(6.5, 0, 8.2, { width: 2.4, depth: 1.0, height: 0.86 });
+  kit.shelving(10.4, 0, 6.5, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4 });
 
   // Unfinished bodies hanging from the ceiling rail — the room's whole mood.
   kit.bodyRack(
@@ -182,8 +206,14 @@ export function buildChapter2(ctx) {
   // it very recently. Through Ember it is the only bright thing in the room.
   // Behind it: the key to the corridor door.
 
+  // Against the east wall, which moved out to x = 12 when the room grew. The
+  // position lived as the literal 7.6 in four separate places — the group, the
+  // frame, the glint and the puzzle marker — and moving the room meant getting
+  // all four right or leaving a key floating where a rack used to be.
+  const RACK = { x: 10.6, z: 1 };
+
   const handRack = new THREE.Group();
-  handRack.position.set(7.6, 0, 1);
+  handRack.position.set(RACK.x, 0, RACK.z);
   scene.add(handRack);
 
   const WARM_HAND = 23;
@@ -241,7 +271,7 @@ export function buildChapter2(ctx) {
 
   // The rack frame.
   for (let r = 0; r <= 5; r++) {
-    kit.box(2.2, 0.04, 0.16, 7.6, 0.64 + r * 0.42, 1, material('rustedSteel', { repeat: 1 }), { surface: 'metal', solid: r === 0 });
+    kit.box(2.2, 0.04, 0.16, RACK.x, 0.64 + r * 0.42, RACK.z, material('rustedSteel', { repeat: 1 }), { surface: 'metal', solid: r === 0 });
   }
 
   // The key on the peg behind the warm hand.
@@ -280,9 +310,9 @@ export function buildChapter2(ctx) {
   // A glint on it once it is uncovered, so it reads from across the room.
   const keyGlint = new THREE.PointLight(0xffd9a0, 0, 2.6, 2);
   keyGlint.position.set(
-    7.6 + handTransforms[WARM_HAND].pos.x,
+    RACK.x + handTransforms[WARM_HAND].pos.x,
     handTransforms[WARM_HAND].pos.y,
-    1 - 0.25
+    RACK.z - 0.25
   );
   scene.add(keyGlint);
 
@@ -290,7 +320,7 @@ export function buildChapter2(ctx) {
     id: 'ch2-hands',
     name: 'Warm Hands',
     objective: 'The corridor door is locked. Find the key.',
-    marker: new THREE.Vector3(7.6, 1.4, 1),
+    marker: new THREE.Vector3(RACK.x, 1.4, RACK.z),
     hints: [
       'Nothing in this building has been touched in ten years. So look for the thing that has — the new lens shows you what is warm.',
       'The rack of carved hands on the east wall. Thirty-nine of them are hanging at whatever angle they were left at. Put the mask on with the Ember lens and look at the rack.',
@@ -512,22 +542,37 @@ export function buildChapter2(ctx) {
   });
 
   // --- paint shop -----------------------------------------------------------
+  // 18 wide instead of 14, taken entirely to the EAST: the west wall carries
+  // the kiln doorway and the conveyor hall sits hard against the north side,
+  // so east is the only direction with anywhere to go.
+  //
+  // Depth is unchanged for the same reason. The hall's south wall is at
+  // z = -30 and this room already reaches -30.5; another metre north would put
+  // the paint shop inside it.
   kit.room({
-    width: 14, depth: 11, height: 6.2, x: 0, z: -25,
-    floorMat: material('tileFloor', { repeat: 4 }),
+    width: 18, depth: 11, height: 6.2, x: 2, z: -25,
+    floorMat: material('tileFloor', { repeat: 5 }),
     wallMat: material('wallPlasterClean', { repeat: 3 }),
     ceilMat: material('ceiling', { repeat: 3 }),
     surface: 'tile',
     openings: [
-      // The corridor arrives through the SOUTH wall at x = 5. The old opening
-      // was on the east wall at the extreme south-east corner, half of it
-      // hanging off the end of the wall, and connected to nothing.
-      { side: 's', at: 5, width: 1.8, top: 2.4 },
+      // The corridor arrives through the SOUTH wall at world x = 5. `at` is
+      // measured from the room's centre, which is now x = 2 rather than 0 —
+      // so this is 3, not 5. Leaving it at 5 would have moved the doorway to
+      // world x 7 and left the corridor opening onto plaster.
+      { side: 's', at: 3, width: 1.8, top: 2.4 },
       { side: 'w', at: 0, width: 1.6, top: 2.3 },   // to the kiln
     ],
   });
-  kit.practical(0, 4.2, -25, { intensity: 18, distance: 10, flicker: { chance: 0.35, severity: 0.7, seed: 61 } });
-  kit.dust(new THREE.Vector3(0, 2.2, -25), new THREE.Vector3(14, 4, 11), { count: 700, seed: 31 });
+  kit.practical(-1, 5.6, -25, { intensity: 30, distance: 14, flicker: { chance: 0.35, severity: 0.7, seed: 61 } });
+  kit.practical(7, 5.6, -26, { intensity: 24, distance: 12, castShadow: false, flicker: { chance: 0.5, severity: 0.8, seed: 63 } });
+  kit.dust(new THREE.Vector3(2, 2.8, -25), new THREE.Vector3(18, 6, 11), { count: 900, seed: 31 });
+
+  // The new east bay: drying racks and a spray bench, so the extra floor is
+  // somewhere the room goes rather than somewhere it stops.
+  kit.shelving(10.4, 0, -27, { width: 4.4, height: 2.6, rotY: Math.PI / 2, shelves: 5, fill: 1 });
+  kit.table(8.6, 0, -22.4, { width: 2.6, depth: 1.0 });
+  kit.table(8.6, 0, -24.6, { width: 2.6, depth: 1.0 });
 
   for (let i = 0; i < 4; i++) {
     kit.table(-4.5 + i * 3, 0, -22.5, { width: 2.2, depth: 0.9 });
@@ -563,17 +608,32 @@ export function buildChapter2(ctx) {
   // PUZZLE 3 — The Kiln
   // ==========================================================================
 
+  // 16 x 13. The east wall (the paint shop door) and the north wall (the way
+  // into the conveyor hall) are both load-bearing for the layout, so the room
+  // grows west and south only — which means its centre moves, and both
+  // openings have to move with it to stay at the same world coordinates.
   kit.room({
-    width: 12, depth: 10, height: 6.4, x: -13, z: -25,
-    floorMat: material('tileFloor', { repeat: 3 }),
+    width: 16, depth: 13, height: 6.4, x: -15, z: -23.5,
+    floorMat: material('tileFloor', { repeat: 4 }),
     wallMat: material('wallPlaster', { repeat: 3 }),
-    ceilMat: material('ceiling', { repeat: 2 }),
+    ceilMat: material('ceiling', { repeat: 3 }),
     surface: 'tile',
     openings: [
-      { side: 'e', at: 0, width: 1.6, top: 2.3 },
-      { side: 'n', at: 0, width: 2.4, top: 2.6 },   // out to the conveyor hall
+      // World z -25, from a centre now at -23.5.
+      { side: 'e', at: -1.5, width: 1.6, top: 2.3 },
+      // World x -13, from a centre now at -15.
+      { side: 'n', at: 2, width: 2.4, top: 2.6 },
     ],
   });
+
+  // The west end: clay stock and a slip bin, filling the ground the room
+  // gained.
+  for (let i = 0; i < 5; i++) {
+    kit.box(0.9, 0.62, 0.9, -21.6, 0.31 + Math.floor(i / 3) * 0.64, -27.4 + (i % 3) * 1.1,
+      material('paintedWood', { color: 0x554131 }), { surface: 'wood', rotY: 0.08 * i, shadow: false });
+  }
+  kit.table(-20.6, 0, -21.5, { width: 2.4, depth: 1.0 });
+  kit.practical(-19, 5.6, -24, { intensity: 22, distance: 12, castShadow: false, flicker: { chance: 0.6, severity: 0.9, seed: 65 } });
 
   // The kiln itself: a brick box with a heavy door.
   // `tile` rather than a material repeat: a repeat of 2 spread the rust
@@ -689,6 +749,11 @@ export function buildChapter2(ctx) {
   buildConeChart(scene);
 
   // The valve.
+  // A bench east of the kiln, in the clear floor between it and the wall.
+  // The kiln log and the safety tape were both sitting at y 1.05 in the middle
+  // of an empty room with nothing under them — floating a metre off the tiles.
+  kit.table(-10.5, 0, -27.5, { width: 2.0, depth: 0.8 });
+
   const valve = new THREE.Mesh(
     new THREE.TorusGeometry(0.14, 0.024, 8, 18),
     material('brass')
@@ -848,7 +913,7 @@ export function buildChapter2(ctx) {
   // ==========================================================================
 
   placeNote(scene, interaction, reader, save, 'ch2-note-quota', new THREE.Vector3(-4, 0.9, 2.5), 0.3);
-  placeNote(scene, interaction, reader, save, 'ch2-note-kiln', new THREE.Vector3(-13.2, 1.05, -27.8), -0.4);
+  placeNote(scene, interaction, reader, save, 'ch2-note-kiln', new THREE.Vector3(-11.0, 0.85, -27.62), -0.4);
   placeNote(scene, interaction, reader, save, 'ch2-note-hands', new THREE.Vector3(-1.5, 0.92, -22.4), 0.8);
   placeNote(scene, interaction, reader, save, 'ch2-note-resignation', new THREE.Vector3(4, 0.9, 2.5), -0.2);
 
@@ -856,7 +921,7 @@ export function buildChapter2(ctx) {
   placeStub(scene, interaction, reader, save, 'ch2-stub-2', new THREE.Vector3(-16.6, 0.05, -23.2));
   placeStub(scene, interaction, reader, save, 'ch2-stub-3', new THREE.Vector3(-22.4, 1.05, -43));
 
-  placeTape(scene, interaction, reader, save, 'ch2-tape-safety', new THREE.Vector3(-10.6, 1.05, -27.6));
+  placeTape(scene, interaction, reader, save, 'ch2-tape-safety', new THREE.Vector3(-10.0, 0.86, -27.4));
 
   // ==========================================================================
   // SCRIPTING
