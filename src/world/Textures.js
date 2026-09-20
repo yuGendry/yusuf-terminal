@@ -291,8 +291,12 @@ function genMetal(size, opts) {
       if (paintLoss > 0.5) {
         // Exposed rust: orange-brown, very rough, barely metallic.
         const t = (paintLoss - 0.5) * 2;
-        const l = 0.18 + grime * 0.16;
-        [r, g, b] = hslToRgb(lerp(paintHue / 360, 0.055, t), lerp(paintSat, 0.55, t), l);
+        // Desaturated on purpose. Rust photographs far browner than the
+        // orange people remember it being, and at 0.55 saturation a rusted
+        // panel reads as a cartoon: bright orange patches sitting on top of
+        // the metal rather than eating into it.
+        const l = 0.15 + grime * 0.13;
+        [r, g, b] = hslToRgb(lerp(paintHue / 360, 0.045, t), lerp(paintSat, 0.34, t), l);
       } else {
         const l = paintLight * (0.75 + grime * 0.5);
         [r, g, b] = hslToRgb(paintHue / 360, paintSat, clamp(l, 0, 1));
@@ -301,7 +305,12 @@ function genMetal(size, opts) {
       const i = (y * size + x) * 4;
       img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
 
-      height[y * size + x] = 0.6 + (pit - 0.5) * 0.5 - paintLoss * 0.35;
+      // The pitting is 70-cycle noise. Pushed into the height map at full
+      // strength it comes out of heightToNormal as crumpled foil — every
+      // metal surface in the game caught the light like tinfoil. It belongs
+      // in the roughness, where it reads as a dulled surface, not in the
+      // silhouette of the light.
+      height[y * size + x] = 0.6 + (pit - 0.5) * 0.18 - paintLoss * 0.3;
       rough[y * size + x] = clamp(0.40 + paintLoss * 0.55 + (grime - 0.5) * 0.18, 0.22, 1);
       metal[y * size + x] = clamp(1 - paintLoss * 0.75, 0.1, 1);
     }
@@ -310,7 +319,7 @@ function genMetal(size, opts) {
 
   return {
     map: toTexture(cnv, { srgb: true }),
-    normalMap: toTexture(heightToNormal(height, size, 2.4)),
+    normalMap: toTexture(heightToNormal(height, size, 1.1)),
     roughnessMap: toTexture(floatsToCanvas(rough, size)),
     metalnessMap: toTexture(floatsToCanvas(metal, size)),
   };

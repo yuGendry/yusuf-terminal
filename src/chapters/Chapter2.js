@@ -81,7 +81,7 @@ export function buildChapter2(ctx) {
   // ==========================================================================
 
   kit.room({
-    width: 18, depth: 14, height: 5.2, x: 0, z: 0,
+    width: 18, depth: 14, height: 7.4, x: 0, z: 0,
     floorMat: material('lobbyFloor', { repeat: 5 }),
     wallMat: material('wallPlaster', { repeat: 4 }),
     ceilMat: material('ceiling', { repeat: 3 }),
@@ -375,7 +375,7 @@ export function buildChapter2(ctx) {
   // `walls.n: false` because the paint shop's south wall stands here; building
   // both would put two coincident slabs in the same place and make them fight.
   kit.room({
-    width: 3.2, depth: 12.5, height: 3.2, x: 5, z: -13.25,
+    width: 3.2, depth: 12.5, height: 3.6, x: 5, z: -13.25,
     floorMat: material('tileFloor', { repeat: 3 }),
     wallMat: material('wallPlasterClean', { repeat: 3 }),
     ceilMat: material('ceiling', { repeat: 2 }),
@@ -513,7 +513,7 @@ export function buildChapter2(ctx) {
 
   // --- paint shop -----------------------------------------------------------
   kit.room({
-    width: 14, depth: 11, height: 4.4, x: 0, z: -25,
+    width: 14, depth: 11, height: 6.2, x: 0, z: -25,
     floorMat: material('tileFloor', { repeat: 4 }),
     wallMat: material('wallPlasterClean', { repeat: 3 }),
     ceilMat: material('ceiling', { repeat: 3 }),
@@ -564,7 +564,7 @@ export function buildChapter2(ctx) {
   // ==========================================================================
 
   kit.room({
-    width: 12, depth: 10, height: 4.6, x: -13, z: -25,
+    width: 12, depth: 10, height: 6.4, x: -13, z: -25,
     floorMat: material('tileFloor', { repeat: 3 }),
     wallMat: material('wallPlaster', { repeat: 3 }),
     ceilMat: material('ceiling', { repeat: 2 }),
@@ -576,7 +576,13 @@ export function buildChapter2(ctx) {
   });
 
   // The kiln itself: a brick box with a heavy door.
-  const kilnBody = kit.box(3.2, 2.6, 2.6, -15, 1.3, -25, material('rustedSteel', { repeat: 2 }), { surface: 'metal' });
+  // `tile` rather than a material repeat: a repeat of 2 spread the rust
+  // texture's low-frequency blotches over 1.6 metres a tile, so the kiln
+  // looked like a cube wrapped in a photograph of rust rather than like rusted
+  // steel. Tiling in world units keeps the grain the size rust actually is,
+  // whatever the box is.
+  const kilnBody = kit.box(3.2, 2.6, 2.6, -15, 1.3, -25,
+    material('rustedSteel', { repeat: 1 }), { surface: 'metal', tile: 0.8 });
   const kilnDoor = new THREE.Mesh(
     new THREE.BoxGeometry(0.12, 1.8, 1.8),
     material('rustedSteel', { repeat: 1 })
@@ -790,7 +796,7 @@ export function buildChapter2(ctx) {
   // ==========================================================================
 
   kit.room({
-    width: 26, depth: 16, height: 8.5, x: -13, z: -38,
+    width: 26, depth: 16, height: 11, x: -13, z: -38,
     floorMat: material('tileFloor', { repeat: 6 }),
     wallMat: material('wallPlaster', { repeat: 5 }),
     ceilMat: material('ceiling', { repeat: 4 }),

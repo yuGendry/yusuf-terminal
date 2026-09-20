@@ -63,7 +63,7 @@ export function buildChapter1(ctx) {
   // ==========================================================================
 
   const lobby = kit.room({
-    width: 20, depth: 16, height: 6, x: 0, z: 0,
+    width: 20, depth: 16, height: 8.5, x: 0, z: 0,
     floorMat: material('lobbyFloor', { repeat: 6 }),
     wallMat: material('wallpaperLobby', { repeat: 4 }),
     ceilMat: material('ceiling', { repeat: 4 }),
@@ -359,7 +359,7 @@ export function buildChapter1(ctx) {
   const STAGE_H = 1.2;
 
   const house = kit.room({
-    width: 24, depth: 26, height: 11, x: 0, z: -21,
+    width: 24, depth: 26, height: 13.5, x: 0, z: -21,
     floorMat: material('lobbyFloor', { repeat: 7 }),
     wallMat: material('wallPlaster', { repeat: 5 }),
     ceilMat: material('ceiling', { repeat: 5 }),

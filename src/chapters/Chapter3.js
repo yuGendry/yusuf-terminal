@@ -75,7 +75,7 @@ export function buildChapter3(ctx) {
   // REHEARSAL HALL
   // ==========================================================================
 
-  const HALL = { w: 20, d: 18, h: 6.4, x: 0, z: 0 };
+  const HALL = { w: 20, d: 18, h: 8.4, x: 0, z: 0 };
   kit.room({
     width: HALL.w, depth: HALL.d, height: HALL.h, x: 0, z: 0,
     floorMat: material('stageFloor', { repeat: 6 }),
@@ -342,7 +342,7 @@ export function buildChapter3(ctx) {
   // full of soft things: the room is built to eat sound, so the player's own
   // footsteps are the loudest thing in it.
   kit.room({
-    width: 26, depth: 22, height: 3.0, x: -4, z: -22, y: BAS_Y,
+    width: 26, depth: 22, height: 3.7, x: -4, z: -22, y: BAS_Y,
     floorMat: material('tileFloor', { repeat: 7 }),
     wallMat: material('wallPlaster', { repeat: 5 }),
     ceilMat: material('ceiling', { repeat: 4 }),
@@ -585,7 +585,7 @@ export function buildChapter3(ctx) {
   // PUZZLE 3 + CHASE — The Practice Room
   // ==========================================================================
 
-  const PRAC = { x: 20, z: -22, w: 18, d: 18, h: 5.0 };
+  const PRAC = { x: 20, z: -22, w: 18, d: 18, h: 6.6 };
   kit.room({
     width: PRAC.w, depth: PRAC.d, height: PRAC.h, x: PRAC.x, z: PRAC.z, y: BAS_Y,
     floorMat: material('lobbyFloor', { repeat: 5 }),

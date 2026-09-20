@@ -62,7 +62,6 @@ class App {
     this.engine = null;
     this.input = null;
     this.physics = null;
-    this.player = null;
     this.level = null;
     this.menuScene = null;
     this.cinematic = null;
@@ -197,6 +196,9 @@ class App {
     setProgress(1, 'ready');
     setTimeout(() => boot.classList.add('gone'), 450);
   }
+
+  /** The live player, if a chapter is loaded. Game owns it; this is for tools. */
+  get player() { return this.game?.player ?? null; }
 
   // --------------------------------------------------------------------------
   // States

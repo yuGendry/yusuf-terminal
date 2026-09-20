@@ -22,6 +22,12 @@ import { clamp, damp } from '../util/MathUtil.js';
 
 /** Chapter builders, loaded on demand so the menu does not pay for them. */
 const CHAPTER_LOADERS = {
+  // 0 is the movement proving ground — flat runs, stairs, ramps, gaps and a
+  // crawl space, with nothing in it but geometry. It is not reachable from the
+  // menu; it exists so the locomotion harness can test walking, sprinting,
+  // auto-step and crouch against a level built for measuring them rather than
+  // against whatever Chapter 1's lobby happens to contain this week.
+  0: () => import('../chapters/Sandbox.js').then((m) => m.buildSandbox),
   1: () => import('../chapters/Chapter1.js').then((m) => m.buildChapter1),
   2: () => import('../chapters/Chapter2.js').then((m) => m.buildChapter2),
   3: () => import('../chapters/Chapter3.js').then((m) => m.buildChapter3),

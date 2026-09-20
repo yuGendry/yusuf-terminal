@@ -64,11 +64,13 @@ await page.evaluate(async () => {
   Settings.set('resolutionScale', 0.4);
 });
 
-await page.evaluate(() => {
-  [...document.querySelectorAll('#menu-buttons .sw-btn')]
-    .find((b) => b.textContent.startsWith('New Game'))?.click();
-});
-await page.waitForFunction(() => window.__stitchwork?.player, null, { timeout: 60000 });
+// Chapter 0 is the movement proving ground. Every coordinate below is one of
+// its features — the far wall at z = 14.8, the 1.6m platform at x = -6.5, the
+// crawl space — so this has to load that level explicitly rather than clicking
+// New Game, which starts Chapter 1 and drops the player through a lobby that
+// does not extend to z = 9.
+await page.evaluate(() => window.__stitchwork.startGame({ fresh: true, chapter: 0 }));
+await page.waitForFunction(() => window.__stitchwork?.state === 'play', null, { timeout: 120000 });
 
 /** Wait until the engine's own clock has advanced `seconds` of simulated time. */
 async function advance(seconds) {

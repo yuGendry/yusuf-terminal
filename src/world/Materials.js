@@ -80,8 +80,14 @@ const RECIPES = {
     });
   },
   rustedSteel: () => {
-    const t = getTexture('metal', { seed: 97, rust: 0.92, paintHue: 30, paintLight: 0.14 }, 512);
-    return new THREE.MeshStandardMaterial({ ...t, roughness: 0.85, metalness: 0.6 });
+    const t = getTexture('metal', { seed: 97, rust: 0.78, paintHue: 30, paintLight: 0.13 }, 512);
+    return new THREE.MeshStandardMaterial({
+      // Barely metallic. Rust is iron oxide — a ceramic — and giving it a
+      // metal's specular response makes every torch beam blow a white hole in
+      // the middle of it.
+      ...t, roughness: 0.96, metalness: 0.3,
+      normalScale: new THREE.Vector2(0.7, 0.7),
+    });
   },
   brass: () => new THREE.MeshStandardMaterial({
     color: 0x8a6d2a, roughness: 0.42, metalness: 1.0,

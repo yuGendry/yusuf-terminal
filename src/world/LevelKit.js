@@ -48,8 +48,10 @@ export class LevelKit {
   // --------------------------------------------------------------------------
 
   /** A visible, solid box. The workhorse. */
-  box(w, h, d, x, y, z, mat, { surface = 'wood', rotY = 0, shadow = true, receive = true, solid = true, name = '' } = {}) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  box(w, h, d, x, y, z, mat, { surface = 'wood', rotY = 0, shadow = true, receive = true, solid = true, name = '', tile = 0 } = {}) {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    if (tile > 0) tileBoxUVs(geo, w, h, d, tile, mat);
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
     mesh.rotation.y = rotY;
     mesh.castShadow = shadow;
@@ -95,10 +97,28 @@ export class LevelKit {
     surface = 'wood',
     openings = [],
     walls = { n: true, s: true, e: true, w: true },
+    /**
+     * Metres of wall per texture tile.
+     *
+     * Without this every wall segment gets the same number of texture repeats
+     * regardless of how big it is, because a box face's UVs run 0..1 whatever
+     * its dimensions. A 22-metre wall and a 1.5-metre pier between two doors
+     * then show the same plaster at wildly different scales, and a wall that
+     * is 20 across and 6 high shows it stretched more than three to one. Both
+     * are obvious once you are standing next to them, and both get worse as
+     * rooms get bigger.
+     */
+    wallTile = 3.0,
+    /** Skirting, dado rail and (in tall rooms) a cornice. */
+    trim = true,
+    trimMat = null,
   }) {
     const halfW = width / 2;
     const halfD = depth / 2;
     const T = 0.34;   // wall thickness
+    const PIER_SPACING = 4.4;    // metres between pilasters
+    const PIER_MIN_RUN = 7.0;    // shorter runs get none
+    trimMat ??= material('paintedWood', { color: 0x241a13 });
 
     this.floor(width, depth, x, z, floorMat, { y, surface });
     if (ceilMat) this.ceiling(width, depth, x, z, y + height, ceilMat);
@@ -128,24 +148,82 @@ export class LevelKit {
       let cursor = -length / 2;
       for (const gap of gaps) {
         const segLen = gap.from - cursor;
-        if (segLen > 0.01) place(cursor + segLen / 2, segLen, height, y + height / 2);
+        if (segLen > 0.01) place(cursor + segLen / 2, segLen, height, y + height / 2, 'full');
 
         const gapCentre = (gap.from + gap.to) / 2;
         const gapWidth = gap.to - gap.from;
 
         // Wall below the sill.
         if (gap.sill > 0.01) {
-          place(gapCentre, gapWidth, gap.sill, y + gap.sill / 2);
+          place(gapCentre, gapWidth, gap.sill, y + gap.sill / 2, 'sill');
         }
         // Header above the opening.
         if (gap.top < height - 0.01) {
           const headerH = height - gap.top;
-          place(gapCentre, gapWidth, headerH, y + gap.top + headerH / 2);
+          place(gapCentre, gapWidth, headerH, y + gap.top + headerH / 2, 'header');
         }
         cursor = gap.to;
       }
       const tail = length / 2 - cursor;
-      if (tail > 0.01) place(cursor + tail / 2, tail, height, y + height / 2);
+      if (tail > 0.01) place(cursor + tail / 2, tail, height, y + height / 2, 'full');
+    };
+
+    /**
+     * Skirting and a dado rail along a wall segment.
+     *
+     * A twenty-six metre wall of one flat material reads as a backdrop, not as
+     * a room: there is nothing in it for the eye to measure the space against
+     * and nothing for the light to catch. Two horizontal mouldings fix that
+     * almost entirely — they give the wall a scale, they cast a hard shadow
+     * line under a torch, and they are what every building of this period
+     * actually has. Built from the same segment list as the wall itself, so
+     * they stop at doorways rather than running across them.
+     *
+     * @param {'x'|'z'} axis  which way the segment runs
+     */
+    const addTrim = (axis, off, len, cy, sideSign, along) => {
+      if (!trim || len < 0.5) return;
+
+      const PROUD = 0.055;
+      const pieces = [
+        { h: 0.24, at: y + 0.12, mat: trimMat },                 // skirting
+        { h: 0.075, at: y + 1.06, mat: trimMat },                // dado rail
+      ];
+      // Tall rooms get a cornice as well, or the top three metres are a void.
+      if (height >= 5.5) pieces.push({ h: 0.14, at: y + height - 0.22, mat: trimMat });
+
+      for (const piece of pieces) {
+        if (piece.at + piece.h / 2 > y + height) continue;
+        const w = axis === 'x' ? len : PROUD * 2;
+        const d = axis === 'x' ? PROUD * 2 : len;
+        const px = axis === 'x' ? x + off : along + sideSign * PROUD;
+        const pz = axis === 'x' ? along + sideSign * PROUD : z + off;
+        this.box(w, piece.h, d, px, piece.at, pz, piece.mat,
+          { surface, shadow: false, solid: false });
+      }
+
+      // Pilasters.
+      //
+      // Horizontal mouldings alone do not rescue a really long wall — a
+      // twenty-six metre elevation with a skirting on it is still twenty-six
+      // metres of one flat surface. Shallow vertical piers at regular spacing
+      // do rescue it, because each one throws its own shadow and the run of
+      // them gives the eye a rhythm to measure the room by. Every building of
+      // this size has them for structural reasons anyway.
+      if (len >= PIER_MIN_RUN) {
+        const count = Math.max(1, Math.round(len / PIER_SPACING) - 1);
+        const step = len / (count + 1);
+        const DEPTH = 0.16;
+        for (let i = 1; i <= count; i++) {
+          const at = off - len / 2 + step * i;
+          const pw = axis === 'x' ? 0.52 : DEPTH * 2;
+          const pd = axis === 'x' ? DEPTH * 2 : 0.52;
+          const px = axis === 'x' ? x + at : along + sideSign * DEPTH;
+          const pz = axis === 'x' ? along + sideSign * DEPTH : z + at;
+          this.box(pw, height * 0.985, pd, px, y + height / 2, pz, wallMat,
+            { surface, shadow: false, solid: false, tile: wallTile });
+        }
+      }
     };
 
     // Record each opening's world position and the axis through it.
@@ -167,14 +245,22 @@ export class LevelKit {
       });
     }
 
-    buildRun('n', width, (off, len, h, cy) =>
-      this.box(len, h, T, x + off, cy, z - halfD, wallMat, { surface, shadow: false }));
-    buildRun('s', width, (off, len, h, cy) =>
-      this.box(len, h, T, x + off, cy, z + halfD, wallMat, { surface, shadow: false }));
-    buildRun('w', depth, (off, len, h, cy) =>
-      this.box(T, h, len, x - halfW, cy, z + off, wallMat, { surface, shadow: false }));
-    buildRun('e', depth, (off, len, h, cy) =>
-      this.box(T, h, len, x + halfW, cy, z + off, wallMat, { surface, shadow: false }));
+    buildRun('n', width, (off, len, h, cy, kind) => {
+      this.box(len, h, T, x + off, cy, z - halfD, wallMat, { surface, shadow: false, tile: wallTile });
+      if (kind === 'full') addTrim('x', off, len, cy, +1, z - halfD + T / 2);
+    });
+    buildRun('s', width, (off, len, h, cy, kind) => {
+      this.box(len, h, T, x + off, cy, z + halfD, wallMat, { surface, shadow: false, tile: wallTile });
+      if (kind === 'full') addTrim('x', off, len, cy, -1, z + halfD - T / 2);
+    });
+    buildRun('w', depth, (off, len, h, cy, kind) => {
+      this.box(T, h, len, x - halfW, cy, z + off, wallMat, { surface, shadow: false, tile: wallTile });
+      if (kind === 'full') addTrim('z', off, len, cy, +1, x - halfW + T / 2);
+    });
+    buildRun('e', depth, (off, len, h, cy, kind) => {
+      this.box(T, h, len, x + halfW, cy, z + off, wallMat, { surface, shadow: false, tile: wallTile });
+      if (kind === 'full') addTrim('z', off, len, cy, -1, x + halfW - T / 2);
+    });
 
     return { x, z, y, width, depth, height };
   }
@@ -661,5 +747,50 @@ export class LevelKit {
     });
 
     return state;
+  }
+}
+
+/**
+ * Rescale a box's UVs so its texture tiles at a fixed size in world units,
+ * rather than once per face however large the face is.
+ *
+ * The material's own texture repeat is divided out, so this works with the
+ * shared, already-tiled materials in the library without needing a variant of
+ * each one: whatever `material(name, { repeat: n })` set, the geometry
+ * compensates for it and the visible tiling is purely `size / tile`.
+ */
+function tileBoxUVs(geo, w, h, d, tile, mat) {
+  const uv = geo.attributes.uv;
+  if (!uv) return;
+
+  const matRepeat = mat?.map?.repeat?.x || 1;
+
+  // BoxGeometry emits its faces in the order +X, -X, +Y, -Y, +Z, -Z, four
+  // vertices each, and each face's UV runs 0..1 across its own two dimensions.
+  const faces = [
+    [d, h], [d, h],
+    [w, d], [w, d],
+    [w, h], [w, h],
+  ];
+
+  for (let f = 0; f < 6; f++) {
+    const [fw, fh] = faces[f];
+    const su = fw / tile / matRepeat;
+    const sv = fh / tile / matRepeat;
+    for (let i = 0; i < 4; i++) {
+      const idx = f * 4 + i;
+      uv.setXY(idx, uv.getX(idx) * su, uv.getY(idx) * sv);
+    }
+  }
+  uv.needsUpdate = true;
+
+  // UVs now run past 1, so the textures have to wrap. Setting this on the
+  // shared texture is harmless for the meshes still using 0..1 UVs — repeat
+  // wrapping and clamping are identical inside that range.
+  for (const key of ['map', 'normalMap', 'roughnessMap', 'aoMap', 'metalnessMap']) {
+    const tex = mat?.[key];
+    if (!tex || tex.wrapS === THREE.RepeatWrapping) continue;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.needsUpdate = true;
   }
 }
