@@ -22,7 +22,23 @@ const logs = [];
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 page.on('console', (m) => { if (m.type() === 'error') logs.push(`[error] ${m.text()}`); });
 
-await page.goto(process.env.URL || 'http://localhost:5173/', { waitUntil: 'load' });
+/**
+ * Cutscenes off.
+ *
+ * Every harness below drives the game by clicking New Game and then waiting
+ * on gameplay state. With cinematics on, that click is followed by a
+ * forty-eight second drive and a nineteen second chapter opening before the
+ * player exists — so a test that does not ask for them would spend its whole
+ * budget watching them. `?nocine=1` skips them while still running every beat,
+ * so the world state the test then inspects is exactly the one a player gets.
+ */
+const withFlags = (url) => {
+  const u = new URL(url);
+  u.searchParams.set('nocine', '1');
+  return u.toString();
+};
+
+await page.goto(withFlags(process.env.URL || 'http://localhost:5173/'), { waitUntil: 'load' });
 await page.waitForFunction(() => window.__stitchwork?.state === 'menu', null, { timeout: 90000 });
 
 await page.evaluate(async (preset) => {

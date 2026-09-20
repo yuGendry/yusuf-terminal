@@ -14,6 +14,7 @@ import './styles/main.css';
 import './styles/menu.css';
 import './styles/hud.css';
 import './styles/reader.css';
+import './styles/cinematic.css';
 
 import * as THREE from 'three';
 
@@ -30,6 +31,10 @@ import { MenuScene } from './menu/MenuScene.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { SettingsMenu } from './ui/SettingsMenu.js';
 import { HUD } from './ui/HUD.js';
+import { ChapterScreen } from './ui/ChapterScreen.js';
+
+import { buildIntroSequence } from './cinematics/IntroSequence.js';
+import { buildChapterOpening, buildChapterEnding } from './cinematics/ChapterCinematics.js';
 
 import { installGameSounds } from './audio/GameSounds.js';
 import { MusicEngine } from './audio/MusicEngine.js';
@@ -60,6 +65,8 @@ class App {
     this.player = null;
     this.level = null;
     this.menuScene = null;
+    this.cinematic = null;
+    this.autoAdvance = false;
     this.playStartedAt = 0;
   }
 
@@ -92,7 +99,10 @@ class App {
     this.input = new Input(canvas);
     this._hadLock = false;
     this.input.on('pointerlock', (locked) => {
-      if (locked) this._hadLock = true;
+      if (locked) {
+        this._hadLock = true;
+        this._hideLockPrompt();
+      }
     });
 
     // ---- physics -----------------------------------------------------------
@@ -112,12 +122,21 @@ class App {
     this.music = new MusicEngine(Audio);
     Audio.onUnlocked(() => this.music.start());
 
+    // A URL escape hatch for the automated harness and for anyone who wants to
+    // get straight into a chapter: ?nocine=1 turns cutscenes off for this load
+    // without writing the setting.
+    if (new URLSearchParams(location.search).has('nocine')) {
+      Settings.set('cinematics', false);
+      this.autoAdvance = true;
+    }
+
     // ---- accessibility flags that live on <body> ---------------------------
     document.body.classList.toggle('reduce-flashing', Settings.get('reduceFlashing'));
     document.documentElement.style.setProperty('--subtitle-scale', String(Settings.get('subtitleSize')));
 
     // ---- UI ----------------------------------------------------------------
     this.hud = new HUD();
+    this.chapterScreen = new ChapterScreen();
     this.settingsMenu = new SettingsMenu({
       input: this.input,
       engine: this.engine,
@@ -138,7 +157,7 @@ class App {
 
     this.mainMenu = new MainMenu({
       settingsMenu: this.settingsMenu,
-      onNewGame: () => this.startGame({ fresh: true, chapter: 1 }),
+      onNewGame: () => this.startGame({ fresh: true, chapter: 1, intro: true }),
       onContinue: () => this.startGame({ fresh: false }),
       onChapterSelect: (id) => this.startGame({ fresh: true, chapter: id }),
     });
@@ -185,6 +204,8 @@ class App {
 
   enterMenu() {
     this.state = 'menu';
+    clearTimeout(this._lockTimer);
+    this._hideLockPrompt();
     this.input.releaseLock();
     this.input.enabled = false;
     this.engine.setScene(this.menuScene.scene);
@@ -194,45 +215,108 @@ class App {
     this.mainMenu.show();
   }
 
-  async startGame({ fresh = true, chapter = 1 } = {}) {
+  /**
+   * Take the player from wherever they are into a chapter.
+   *
+   * The sequence is deliberate and always the same shape:
+   *
+   *    [intro drive] → chapter title page → [opening cinematic] → play
+   *
+   * The title page is what makes the rest possible: it is up on screen for the
+   * whole of the load, so the chapter can be built while the player is reading
+   * an epigraph rather than while they stare at a black screen wondering if
+   * the game has crashed.
+   */
+  async startGame({ fresh = true, chapter = 1, intro = false } = {}) {
     this.mainMenu.hide();
-    this.engine.postfx.setFade(1);
     this.state = 'loading';
 
     const saved = fresh ? null : Game.loadSlot(0);
     const targetChapter = saved?.chapter ?? chapter;
+    const ch = CHAPTERS.find((c) => c.id === targetChapter);
 
-    // Let the fade actually reach black, and the boot bar repaint, before the
-    // main thread disappears into texture generation.
-    await wait(430);
-    setProgress(0.1, 'setting the stage');
-    boot.classList.remove('gone');
+    // ---- the drive out ------------------------------------------------------
+    if (intro && targetChapter === 1) {
+      try {
+        await this.playIntroDrive();
+      } catch (err) {
+        // An intro that fails is not a reason to fail the game.
+        console.warn('[intro] could not play the opening', err);
+      }
+    } else {
+      this.engine.postfx.setFade(1);
+      await wait(430);
+    }
+
+    // ---- the title page (covers the load) -----------------------------------
+    this.music?.setTheme?.(targetChapter, intro ? 0.5 : 3.0);
+
+    if (ch) {
+      this.chapterScreen.show(ch, {
+        scoreTitle: this.music?.themeTitle ?? '',
+        stubsFound: (Save.profile?.foundStubs ?? [])
+          .filter((id) => id.startsWith(`ch${targetChapter}-`)).length,
+      });
+      this.chapterScreen.progress(0.12);
+    }
+
+    // The page is a full-screen DOM element, so the 3D fade underneath it can
+    // come straight back off — there is nothing to see through it.
+    this.engine.postfx.setFade(1);
 
     try {
       if (this.game.level) this.game.unload();
       await nextFrame();
+      this.chapterScreen.progress(0.3);
+      await nextFrame();
 
       await this.game.load(targetChapter, { restore: saved });
+      this.chapterScreen.progress(0.9);
+      await nextFrame();
 
-      this.state = 'play';
       this.paused = false;
+      this._hadLock = false;
+      this.hud.hide();
+
+      this.chapterScreen.ready();
+      await this.chapterScreen.waitForPlayer({
+        auto: this.autoAdvance,
+        minimumDwell: this.autoAdvance ? 300 : 2200,
+      });
+      this.chapterScreen.hide();
+
+      // ---- opening cinematic ------------------------------------------------
+      if (!saved) {
+        try {
+          await this.playCinematic(buildChapterOpening({
+            engine: this.engine,
+            input: this.input,
+            audio: Audio,
+            music: this.music,
+            level: this.game.level,
+            player: this.game.player,
+            chapterId: targetChapter,
+          }));
+        } catch (err) {
+          console.warn('[cinematic] chapter opening failed', err);
+        }
+      }
+
+      // ---- play -------------------------------------------------------------
+      this.state = 'play';
       this.input.enabled = true;
       this._hadLock = false;
 
-      const ch = CHAPTERS.find((c) => c.id === targetChapter);
       this.hud.show();
       this.hud.setObjective(this.game.puzzles.active?.objective ?? ch?.title ?? '');
 
-      setProgress(1, 'ready');
-      boot.classList.add('gone');
-
       this.music.setMood('calm');
-      this.input.requestLock();
       this.engine.postfx.setFade(0);
-
-      this.showChapterCard(ch);
+      this.takeControl();
     } catch (err) {
       console.error('[game] could not start chapter', err);
+      this.chapterScreen.hide();
+      boot.classList.remove('gone');
       boot.classList.add('failed');
       bootStatus.textContent = `chapter ${targetChapter} failed to open`;
       this.state = 'menu';
@@ -245,45 +329,166 @@ class App {
     }
   }
 
-  /** The chapter title card: a beat of quiet before the level starts. */
-  showChapterCard(ch) {
-    if (!ch) return;
-    const card = document.createElement('div');
-    card.id = 'chapter-card';
-    card.innerHTML =
-      `<div class="num">Chapter ${ch.id}</div>` +
-      `<div class="name">${ch.title}</div>` +
-      `<div class="sub">${ch.subtitle}</div>`;
-    document.getElementById('game-layer').appendChild(card);
-    void card.offsetWidth;
-    card.classList.add('show');
-    setTimeout(() => {
-      card.classList.remove('show');
-      setTimeout(() => card.remove(), 1800);
-    }, 4200);
+  /**
+   * Hand the mouse back to the player.
+   *
+   * Pointer lock can only be requested from inside a user gesture, and by the
+   * time a chapter starts the player's last gesture was a keypress on the
+   * title page — two cinematics and twenty seconds ago. Chrome refuses that
+   * request outright.
+   *
+   * So: try anyway (it succeeds when the player skipped straight through, and
+   * that is the common case on a replay), and if the browser says no, put up a
+   * prompt that turns their next click into the gesture. Silently failing here
+   * is not an option — the player would be standing in the lobby unable to
+   * look around, with nothing on screen telling them why.
+   */
+  takeControl() {
+    this.input.requestLock();
+
+    clearTimeout(this._lockTimer);
+    this._lockTimer = setTimeout(() => {
+      if (this.state !== 'play' || this.input.locked || this.paused) return;
+      this._showLockPrompt();
+    }, 500);
   }
 
-  onChapterComplete(n) {
+  _showLockPrompt() {
+    if (this._lockPrompt) return;
+
+    const el = document.createElement('div');
+    el.className = 'lock-prompt';
+    el.innerHTML = '<div class="lp-ring"></div><div class="lp-text">Click to take control</div>';
+    document.getElementById('game-layer').appendChild(el);
+    void el.offsetWidth;
+    el.classList.add('show');
+    this._lockPrompt = el;
+
+    const take = () => {
+      this.input.requestLock();
+      this._hideLockPrompt();
+    };
+    el.addEventListener('pointerdown', take);
+    this._lockTake = take;
+    window.addEventListener('pointerdown', take);
+  }
+
+  _hideLockPrompt() {
+    if (!this._lockPrompt) return;
+    window.removeEventListener('pointerdown', this._lockTake);
+    const el = this._lockPrompt;
+    this._lockPrompt = null;
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 500);
+  }
+
+  // --------------------------------------------------------------------------
+  // Cinematics
+  // --------------------------------------------------------------------------
+
+  /**
+   * Run a cinematic to completion.
+   *
+   * Input stays *enabled at the browser level* but disabled for gameplay: the
+   * skip check reads raw key state (`isCodeDown`), which is recorded whether
+   * or not gameplay input is accepted, so the player can hold to skip without
+   * also being able to walk around behind the letterbox.
+   */
+  playCinematic(cine) {
+    return new Promise((resolve) => {
+      // A player who has turned cutscenes off, or a headless test run, still
+      // needs everything the cinematic was responsible for setting up — so it
+      // is started and immediately skipped, rather than never run. Cinematic
+      // .skip() fires every remaining beat, so the world ends up identical.
+      const play = Settings.get('cinematics');
+
+      this.cinematic = cine;
+      this.state = 'cinematic';
+      this.input.enabled = false;
+      this.input.releaseLock();
+      this.hud.hide();
+      // A control prompt left over from gameplay would sit over the shot, and
+      // its scrim would take half the light out of it.
+      clearTimeout(this._lockTimer);
+      this._hideLockPrompt();
+
+      cine.on('finished', () => {
+        this.cinematic = null;
+        resolve();
+        // Deferred: the overlay is still fading out, and a cinematic that owns
+        // its own set is still the scene being rendered until whatever comes
+        // next swaps it. Freeing either on this frame would show the player a
+        // hard-cut overlay and, worse, hand the renderer dead buffers.
+        setTimeout(() => cine.dispose?.(), 1200);
+      });
+
+      cine.start();
+      if (!play) cine.skip();
+    });
+  }
+
+  /** The opening: forty-eight seconds in a car, arriving at the factory. */
+  async playIntroDrive() {
+    this.engine.postfx.setFade(1);
+    await wait(320);
+
+    const cine = buildIntroSequence({
+      engine: this.engine,
+      input: this.input,
+      audio: Audio,
+      music: this.music,
+    });
+
+    // The drive has its own set; the menu scene must not be torn down, because
+    // quitting back to the menu has to find it still standing.
+    await this.playCinematic(cine);
+    this.engine.postfx.setFade(1);
+  }
+
+  /**
+   * A chapter has been beaten.
+   *
+   * The ending cinematic plays in the level the player just finished, before
+   * anything is unloaded — which is the point of running it here rather than
+   * in Game: by the time this is over the level is still standing, so the
+   * camera has somewhere to be.
+   */
+  async onChapterComplete(n) {
     this.input.releaseLock();
     this.input.enabled = false;
-    this.engine.postfx.setFade(1);
+    this.hud.hide();
+
+    try {
+      await this.playCinematic(buildChapterEnding({
+        engine: this.engine,
+        input: this.input,
+        audio: Audio,
+        music: this.music,
+        level: this.game.level,
+        player: this.game.player,
+        chapterId: n,
+      }));
+    } catch (err) {
+      console.warn('[cinematic] chapter ending failed', err);
+      this.engine.postfx.setFade(1);
+      await wait(900);
+    }
+
     this.music.setMood('silent');
 
-    setTimeout(async () => {
-      const next = n + 1;
-      if (CHAPTER_AVAILABLE.includes(next)) {
-        await this.startGame({ fresh: true, chapter: next });
-      } else {
-        // Beyond the built chapters, return to the menu with the unlock.
-        this.game.unload();
-        this.enterMenu();
-        this.engine.postfx.setFade(0);
-        this.hud.say(
-          `Chapter ${n} complete. The next chapter is not built yet — thank you for playing this far.`,
-          { duration: 9 }
-        );
-      }
-    }, 1800);
+    const next = n + 1;
+    if (CHAPTER_AVAILABLE.includes(next)) {
+      await this.startGame({ fresh: true, chapter: next });
+    } else {
+      // Beyond the built chapters, return to the menu with the unlock.
+      this.game.unload();
+      this.enterMenu();
+      this.engine.postfx.setFade(0);
+      this.hud.say(
+        `Chapter ${n} complete. The next chapter is not built yet — thank you for playing this far.`,
+        { duration: 9 }
+      );
+    }
   }
 
   disposeLevel() {
@@ -324,6 +529,12 @@ class App {
     if (this.state === 'menu') {
       this.menuScene.update(dt);
       this.music?.update(dt);
+    } else if (this.state === 'cinematic') {
+      // A cinematic owns the camera and the clock. Nothing else ticks — no
+      // physics, no AI — so a player who leaves one running is not quietly
+      // being hunted behind the letterbox.
+      this.music?.update(dt);
+      this.cinematic?.update(dt);
     } else if (this.state === 'play') {
       this._updatePlay(dt);
     }
@@ -361,6 +572,8 @@ class App {
     this.paused = !this.paused;
     if (this.paused) {
       this._hadLock = false;
+      clearTimeout(this._lockTimer);
+      this._hideLockPrompt();
       this.input.releaseLock();
       this.input.enabled = false;
       this.hud.showPause({
@@ -377,7 +590,7 @@ class App {
     } else {
       this.hud.hidePause();
       this.input.enabled = true;
-      this.input.requestLock();
+      this.takeControl();
     }
   }
 }

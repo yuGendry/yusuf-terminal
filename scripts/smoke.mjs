@@ -13,7 +13,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync, existsSync } from 'node:fs';
 
-const URL = process.env.URL || 'http://localhost:5173/';
+const URL = withFlags(process.env.URL || 'http://localhost:5173/');
 const OUT = process.env.OUT || 'screenshots';
 const HOLD = Number(process.env.HOLD || 9000);
 
@@ -42,7 +42,23 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack ?? ''
 page.on('requestfailed', (r) => logs.push(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
 page.on('response', (r) => { if (r.status() >= 400) logs.push(`[http ${r.status()}] ${r.url()}`); });
 
-await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
+/**
+ * Cutscenes off.
+ *
+ * Every harness below drives the game by clicking New Game and then waiting
+ * on gameplay state. With cinematics on, that click is followed by a
+ * forty-eight second drive and a nineteen second chapter opening before the
+ * player exists — so a test that does not ask for them would spend its whole
+ * budget watching them. `?nocine=1` skips them while still running every beat,
+ * so the world state the test then inspects is exactly the one a player gets.
+ */
+const withFlags = (url) => {
+  const u = new URL(url);
+  u.searchParams.set('nocine', '1');
+  return u.toString();
+};
+
+await page.goto(withFlags(URL), { waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(HOLD);
 
 const state = await page.evaluate(() => {

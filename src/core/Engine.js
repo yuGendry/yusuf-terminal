@@ -59,6 +59,13 @@ export class Engine extends EventBus {
 
     this.clock = new THREE.Clock();
     this.elapsed = 0;
+
+    /**
+     * Debug clock multiplier. Left at 1 in the shipping game; the headless
+     * test harness winds it up so a forty-eight second cinematic can be
+     * verified in four seconds of software rendering instead of five minutes.
+     */
+    this.timeScale = 1;
     this.frame = 0;
 
     // Rolling frame-time average, used by the adaptive-quality watchdog and by
@@ -256,6 +263,10 @@ export class Engine extends EventBus {
     // A long pause (tab hidden, breakpoint) must not teleport the player
     // through a wall on the next frame.
     dt = Math.min(dt, 0.1);
+
+    // Applied after the clamp so the clamp stays a real-time guard rather than
+    // something the multiplier can defeat.
+    if (this.timeScale !== 1) dt *= this.timeScale;
 
     this.elapsed += dt;
     this.frame++;

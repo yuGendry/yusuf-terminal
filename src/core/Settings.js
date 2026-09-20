@@ -118,6 +118,7 @@ const DEFAULTS = {
   holdToCrouch: true,
   showObjective: true,
   crosshair: true,
+  cinematics: true,
 };
 
 /** Keys that, when changed individually, flip `preset` to "custom". */

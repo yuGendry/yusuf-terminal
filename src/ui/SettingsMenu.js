@@ -398,6 +398,12 @@ export class SettingsMenu {
       onChange: (v) => document.body.classList.toggle('reduce-flashing', v),
     }));
     frag.appendChild(makeToggle({
+      label: 'Play cutscenes',
+      description:
+        'Off skips every cinematic outright, including the drive out and the chapter openings. Anything a cutscene unlocks is unlocked anyway.',
+      key: 'cinematics',
+    }));
+    frag.appendChild(makeToggle({
       label: 'Reduce screen shake',
       description: 'Cuts camera shake from impacts, collapses and scares to a quarter strength.',
       key: 'reduceScreenShake',

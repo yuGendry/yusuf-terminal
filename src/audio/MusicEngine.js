@@ -1,9 +1,16 @@
 /**
  * MusicEngine.js — the procedural score.
  *
- * "Hollowhart Lullaby" is a slow waltz in D harmonic minor, played on a
- * synthesised music box. What makes it unsettling is not randomness — random
- * notes sound like a mistake, not like dread — but three deliberate choices:
+ * The whole soundtrack is one tune. "Hollowhart Lullaby" is a slow waltz in D
+ * harmonic minor, played on a synthesised music box, and every chapter gets a
+ * different arrangement of it: retuned, re-metred, and handed to a different
+ * instrument. That is how a score holds a game together — five unrelated
+ * tracks would just sound like five unrelated rooms, whereas the same melody
+ * coming back on a church organ after you last heard it on a music box is the
+ * game telling you how far you have come.
+ *
+ * What makes the tune unsettling is not randomness — random notes sound like a
+ * mistake, not like dread — but three deliberate choices:
  *
  *   1. The melody keeps resolving onto the raised seventh (C#) against a minor
  *      drone, which leaves every phrase leaning and unfinished.
@@ -56,6 +63,182 @@ const LULLABY = [
   ['D5', 2], [null, 1],
 ];
 
+
+/**
+ * Chapter arrangements.
+ *
+ * `melody` is `[note, beats]` pairs. `voice` names a timbre built in
+ * `_voice()`. `drone` is the pedal note the whole layer sits on, `pad` the
+ * chord the reversed-choir voices hold, `cluster` the chase bed.
+ *
+ * The melodies are all derived from the lullaby rather than invented
+ * separately — transposed, re-metred, thinned or thickened — so the score is
+ * one piece of music in five costumes.
+ */
+const THEMES = {
+  /** Ch.1 — the original. A music box in an empty lobby. */
+  lullaby: {
+    title: 'Hollowhart Lullaby',
+    bpm: 52,
+    meter: 3,
+    drone: 'D1',
+    pad: ['D3', 'F3', 'A3', 'C#4'],
+    cluster: ['D2', 'Eb2', 'A2', 'Bb2'],
+    voice: 'musicbox',
+    melody: LULLABY,
+    rest: [6, 14],          // bars of silence between statements
+  },
+
+  /**
+   * Ch.2 — "Forty-One Bodies". The same contour dragged into 4/4 and down a
+   * fourth, struck on wood instead of metal. A workshop keeps time with a
+   * mallet, not a comb.
+   */
+  workshop: {
+    title: 'Forty-One Bodies',
+    bpm: 46,
+    meter: 4,
+    drone: 'A0',
+    pad: ['A2', 'C3', 'E3', 'G#3'],
+    cluster: ['A1', 'Bb1', 'E2', 'F2'],
+    voice: 'woodblock',
+    melody: [
+      ['A4', 2], ['C5', 1], ['E5', 1],
+      ['D5', 2], ['C5', 2],
+      ['A4', 1], ['B4', 1], ['C5', 2],
+      ['B4', 3], [null, 1],
+      ['A4', 2], ['C5', 1], ['F5', 1],
+      ['E5', 2], ['D5', 2],
+      ['C5', 1], ['G#4', 1], ['B4', 2],
+      ['A4', 4],
+    ],
+    rest: [4, 10],
+  },
+
+  /**
+   * Ch.3 — "They Are Still Rehearsing". The lullaby sung rather than played,
+   * a minor third up, stretched. This is the Choir's arrangement leaking into
+   * the score: by chapter three the monsters have the tune.
+   */
+  rehearsal: {
+    title: 'They Are Still Rehearsing',
+    bpm: 58,
+    meter: 3,
+    drone: 'F1',
+    pad: ['F3', 'Ab3', 'C4', 'E4'],
+    cluster: ['F2', 'Gb2', 'C3', 'Db3'],
+    voice: 'choir',
+    melody: [
+      ['F5', 2], ['Ab5', 1],
+      ['C6', 2], ['Bb5', 1],
+      ['Ab5', 2], ['G5', 1],
+      ['F5', 3],
+      ['F5', 2], ['Ab5', 1],
+      ['Db6', 2], ['C6', 1],
+      ['Bb5', 1], ['Ab5', 1], ['G5', 1],
+      ['E5', 2], ['F5', 1],
+    ],
+    rest: [3, 7],
+  },
+
+  /**
+   * Ch.4 — "Below The Water Table". Almost no melody left: single long tones,
+   * everything lowpassed to a mutter, each note bending flat as it decays. It
+   * should sound like the tune is being played in the next building, underwater.
+   */
+  flood: {
+    title: 'Below The Water Table',
+    bpm: 38,
+    meter: 4,
+    drone: 'Bb0',
+    pad: ['Bb2', 'Db3', 'F3', 'A3'],
+    cluster: ['Bb1', 'B1', 'F2', 'Gb2'],
+    voice: 'drowned',
+    melody: [
+      ['Bb3', 4], ['Db4', 4],
+      ['F4', 6], [null, 2],
+      ['Eb4', 4], ['Db4', 4],
+      ['Bb3', 8],
+      [null, 4],
+      ['A3', 6], [null, 2],
+    ],
+    rest: [2, 5],
+  },
+
+  /**
+   * Ch.5 — "The Grand Premiere". The tune at full height on a theatre organ,
+   * back in the original key, in 3/4, at nearly double the tempo. Everything
+   * the lullaby was hinting at, played out loud to a full house.
+   */
+  premiere: {
+    title: 'The Grand Premiere',
+    bpm: 78,
+    meter: 3,
+    drone: 'D1',
+    pad: ['D3', 'F3', 'A3', 'C#4'],
+    cluster: ['D2', 'Eb2', 'A2', 'Bb2'],
+    voice: 'organ',
+    melody: [
+      ['D5', 1], ['F5', 1], ['A5', 1],
+      ['D6', 3],
+      ['C#6', 1], ['Bb5', 1], ['A5', 1],
+      ['G5', 1], ['F5', 1], ['E5', 1],
+      ['D5', 1], ['F5', 1], ['Bb5', 1],
+      ['A5', 3],
+      ['F5', 1], ['E5', 1], ['C#5', 1],
+      ['D5', 3],
+    ],
+    rest: [1, 3],
+  },
+};
+
+/** Which arrangement each chapter plays. */
+const THEME_BY_CHAPTER = { 1: 'lullaby', 2: 'workshop', 3: 'rehearsal', 4: 'flood', 5: 'premiere' };
+
+/**
+ * Timbres. Each entry gives the partials of one struck or held note —
+ * `[frequency multiple, amplitude, decay seconds]` — plus the envelope and
+ * filtering that turn a stack of sines into an instrument.
+ *
+ * The inharmonic multiples matter more than anything else here. A struck
+ * metal bar is not a string: its overtones are not whole multiples of the
+ * fundamental, and it is that mismatch, not the waveform, that makes the ear
+ * hear "music box" rather than "synthesiser".
+ */
+const VOICES = {
+  musicbox: {
+    type: 'sine',
+    partials: [[1.0, 0.5, 2.6], [2.76, 0.16, 1.5], [5.4, 0.06, 0.9]],
+    attack: 0.004, gain: 0.22, click: 3200, clickGain: 0.02,
+  },
+  woodblock: {
+    // Wood is lossy: fewer, closer partials and a decay measured in fractions
+    // of a second rather than seconds.
+    type: 'triangle',
+    partials: [[1.0, 0.55, 0.9], [2.1, 0.22, 0.42], [3.35, 0.09, 0.22]],
+    attack: 0.003, gain: 0.26, click: 1400, clickGain: 0.045,
+  },
+  choir: {
+    // A held voice, not a struck one: slow in, slow out, formant bandpass.
+    type: 'sawtooth',
+    partials: [[1.0, 0.34, 3.4], [2.0, 0.1, 2.6], [3.0, 0.05, 2.0]],
+    attack: 0.34, gain: 0.16, formant: [480, 3.0], sustain: true,
+  },
+  drowned: {
+    // Everything above 400 Hz is gone, and the pitch sags as it decays.
+    type: 'sine',
+    partials: [[1.0, 0.6, 5.5], [1.98, 0.14, 3.4], [2.5, 0.05, 2.2]],
+    attack: 0.5, gain: 0.3, lowpass: 380, bend: -0.035, sustain: true,
+  },
+  organ: {
+    // Drawbar registration: octaves and a fifth, which is what makes an organ
+    // sound enormous rather than merely loud.
+    type: 'sine',
+    partials: [[1.0, 0.4, 1.6], [2.0, 0.3, 1.6], [3.0, 0.2, 1.4], [4.0, 0.12, 1.2], [6.0, 0.07, 1.0]],
+    attack: 0.03, gain: 0.2, sustain: true, chiff: true,
+  },
+};
+
 /** The Choir's version: the same melody, slower, sung, a fourth lower. */
 const CHOIR_LULLABY = LULLABY.map(([n, b]) => [n ? transpose(n, -5) : null, b * 1.5]);
 
@@ -73,7 +256,9 @@ export class MusicEngine {
     this.target = { ambient: 1, tension: 0, chase: 0 };
     this.current = { ambient: 0, tension: 0, chase: 0 };
 
-    this.bpm = 52;              // slow waltz
+    this.themeName = 'lullaby';
+    this.theme = THEMES.lullaby;
+    this.bpm = this.theme.bpm;
     this._beat = 0;
     this._nextNoteTime = 0;
     this._melodyStep = 0;
@@ -83,6 +268,12 @@ export class MusicEngine {
     this.layers = {};
     this._schedulerId = 0;
     this._detuneDrift = 0;
+
+    // Retunable voices, so a chapter change transposes the live graph rather
+    // than tearing it down and building a new one (which clicks).
+    this.droneVoices = [];
+    this.padVoices = [];
+    this.clusterVoices = [];
   }
 
   get ctx() { return this.audio.ctx; }
@@ -135,7 +326,7 @@ export class MusicEngine {
 
     // Two oscillators a whisker apart beat slowly against each other, which
     // gives the drone a slow pulse without any LFO.
-    const root = noteFreq('D1');
+    const root = noteFreq(this.theme.drone);
     for (const [mult, detune, type, gain] of [
       [1, -4, 'sine', 0.22],
       [1, +5, 'sine', 0.20],
@@ -160,6 +351,7 @@ export class MusicEngine {
       lp.connect(this.layers.ambient);
       osc.start();
       this._sources.push(osc);
+      this.droneVoices.push({ osc, mult });
     }
 
     // A very slow filter sweep so the drone breathes over ~40 seconds.
@@ -188,7 +380,9 @@ export class MusicEngine {
     this.padGain.connect(reverbSend);
     reverbSend.connect(this.audio.buses.reverbSend);
 
-    for (const [note, detune] of [['D3', -7], ['F3', +6], ['A3', -11], ['C#4', +9]]) {
+    const PAD_DETUNE = [-7, +6, -11, +9];
+    this.theme.pad.forEach((note, i) => {
+      const detune = PAD_DETUNE[i] ?? 0;
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.value = noteFreq(note);
@@ -219,7 +413,8 @@ export class MusicEngine {
       osc.start();
       lfo.start();
       this._sources.push(osc, lfo);
-    }
+      this.padVoices.push({ osc });
+    });
   }
 
   _buildChaseBed() {
@@ -231,7 +426,9 @@ export class MusicEngine {
     this.chaseCluster.gain.value = 0;
     this.chaseCluster.connect(this.layers.chase);
 
-    for (const [note, detune] of [['D2', 0], ['Eb2', +8], ['A2', -6], ['Bb2', +11]]) {
+    const CLUSTER_DETUNE = [0, +8, -6, +11];
+    this.theme.cluster.forEach((note, i) => {
+      const detune = CLUSTER_DETUNE[i] ?? 0;
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.value = noteFreq(note);
@@ -250,7 +447,8 @@ export class MusicEngine {
       g.connect(this.chaseCluster);
       osc.start();
       this._sources.push(osc);
-    }
+      this.clusterVoices.push({ osc });
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -270,23 +468,27 @@ export class MusicEngine {
   }
 
   _playBeat(time, beatLen) {
-    const beatInBar = this._beat % 3;   // 3/4
+    const theme = this.theme;
+    const beatInBar = this._beat % theme.meter;
 
-    // --- ambient: the lullaby, played sparsely ---------------------------
+    // --- ambient: the chapter's melody, played sparsely -------------------
     if (this.current.ambient > 0.02) {
       // The melody does not run continuously; it surfaces for a phrase and
       // then leaves several bars of drone. A tune that never stops stops being
-      // frightening.
-      if (this._melodyStep < LULLABY.length) {
-        const [note, beats] = LULLABY[this._melodyStep];
-        if (note) this._musicBox(noteFreq(note), time, beatLen * beats);
+      // frightening. Later chapters leave shorter gaps — the score closes in
+      // on you as the game goes on.
+      const melody = theme.melody;
+      if (this._melodyStep < melody.length) {
+        const [note, beats] = melody[this._melodyStep];
+        if (note) this._voice(noteFreq(note), time, beatLen * beats, theme.voice);
         this._melodyStep += 1;
         // Advance by the note's length rather than one beat.
         this._beat += beats - 1;
         this._nextNoteTime += beatLen * (beats - 1);
       } else {
         this._barsSinceMelody++;
-        if (this._barsSinceMelody > 6 + Math.floor(this._rng() * 8)) {
+        const [lo, hi] = theme.rest;
+        if (this._barsSinceMelody > lo + Math.floor(this._rng() * (hi - lo))) {
           this._melodyStep = 0;
           this._barsSinceMelody = 0;
         }
@@ -305,38 +507,77 @@ export class MusicEngine {
   }
 
   /**
-   * A single music-box note: a struck metal tine.
+   * Play one note on one of the timbres in VOICES.
    *
-   * Built from a fundamental plus two inharmonic partials (a real comb tooth is
-   * a bar, not a string, so its overtones are not whole multiples), a fast
-   * attack, a long decay, and a tiny noise click for the pin striking.
+   * Struck voices (music box, woodblock) ignore the note's written length and
+   * ring for as long as their partials decay, the way a real struck bar does.
+   * Held voices (choir, organ, drowned) are shaped to the written length
+   * instead, because a singer stops when the note ends.
    */
-  _musicBox(freq, time, duration) {
+  _voice(freq, time, duration, voiceName = 'musicbox') {
     const ctx = this.ctx;
     const out = this.layers.ambient;
+    const v = VOICES[voiceName] ?? VOICES.musicbox;
 
-    // Slowly wandering detune — the comb is out of true.
+    // Slowly wandering detune — the mechanism is out of true.
     this._detuneDrift += (this._rng() - 0.5) * 3;
     this._detuneDrift = clamp(this._detuneDrift, -18, 18);
 
-    const partials = [
-      [1.0, 0.5, 2.6],
-      [2.76, 0.16, 1.5],   // inharmonic, characteristic of a struck bar
-      [5.4, 0.06, 0.9],
-    ];
+    // A held voice is cut off at the written length (plus a short release); a
+    // struck one is allowed to ring out past it.
+    const held = !!v.sustain;
+    const tail = held ? Math.max(0.3, duration * 0.35) : 0;
 
-    for (const [mult, amp, decay] of partials) {
+    for (const [mult, amp, decay] of v.partials) {
       const osc = ctx.createOscillator();
-      osc.type = 'sine';
+      osc.type = v.type;
       osc.frequency.value = freq * mult;
       osc.detune.value = this._detuneDrift;
 
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, time);
-      g.gain.exponentialRampToValueAtTime(amp * 0.22, time + 0.004);
-      g.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+      // Sinking pitch, for the drowned voice.
+      if (v.bend) {
+        osc.frequency.setValueAtTime(freq * mult, time);
+        osc.frequency.linearRampToValueAtTime(
+          freq * mult * (1 + v.bend), time + duration);
+      }
 
-      osc.connect(g);
+      const g = ctx.createGain();
+      const peak = Math.max(0.0002, amp * v.gain);
+      const life = held ? duration + tail : decay;
+
+      g.gain.setValueAtTime(0.0001, time);
+      g.gain.exponentialRampToValueAtTime(peak, time + v.attack);
+      if (held) {
+        // Hold near the peak, then release.
+        g.gain.setValueAtTime(peak, time + duration * 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0001, time + life);
+      } else {
+        g.gain.exponentialRampToValueAtTime(0.0001, time + life);
+      }
+
+      let node = osc;
+      const extra = [];
+
+      if (v.formant) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = v.formant[0] * (0.85 + this._rng() * 0.3);
+        bp.Q.value = v.formant[1];
+        node.connect(bp);
+        node = bp;
+        extra.push(bp);
+      }
+      if (v.lowpass) {
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = v.lowpass;
+        lp.Q.value = 0.8;
+        node.connect(lp);
+        node = lp;
+        extra.push(lp);
+      }
+
+      node.connect(g);
       g.connect(out);
 
       const send = ctx.createGain();
@@ -345,22 +586,33 @@ export class MusicEngine {
       send.connect(this.audio.buses.reverbSend);
 
       osc.start(time);
-      osc.stop(time + decay + 0.1);
-      osc.onended = () => { osc.disconnect(); g.disconnect(); send.disconnect(); };
+      osc.stop(time + life + 0.1);
+      osc.onended = () => {
+        osc.disconnect(); g.disconnect(); send.disconnect();
+        for (const n of extra) n.disconnect();
+      };
     }
 
-    // The mechanism: a soft click as the pin plucks.
-    const click = ctx.createBufferSource();
-    click.buffer = this.audio.noiseBuffer();
-    const cf = ctx.createBiquadFilter();
-    cf.type = 'bandpass';
-    cf.frequency.value = 3200;
-    cf.Q.value = 2;
-    const cg = ctx.createGain();
-    cg.gain.setValueAtTime(0.02, time);
-    cg.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
-    click.connect(cf); cf.connect(cg); cg.connect(out);
-    click.start(time, this._rng() * 1.5, 0.05);
+    // The mechanism: a pin plucking, a mallet landing, an organ pipe speaking.
+    const clickFreq = v.click ?? (v.chiff ? 2200 : 0);
+    if (clickFreq) {
+      const click = ctx.createBufferSource();
+      click.buffer = this.audio.noiseBuffer();
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass';
+      cf.frequency.value = clickFreq;
+      cf.Q.value = 2;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(v.clickGain ?? 0.012, time);
+      cg.gain.exponentialRampToValueAtTime(0.0001, time + (v.chiff ? 0.07 : 0.03));
+      click.connect(cf); cf.connect(cg); cg.connect(out);
+      click.start(time, this._rng() * 1.5, 0.08);
+    }
+  }
+
+  /** Kept for callers that want the original timbre by name. */
+  _musicBox(freq, time, duration) {
+    this._voice(freq, time, duration, 'musicbox');
   }
 
   _heartbeat(time, weight) {
@@ -434,6 +686,60 @@ export class MusicEngine {
   // --------------------------------------------------------------------------
 
   /**
+   * Switch to a chapter's arrangement.
+   *
+   * The graph is not rebuilt — the live oscillators are glided to their new
+   * pitches over `glide` seconds. Rebuilding would mean stopping and starting
+   * oscillators, which clicks, and would drop the drone for as long as it took
+   * to construct; gliding instead makes the transposition itself audible,
+   * which is a nicer way to tell the player they have crossed into somewhere
+   * new than a hard cut would be.
+   *
+   * @param {'lullaby'|'workshop'|'rehearsal'|'flood'|'premiere'|number} theme
+   * @param {number} [glide]  seconds to slide into the new key
+   */
+  setTheme(theme, glide = 3.5) {
+    // Accept a chapter number as a convenience.
+    const name = typeof theme === 'number'
+      ? (THEME_BY_CHAPTER[theme] ?? 'lullaby')
+      : theme;
+
+    const next = THEMES[name];
+    if (!next || name === this.themeName) return;
+
+    this.themeName = name;
+    this.theme = next;
+
+    // Restart the melody at the top of the new tune.
+    this._melodyStep = 0;
+    this._barsSinceMelody = 0;
+    this._beat = 0;
+
+    if (!this.started || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const tau = Math.max(0.05, glide / 3);   // setTargetAtTime reaches ~95% in 3τ
+
+    const droneRoot = noteFreq(next.drone);
+    for (const { osc, mult } of this.droneVoices) {
+      osc.frequency.setTargetAtTime(droneRoot * mult, now, tau);
+    }
+    this.padVoices.forEach(({ osc }, i) => {
+      const note = next.pad[i % next.pad.length];
+      osc.frequency.setTargetAtTime(noteFreq(note), now, tau);
+    });
+    this.clusterVoices.forEach(({ osc }, i) => {
+      const note = next.cluster[i % next.cluster.length];
+      osc.frequency.setTargetAtTime(noteFreq(note), now, tau);
+    });
+
+    this.emit?.('theme', name);
+  }
+
+  /** The current arrangement's title, for the chapter card and the archive. */
+  get themeTitle() { return this.theme.title; }
+
+  /**
    * Set the musical situation.
    * @param {'calm'|'unease'|'tension'|'chase'} mood
    */
@@ -467,8 +773,9 @@ export class MusicEngine {
     this.padGain?.gain.setTargetAtTime(this.current.tension * 0.5, now, 0.2);
     this.chaseCluster?.gain.setTargetAtTime(this.current.chase * 0.7, now, 0.1);
 
-    // The chase tempo pushes up as the threat closes.
-    this.bpm = lerp(52, 138, this.current.chase);
+    // The chase tempo pushes up as the threat closes, from whatever the
+    // chapter's resting tempo is toward a flat sprint.
+    this.bpm = lerp(this.theme.bpm, 142, this.current.chase);
   }
 
   /** The Choir's lullaby, positioned in the world. Used by the Ch.3 enemy. */
@@ -508,4 +815,4 @@ export class MusicEngine {
   }
 }
 
-export { LULLABY };
+export { LULLABY, THEMES, THEME_BY_CHAPTER };

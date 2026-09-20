@@ -19,6 +19,9 @@ export const CHAPTERS = [
     notes: 4,
     tapes: 1,
     estimatedMinutes: 14,
+    theme: 'lullaby',
+    epigraph: 'Every puppet here was somebody once. That is not a metaphor.',
+    epigraphSource: 'HOLLOWHART STAFF HANDBOOK, 1994 — PAGE TORN OUT',
   },
   {
     id: 2,
@@ -32,6 +35,9 @@ export const CHAPTERS = [
     notes: 4,
     tapes: 1,
     estimatedMinutes: 13,
+    theme: 'workshop',
+    epigraph: 'Wood remembers the shape it was cut from. So does everything else.',
+    epigraphSource: 'O. VANTH, CARVING ROOM NOTES',
   },
   {
     id: 3,
@@ -45,6 +51,9 @@ export const CHAPTERS = [
     notes: 5,
     tapes: 1,
     estimatedMinutes: 15,
+    theme: 'rehearsal',
+    epigraph: 'They have had ten years to learn the song. They are note-perfect now.',
+    epigraphSource: 'REHEARSAL LOG — FINAL ENTRY',
   },
   {
     id: 4,
@@ -58,6 +67,9 @@ export const CHAPTERS = [
     notes: 4,
     tapes: 1,
     estimatedMinutes: 14,
+    theme: 'flood',
+    epigraph: 'The water came up in 1989 and nothing was ever brought back out.',
+    epigraphSource: 'INSURANCE ASSESSMENT, DENIED',
   },
   {
     id: 5,
@@ -71,6 +83,9 @@ export const CHAPTERS = [
     notes: 3,
     tapes: 1,
     estimatedMinutes: 16,
+    theme: 'premiere',
+    epigraph: 'Places, please. The house is full and it has been full for a decade.',
+    epigraphSource: 'STAGE MANAGER — TANNOY, LOOPING',
   },
 ];
 

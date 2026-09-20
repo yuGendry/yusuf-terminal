@@ -1,0 +1,389 @@
+/* ==========================================================================
+   STITCHWORK — cinematics
+   Letterbox, captions, chapter cards and the hold-to-skip ring.
+
+   Everything here sits above the 3D canvas and below the pause menu, and
+   nothing in it takes pointer events: a cinematic is watched, not clicked.
+   ========================================================================== */
+
+.cinematic-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms var(--ease-out);
+  font-family: var(--ui-font);
+}
+.cinematic-overlay.active { opacity: 1; }
+
+/* --------------------------------------------------------------------------
+   Letterbox
+   The bars slide in rather than appearing, which reads as a shutter closing
+   over the frame instead of a UI element switching on.
+   -------------------------------------------------------------------------- */
+
+.cine-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11vh;
+  background: #000;
+  transform: translateY(0);
+  transition: transform 900ms var(--ease-out);
+  box-shadow: 0 0 40px 10px rgba(0, 0, 0, 0.9);
+}
+.cine-bar.top    { top: 0; transform: translateY(-100%); }
+.cine-bar.bottom { bottom: 0; transform: translateY(100%); }
+.cinematic-overlay.active .cine-bar.top,
+.cinematic-overlay.active .cine-bar.bottom { transform: translateY(0); }
+
+/* A hairline of projector spill along the inside edge of each bar. */
+.cine-bar.top::after,
+.cine-bar.bottom::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(201, 162, 39, 0.16) 30%, rgba(201, 162, 39, 0.16) 70%, transparent);
+}
+.cine-bar.top::after    { bottom: 0; }
+.cine-bar.bottom::after { top: 0; }
+
+/* --------------------------------------------------------------------------
+   Captions — spoken lines and on-screen text
+   -------------------------------------------------------------------------- */
+
+.cine-caption {
+  position: absolute;
+  left: 50%;
+  bottom: calc(11vh + 5.5vh);
+  transform: translate(-50%, 10px);
+  max-width: min(62ch, 78vw);
+  text-align: center;
+
+  font-size: calc(clamp(17px, 1.9vw, 25px) * var(--subtitle-scale, 1));
+  line-height: 1.42;
+  color: var(--bone);
+  text-shadow: 0 2px 18px #000, 0 0 3px #000;
+
+  opacity: 0;
+  transition: opacity 420ms var(--ease-out), transform 420ms var(--ease-out);
+}
+.cine-caption.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* --------------------------------------------------------------------------
+   Titles — the chapter name struck across the middle of the shot
+   -------------------------------------------------------------------------- */
+
+.cine-title {
+  position: absolute;
+  left: clamp(40px, 8vw, 130px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-22px);
+  opacity: 0;
+  transition: opacity 1600ms var(--ease-out), transform 2400ms var(--ease-out);
+  text-shadow: 0 6px 50px rgba(0, 0, 0, 0.98);
+}
+.cine-title.show { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+.cine-title-main {
+  font-family: var(--title-font);
+  font-size: clamp(38px, 6.4vw, 92px);
+  letter-spacing: 0.05em;
+  line-height: 0.98;
+  color: var(--bone);
+}
+.cine-title-sub {
+  font-family: var(--mono-font);
+  font-size: clamp(10px, 1.05vw, 13px);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--blood-lit);
+  margin-top: 18px;
+  padding-left: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Hold to skip
+   Dim until touched. A player who is watching should not have a prompt
+   glowing at them; a player who wants out should find it the moment they
+   press anything.
+   -------------------------------------------------------------------------- */
+
+.cine-skip {
+  position: absolute;
+  right: clamp(26px, 3.4vw, 54px);
+  bottom: calc(11vh + 24px);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  opacity: 0.26;
+  transition: opacity 320ms var(--ease-out);
+}
+.cine-skip.holding { opacity: 1; }
+
+.cine-skip svg {
+  width: 34px;
+  height: 34px;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.cine-skip circle {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.cine-skip circle.track { stroke: rgba(232, 224, 210, 0.22); }
+.cine-skip circle.fill  { stroke: var(--brass); transition: stroke 200ms linear; }
+.cine-skip.holding circle.fill { stroke: var(--blood-lit); }
+
+.cine-skip span {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.72);
+}
+
+/* ==========================================================================
+   The chapter title page
+   A full-bleed page that covers the load. It is deliberately typographic
+   rather than illustrated: type holds up at any resolution, and a chapter
+   break in a book is the exact feeling this is after.
+   ========================================================================== */
+
+.chapter-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(42, 15, 20, 0.5), transparent 62%),
+    linear-gradient(180deg, #08070a 0%, #0a0908 55%, #05040a 100%);
+  opacity: 0;
+  transition: opacity 900ms var(--ease-out);
+  pointer-events: auto;
+  cursor: default;
+}
+.chapter-screen.show { opacity: 1; }
+
+/* A drifting grain over the page, so it never looks like a flat CSS panel. */
+.chapter-screen::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3px 3px;
+  animation: cs-drift 9s steps(6) infinite;
+  pointer-events: none;
+  opacity: 0.6;
+}
+@keyframes cs-drift {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(-6px, 9px); }
+}
+
+.cs-frame {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 3vh, 34px);
+  transform: translateY(14px);
+  transition: transform 1600ms var(--ease-out);
+}
+.chapter-screen.show .cs-frame { transform: translateY(0); }
+
+.cs-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 39, 0.55), transparent);
+  transform: scaleX(0.2);
+  opacity: 0;
+  transition: transform 1800ms var(--ease-out), opacity 1200ms var(--ease-out);
+}
+.chapter-screen.show .cs-rule { transform: scaleX(1); opacity: 1; }
+.chapter-screen.show .cs-rule.bottom { transition-delay: 240ms; }
+
+.cs-chapter {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--blood-lit);
+  margin-bottom: 14px;
+}
+
+.cs-title {
+  font-family: var(--title-font);
+  font-weight: 400;
+  font-size: clamp(40px, 6.6vw, 82px);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  margin: 0;
+  color: var(--bone);
+  text-shadow: 0 4px 44px rgba(0, 0, 0, 0.9);
+}
+
+.cs-sub {
+  font-family: var(--ui-font);
+  font-style: italic;
+  font-size: clamp(15px, 1.7vw, 20px);
+  color: rgba(232, 224, 210, 0.46);
+  margin-top: 12px;
+}
+
+.cs-epigraph {
+  margin: 0;
+  padding-left: clamp(14px, 2vw, 24px);
+  border-left: 1px solid rgba(126, 31, 28, 0.6);
+}
+.cs-epigraph p {
+  margin: 0;
+  font-size: clamp(16px, 1.8vw, 21px);
+  line-height: 1.5;
+  color: rgba(232, 224, 210, 0.82);
+  font-style: italic;
+}
+.cs-epigraph cite {
+  display: block;
+  margin-top: 12px;
+  font-family: var(--mono-font);
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: rgba(179, 168, 146, 0.52);
+}
+
+.cs-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px 24px;
+}
+.cs-fact { display: flex; flex-direction: column; gap: 5px; }
+.cs-fact .k {
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(179, 168, 146, 0.5);
+}
+.cs-fact .v {
+  font-size: clamp(14px, 1.5vw, 17px);
+  color: var(--bone);
+}
+
+/* --- footer: the loading bar, then the prompt ---------------------------- */
+
+.cs-foot {
+  position: relative;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cs-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  transition: opacity 500ms var(--ease-out);
+}
+.chapter-screen.ready .cs-loading { opacity: 0; }
+
+.cs-loading > i {
+  display: block;
+  height: 2px;
+  width: 0;
+  max-width: 220px;
+  flex: 1;
+  background: linear-gradient(90deg, var(--blood), var(--brass));
+  transition: width 400ms linear;
+}
+.cs-loading > span {
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(179, 168, 146, 0.55);
+  white-space: nowrap;
+}
+
+.cs-begin {
+  position: absolute;
+  right: 0;
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.75);
+  opacity: 0;
+  transition: opacity 700ms var(--ease-out);
+}
+.chapter-screen.armed .cs-begin { opacity: 1; animation: cs-pulse 2.6s ease-in-out infinite; }
+
+@keyframes cs-pulse {
+  0%, 100% { opacity: 0.42; }
+  50%      { opacity: 1; }
+}
+
+/* Motion sensitivity: keep the page, drop the movement. */
+body.reduce-flashing .chapter-screen::after { animation: none; }
+body.reduce-flashing .chapter-screen.armed .cs-begin { animation: none; opacity: 1; }
+
+/* ==========================================================================
+   "Click to take control"
+   Shown only when the browser refuses a pointer-lock request that was not
+   made inside a user gesture — which is every request that follows a
+   cinematic. See App.takeControl().
+   ========================================================================== */
+
+.lock-prompt {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  background: rgba(5, 4, 8, 0.55);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
+  cursor: pointer;
+}
+.lock-prompt.show { opacity: 1; }
+
+.lp-ring {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(201, 162, 39, 0.65);
+  border-radius: 50%;
+  position: relative;
+}
+.lp-ring::after {
+  content: '';
+  position: absolute;
+  inset: 15px;
+  border-radius: 50%;
+  background: var(--brass);
+  animation: lp-beat 1.8s ease-in-out infinite;
+}
+@keyframes lp-beat {
+  0%, 100% { transform: scale(0.7); opacity: 0.5; }
+  50%      { transform: scale(1);   opacity: 1; }
+}
+
+.lp-text {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+
+body.reduce-flashing .lp-ring::after { animation: none; opacity: 1; }

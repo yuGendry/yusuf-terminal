@@ -140,17 +140,30 @@ export class Input extends EventBus {
     try {
       result = this.canvas.requestPointerLock({ unadjustedMovement: true });
     } catch {
-      this.canvas.requestPointerLock();
+      this._plainLock();
       return;
     }
     if (result && typeof result.catch === 'function') {
-      result.catch(() => {
-        try {
-          this.canvas.requestPointerLock();
-        } catch {
-          /* the browser refused the lock entirely; the pause check handles it */
-        }
-      });
+      result.catch(() => this._plainLock());
+    }
+  }
+
+  /**
+   * The fallback request, with its rejection swallowed.
+   *
+   * This one also returns a promise in current Chromium, and it rejects
+   * whenever the call did not happen inside a user gesture — which is normal
+   * (the game asks for the lock after a cinematic, for instance) and is
+   * handled by the "click to take control" prompt. Leaving it unhandled turns
+   * an expected refusal into an unhandled rejection in the console, and into a
+   * failure in every headless test that watches for page errors.
+   */
+  _plainLock() {
+    try {
+      const p = this.canvas.requestPointerLock();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch {
+      /* the browser refused the lock entirely; the prompt handles it */
     }
   }
 
