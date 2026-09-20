@@ -124,9 +124,14 @@ the **faintest was pressed first**, the **brightest last**.
 
 ### 4. The Kiln
 
-Read the **kiln log** in this room: it gives a firing schedule in cones. The
-**chart on the wall** explains that a cone is a temperature, and that cone 6 is
-1222 °C.
+A kiln is a brick oven for baking clay — the workshop uses it to harden the
+porcelain heads. It is the big steel-fronted box on the west side of the room,
+with **KILN No. 2** stencilled on its door. The **gas valve** is the brass
+wheel on the front of it.
+
+Read the **kiln log** on the bench: it gives a firing schedule in cones. The
+**chart on the south wall**, under its own lamp, explains that a cone is a
+temperature, and that cone 6 is 1222 °C.
 
 **The gauge is wrong.** It was last calibrated in 1984 and reads about 300 °C
 low. Trusting it means firing to roughly 1530 °C and cracking the load.
@@ -134,9 +139,11 @@ low. Trusting it means firing to roughly 1530 °C and cracking the load.
 Potters fire to a cone, not to a dial, because dials drift. The three
 pyrometric cones are **inside** the kiln, so Ember is the only way to see them.
 
-> **Answer:** open the gas, watch the cones through Ember, and close the valve
-> the moment the **third cone (cone 6) slumps over**. Overfiring is recoverable
-> — the kiln cools and you can fire again.
+> **Answer:** interact with the brass valve to open the gas. Put the mask on
+> with **Ember** and look into the kiln — three small cones are standing inside.
+> They bend one after another as it heats. Close the valve the moment the
+> **third one (cone 6) slumps over**. Overfiring is recoverable: the kiln cools
+> and you can fire again.
 
 ### 5. The Conveyor Run
 

@@ -47,30 +47,42 @@ for (const ch of CHAPTERS) {
   const report = await page.evaluate(async () => {
     const g = window.__stitchwork.game;
     const ph = g.physics;
-    const doors = g.level.kit?.doors ?? [];
+    const kit = g.level.kit;
+    const doors = kit?.doors ?? [];
 
     // Open everything, so we are testing the doorway and not the leaf.
     for (const d of doors) { d.unlock(); d.open(); }
     await new Promise((r) => setTimeout(r, 300));
 
+    // Doors, and every doorless opening. A gap in a wall with no door in it is
+    // still a gap the player has to fit through — and the first thing that ever
+    // blocked one was a shelving unit parked across it, which no door-only
+    // check could ever have seen.
+    const targets = [
+      ...doors.map((d) => ({ ...d.metrics, kind: 'door' })),
+      ...(kit?.openings ?? [])
+        .filter((o) => o.walkable !== false)
+        .map((o) => ({ ...o, kind: 'opening' })),
+    ];
+
     const out = [];
-    for (const d of doors) {
-      const m = d.metrics;
+    for (const m of targets) {
       // The door's own facing: rotY 0 means the leaf lies in the XY plane, so
       // "through" is along Z. Rotate the probe direction with the door.
       const through = { x: -Math.sin(m.rotY), y: 0, z: -Math.cos(m.rotY) };
       const across = { x: Math.cos(m.rotY), y: 0, z: -Math.sin(m.rotY) };
 
-      // Centre of the opening: the pivot sits at one edge, the leaf spans
-      // half a width from it.
-      const cx = m.x + across.x * (m.width / 2);
-      const cz = m.z + across.z * (m.width / 2);
+      // A door's recorded x/z is its hinge, at one edge of the opening; a bare
+      // opening's is already its centre.
+      const half = m.kind === 'door' ? m.width / 2 : 0;
+      const cx = m.x + across.x * half;
+      const cz = m.z + across.z * half;
 
       const blocked = [];
       let tested = 0;
       // A player is 0.6m wide; probe the middle 0.6m of the opening only.
       for (const lateral of [-0.4, -0.2, 0, 0.2, 0.4]) {
-        for (const h of [0.35, 0.95, 1.55]) {
+        for (const h of [0.35, 0.95, Math.min(1.55, m.height - 0.2)]) {
           tested++;
           const ox = cx + across.x * lateral - through.x * 1.2;
           const oz = cz + across.z * lateral - through.z * 1.2;
@@ -89,7 +101,7 @@ for (const ch of CHAPTERS) {
           });
         }
       }
-      out.push({ name: m.name, tested, blocked });
+      out.push({ name: `${m.kind === 'door' ? 'door' : 'gap '} ${m.name}`, tested, blocked });
     }
     return out;
   });

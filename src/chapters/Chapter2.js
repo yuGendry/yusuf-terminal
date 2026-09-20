@@ -532,7 +532,14 @@ export function buildChapter2(ctx) {
   for (let i = 0; i < 4; i++) {
     kit.table(-4.5 + i * 3, 0, -22.5, { width: 2.2, depth: 0.9 });
   }
-  kit.shelving(-6.6, 0, -25, { width: 6, height: 2.6, rotY: Math.PI / 2, shelves: 5, fill: 1 });
+  // Two shorter racks, one either side of the doorway to the kiln room.
+  //
+  // This was a single six-metre rack centred on x = -6.6, running z = -28..-22
+  // — straight across the doorway at z = -25.8..-24.2. It covered the opening
+  // completely, and since that doorway has no door in it, nothing in the build
+  // or the door check noticed.
+  kit.shelving(-6.6, 0, -27.6, { width: 3.2, height: 2.6, rotY: Math.PI / 2, shelves: 5, fill: 1 });
+  kit.shelving(-6.6, 0, -22.4, { width: 3.2, height: 2.6, rotY: Math.PI / 2, shelves: 5, fill: 1 });
 
   // Rows of heads, all with their eyes painted open. The note says shut.
   for (let i = 0; i < 12; i++) {
@@ -593,6 +600,32 @@ export function buildChapter2(ctx) {
   const kilnLight = new THREE.PointLight(0xff5a1d, 0, 8, 2);
   kilnLight.position.set(-13.6, 1.2, -25);
   scene.add(kilnLight);
+
+  // A stencilled plate on the kiln door. The player has to be able to tell at
+  // a glance that this brick box is the thing the log and the chart mean.
+  {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#1a1512';
+    g.fillRect(0, 0, 256, 64);
+    g.strokeStyle = '#c9a227';
+    g.lineWidth = 3;
+    g.strokeRect(5, 5, 246, 54);
+    g.fillStyle = '#c9a227';
+    g.font = 'bold 27px "IBM Plex Mono", monospace';
+    g.textAlign = 'center';
+    g.fillText('KILN  No. 2', 128, 40);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.7, 0.175),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.3 })
+    );
+    plate.position.set(-13.28, 2.05, -25);
+    plate.rotation.y = -Math.PI / 2;
+    scene.add(plate);
+  }
 
   // The three witness cones inside, visible only as heat.
   const coneMeshes = CONES.slice(0, 3).map((c, i) => {
@@ -662,7 +695,7 @@ export function buildChapter2(ctx) {
   interaction.register({
     object: valve,
     reach: 2.2,
-    label: () => (state.kilnFiring ? 'Close the gas' : 'Open the gas'),
+    label: () => (state.kilnFiring ? 'Close the gas valve' : 'Open the gas valve — fire the kiln'),
     enabled: () => !state.kilnDone,
     disabledLabel: 'The firing is finished',
     onUse: () => {
@@ -707,7 +740,7 @@ export function buildChapter2(ctx) {
   puzzles.register({
     id: 'ch2-kiln',
     name: 'The Kiln',
-    objective: 'Fire the kiln properly.',
+    objective: 'Fire the kiln to cone 6. Watch the cones, not the gauge.',
     marker: new THREE.Vector3(-13.4, 1.2, -25),
     hints: [
       'The kiln log in this room gives a firing schedule, and the chart on the wall explains what the numbers in it mean. The gauge is not the only way to read a kiln.',
@@ -978,13 +1011,20 @@ function buildConeChart(scene) {
     new THREE.PlaneGeometry(0.84, 0.63),
     new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, side: THREE.DoubleSide })
   );
-  chart.position.set(-13.3, 1.9, -27.2);
-  chart.rotation.y = -Math.PI / 2;
+  // On the kiln room's SOUTH wall, beside the kiln, at reading height.
+  //
+  // It used to sit at x = -13.3, which is not a wall — the room's walls are at
+  // x = -19 and x = -7 — so it hung in the air off the side of the kiln where
+  // a player sweeping the walls for a chart would never look.
+  chart.position.set(-14.6, 1.75, -29.75);
   scene.add(chart);
 
-  const l = new THREE.PointLight(0xffd9a8, 3, 3.4, 2);
-  l.position.set(-12.9, 2.1, -27.2);
-  scene.add(l);
+  // Lit properly. It is the only clue that explains what a cone is.
+  const l = new THREE.SpotLight(0xffe0b0, 30, 4.5, Math.PI / 5, 0.5, 2);
+  l.position.set(-14.6, 2.9, -28.9);
+  l.target.position.set(-14.6, 1.75, -29.7);
+  l.castShadow = false;
+  scene.add(l, l.target);
   return chart;
 }
 

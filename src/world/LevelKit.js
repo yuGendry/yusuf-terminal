@@ -25,6 +25,12 @@ export class LevelKit {
     this.interactables = [];
     /** Every door built through this kit, so they can be validated in bulk. */
     this.doors = [];
+    /**
+     * Every wall opening, door or not. A doorway with no door in it is still
+     * a doorway the player has to fit through, and the first thing that ever
+     * blocked one was a shelving unit parked across it.
+     */
+    this.openings = [];
     this.rng = makeRng(1234);
   }
 
@@ -141,6 +147,25 @@ export class LevelKit {
       const tail = length / 2 - cursor;
       if (tail > 0.01) place(cursor + tail / 2, tail, height, y + height / 2);
     };
+
+    // Record each opening's world position and the axis through it.
+    for (const o of openings) {
+      const onX = o.side === 'n' || o.side === 's';
+      this.openings.push({
+        name: `${o.name ?? 'opening'}:${o.side}`,
+        // Service hatches and windows are openings the player is meant to see
+        // and reach through, not walk through, so the passability check skips
+        // them rather than reporting the counter in front as a fault.
+        walkable: o.walkable !== false,
+        x: onX ? x + o.at : x + (o.side === 'e' ? halfW : -halfW),
+        z: onX ? z + (o.side === 's' ? halfD : -halfD) : z + o.at,
+        y: y + (o.sill ?? 0),
+        width: o.width,
+        height: (o.top ?? height) - (o.sill ?? 0),
+        // Direction through the wall.
+        rotY: onX ? 0 : Math.PI / 2,
+      });
+    }
 
     buildRun('n', width, (off, len, h, cy) =>
       this.box(len, h, T, x + off, cy, z - halfD, wallMat, { surface, shadow: false }));

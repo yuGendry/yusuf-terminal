@@ -70,7 +70,11 @@ export function buildChapter1(ctx) {
     surface: 'carpet',
     openings: [
       { side: 'n', at: 0, width: 3.4, top: 3.2 },      // into the house
-      { side: 'e', at: -3, width: 1.3, top: 2.2 },     // ticket office
+      // The ticket window. Both sides of this wall must agree it is a window
+      // and not a doorway: a sill here, a sill in the office, and the counter
+      // between them. `walkable: false` tells the passability check that the
+      // counter blocking it is the point, not a bug.
+      { side: 'e', at: -3, width: 1.6, sill: 1.0, top: 2.1, walkable: false },
     ],
   });
 
@@ -133,7 +137,7 @@ export function buildChapter1(ctx) {
     // A real window: wall below the counter, glassless gap above it, header
     // over the top. The gap spans standing eye height so the player can see
     // the torch on the far side, which is the entire premise of the puzzle.
-    openings: [{ side: 'w', at: 0, width: 1.6, sill: 1.0, top: 2.1 }],
+    openings: [{ side: 'w', at: 0, width: 1.6, sill: 1.0, top: 2.1, walkable: false }],
     walls: { n: true, s: true, e: true, w: true },
   });
 
