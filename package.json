@@ -12,7 +12,9 @@
     "playtest": "node scripts/playtest.mjs",
     "beauty": "node scripts/beauty.mjs",
     "chaptertest": "node scripts/chaptertest.mjs",
-    "chasetest": "node scripts/chasetest.mjs"
+    "chasetest": "node scripts/chasetest.mjs",
+    "look": "node scripts/look.mjs",
+    "controlstest": "node scripts/controlstest.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

@@ -85,15 +85,20 @@ const advance = (s) => page.waitForFunction((sec) => {
   return false;
 }, s, { timeout: 120000, polling: 50 });
 
-const steps = CHAPTER === 1
-  ? [
-      ['reach through the bent bar', 'ticket grille'],
-      ['take the torch', 'torch'],
-      ['take the porcelain mask', 'mask'],
-    ]
-  : [
-      ['open the lens case', 'ember lens'],
-    ];
+const STEPS = {
+  1: [
+    ['reach through the bent bar', 'ticket grille'],
+    ['take the torch', 'torch'],
+    ['take the porcelain mask', 'mask'],
+  ],
+  2: [
+    ['open the lens case', 'ember lens'],
+  ],
+  3: [
+    ['open the lens case', 'echo lens'],
+  ],
+};
+const steps = STEPS[CHAPTER] ?? [];
 
 for (const [needle, name] of steps) {
   const r = await use(needle);

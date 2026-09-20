@@ -24,6 +24,7 @@ import { clamp, damp } from '../util/MathUtil.js';
 const CHAPTER_LOADERS = {
   1: () => import('../chapters/Chapter1.js').then((m) => m.buildChapter1),
   2: () => import('../chapters/Chapter2.js').then((m) => m.buildChapter2),
+  3: () => import('../chapters/Chapter3.js').then((m) => m.buildChapter3),
 };
 
 export class Game extends EventBus {
@@ -226,6 +227,10 @@ export class Game extends EventBus {
   }
 
   _onFootstep(info) {
+    // Levels can listen to footsteps directly — Chapter 3's Gloam hunts by
+    // sound and this is the only way it learns where the player is.
+    this._ctx?.onFootstep?.(info);
+
     // Ask the world what is underfoot, so footsteps are correct in every level
     // without the level having to declare zones.
     const origin = info.position.clone();

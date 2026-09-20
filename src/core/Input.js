@@ -10,6 +10,14 @@
 import { Settings } from './Settings.js';
 import { EventBus } from '../util/EventBus.js';
 
+/** Keys that are modifiers themselves, and so are bindable as actions. */
+const MODIFIER_CODES = new Set([
+  'ControlLeft', 'ControlRight',
+  'ShiftLeft', 'ShiftRight',
+  'AltLeft', 'AltRight',
+  'MetaLeft', 'MetaRight',
+]);
+
 export class Input extends EventBus {
   constructor(canvas) {
     super();
@@ -43,8 +51,14 @@ export class Input extends EventBus {
         return;
       }
 
-      // Let the browser have its reload/devtools/fullscreen chords.
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Let the browser have its reload/devtools/fullscreen chords — but NOT
+      // at the cost of the modifier keys themselves.
+      //
+      // Pressing Left Ctrl sets `ctrlKey` on its own keydown event, so a bare
+      // `if (e.ctrlKey) return` discards the very event that binds crouch, and
+      // crouch can never fire at all. Only bail when a modifier is being held
+      // as a modifier for some *other* key.
+      if (!MODIFIER_CODES.has(e.code) && (e.ctrlKey || e.metaKey || e.altKey)) return;
       if (e.repeat) return;
 
       if (!this.down.has(e.code)) {

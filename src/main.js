@@ -391,7 +391,7 @@ function wait(ms) {
 }
 
 /** Chapters that actually exist. The menu unlocks beyond this; the game stops. */
-const CHAPTER_AVAILABLE = [1, 2];
+const CHAPTER_AVAILABLE = [1, 2, 3];
 
 // ---------------------------------------------------------------------------
 

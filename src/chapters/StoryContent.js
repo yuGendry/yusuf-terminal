@@ -118,6 +118,69 @@ I have carved for nineteen years. I know what wood does.
 
 — B. Alderhay`,
   },
+
+  // ---- Chapter 3 : Rehearsal ---------------------------------------------
+  'ch3-note-blocking': {
+    chapter: 3,
+    title: 'Blocking notes, Rehearsal Hall B',
+    body: `Act III, the Understudy alone.
+
+She enters from the prompt side. Three marks — she must hit all three, in order, and she must hit them exactly.
+
+Odile was very clear about this. Not approximately. Exactly.
+
+I asked what happens if she misses one and Odile said "then it isn't her turn yet", and went back to her notes.`,
+  },
+  'ch3-note-marta': {
+    chapter: 3,
+    title: 'Note on the costume-room door, in a shaking hand',
+    body: `Marta —
+
+Four days now. I've stopped knocking.
+
+I put your dinner outside the door on Tuesday and it was still there Thursday and the sewing hadn't stopped once, not once, not to eat, not at night.
+
+I don't think you're hungry. I think that's the problem.
+
+— D.`,
+  },
+  'ch3-note-hearing': {
+    chapter: 3,
+    title: 'Memo — BASEMENT ACCESS',
+    body: `Effective immediately, nobody goes below Level 2 alone, and nobody goes below Level 2 with a light.
+
+A light will not help you. It cannot see the light.
+
+It can hear the light being switched on.
+
+Walk. Don't run. If you hear it stop moving, you stop moving too, and you wait, however long that takes.`,
+  },
+  'ch3-note-tuning': {
+    chapter: 3,
+    title: 'Taped inside the music-box lid',
+    body: `The cylinder is the lock. It always was.
+
+Six pins, and the tune is the key — the first phrase, nothing more. Anyone who worked here could play it half asleep.
+
+That is exactly why she chose it. She wanted a door that only opens for someone who belongs.
+
+If you are reading this you do not belong, so I have written it down, and I hope she never finds out which of us did it.`,
+  },
+  'ch3-note-choir': {
+    chapter: 3,
+    title: "Practice-room schedule, water-damaged",
+    body: `MON  —  choir, 9am
+TUE  —  choir, 9am
+WED  —  choir, 9am
+THU  —  choir, 9am
+FRI  —  choir, 9am
+
+At the bottom, in a different pen, pressed so hard it has torn through:
+
+they don't need to practise
+they are already perfect
+we practise so they have a reason to stay in the room`,
+  },
 };
 
 export const TAPES = {
@@ -156,6 +219,24 @@ export const TAPES = {
     transcript:
       'An instructional reel. The third rule is wrong the first time it is said, and the correction is not a correction.',
   },
+  'ch3-tape-rehearsal': {
+    chapter: 3,
+    title: 'REHEARSAL — Act III, take 9',
+    duration: 44,
+    frames: [
+      { t: 0.0, kind: 'title', text: 'REHEARSAL', sub: 'Act III — take 9' },
+      { t: 4.0, kind: 'scene', text: '', caption: 'A bare hall. Three chalk marks. A woman waits at the prompt side.' },
+      { t: 9.0, kind: 'scene', text: 'FIRST MARK', caption: 'She walks to the mark nearest the door and stops. Exactly on it.' },
+      { t: 14.0, kind: 'scene', text: 'SECOND MARK', caption: 'She crosses to the far corner. Stops. Waits four full seconds.' },
+      { t: 20.0, kind: 'scene', text: 'THIRD MARK', caption: 'Centre. She turns to face the camera and does not blink.' },
+      { t: 26.0, kind: 'scene', text: '', caption: 'Off-camera, a voice: "Again."' },
+      { t: 30.0, kind: 'scene', text: 'TAKE 10', caption: 'She walks back to the prompt side. The same three marks. The same four seconds.' },
+      { t: 36.0, kind: 'glitch', text: '', caption: 'The tape jumps. It is take 400-something. The chalk has been redrawn so many times the floor is grey.' },
+      { t: 40.0, kind: 'title', text: 'AGAIN', sub: '' },
+    ],
+    transcript:
+      'A rehearsal that does not end. The same three marks, in the same order, until the counter stops meaning anything.',
+  },
 };
 
 /**
@@ -170,6 +251,8 @@ export const STUBS = {
   'ch2-stub-1': { chapter: 2, index: 4, back: 'I hid one in every room she left me alone in. She left me alone a lot.' },
   'ch2-stub-2': { chapter: 2, index: 5, back: 'The kiln is the only warm place in the building. I used to sleep against it.' },
   'ch2-stub-3': { chapter: 2, index: 6, back: 'If the hands on the rack are pointing the same way, something moved them.' },
+  'ch3-stub-1': { chapter: 3, index: 7, back: 'I learned the tune before I learned to read. So did everyone here.' },
+  'ch3-stub-2': { chapter: 3, index: 8, back: "Don't run from the one in the basement. Running is the whole thing it wants." },
 };
 
 /** Radio messages — the voice that turns out to be Wren. */
@@ -217,6 +300,33 @@ export const RADIO = {
       { t: 0, text: 'You found the log. Then you know she was firing them too cool on purpose.' },
       { t: 6.5, text: 'Hard porcelain is just a cup. She wanted them soft enough to hold someone.' },
       { t: 12, text: 'Fire it properly and whatever is inside it stops being a passenger.' },
+    ],
+  },
+  'ch3-radio-1': {
+    chapter: 3,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'Rehearsal floor. Be careful here — this is the part of the building that still thinks it has a job.' },
+      { t: 6, text: 'The third lens is in the prompt corner. Echo. It shows you what happened in a room.' },
+      { t: 12, text: 'Watch what it shows you. Do not talk to it. It cannot hear you and it will be worse if you try.' },
+    ],
+  },
+  'ch3-radio-2': {
+    chapter: 3,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'Below this floor there is something with no eyes and a great many arms.' },
+      { t: 6, text: 'It cannot see you. It cannot see anything. Crouch, go slowly, and for God\'s sake take the mask off — it sings, and that is all the thing needs.' },
+      { t: 14, text: 'If you hear it stop, you stop too.' },
+    ],
+  },
+  'ch3-radio-3': {
+    chapter: 3,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'The practice room. All right. Listen to me very carefully.' },
+      { t: 5, text: 'They only move when nobody is looking at them. Not "when you turn your back" — when nobody is looking.' },
+      { t: 12, text: 'The gramophone holds them still while it plays. It does not play for long.' },
     ],
   },
 };

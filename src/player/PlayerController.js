@@ -26,6 +26,14 @@ const SPRINT_MULTIPLIER = 1.95;
 const WALK_MULTIPLIER = 0.48;        // held when the player wants to be quiet
 
 /**
+ * Initial upward speed of a jump, in m/s.
+ *
+ * Gives roughly a 0.85m apex under 19.6 m/s² gravity — enough to clear a stage
+ * lip or a fallen seat, not enough to reach anywhere the level did not intend.
+ */
+const JUMP_SPEED = 5.4;
+
+/**
  * Downward velocity applied while grounded. Keeps the capsule pressed into
  * slopes and stair treads so the controller's ground detection stays stable
  * instead of flickering between grounded and airborne on every ridge.
@@ -58,6 +66,8 @@ export class PlayerController extends EventBus {
     this.grounded = false;
     this._wasGrounded = true;
     this._coyote = 0;
+    this._jumpBuffer = 0;
+    this.canJump = true;
 
     this.stamina = 1;
     this.exhausted = false;
@@ -319,8 +329,34 @@ export class PlayerController extends EventBus {
     this.velocity.x = damp(this.velocity.x, wishVel.x, accel, dt);
     this.velocity.z = damp(this.velocity.z, wishVel.z, accel, dt);
 
+    // --- jump ---------------------------------------------------------------
+    //
+    // Two small forgivenesses, both standard and both invisible when they
+    // work: a coyote window, so a jump pressed just after walking off an edge
+    // still counts; and an input buffer, so a jump pressed just before landing
+    // fires on touchdown instead of being eaten.
+    if (this.canMove && !this.frozen && input.pressed('jump')) {
+      this._jumpBuffer = 0.14;
+    }
+    this._jumpBuffer = Math.max(0, this._jumpBuffer - dt);
+
+    let jumped = false;
+    if (
+      this._jumpBuffer > 0 &&
+      this.canJump &&
+      (this.grounded || this._coyote > 0) &&
+      this.stance === 'stand'
+    ) {
+      this._jumpBuffer = 0;
+      this._coyote = 0;
+      this.velocity.y = JUMP_SPEED;
+      this.grounded = false;
+      jumped = true;
+      this.emit('jump', { position: this.position.clone() });
+    }
+
     // --- gravity & ground ---------------------------------------------------
-    if (this.grounded) {
+    if (this.grounded && !jumped) {
       this._coyote = 0.12;
       // A small downward bias keeps the controller glued to slopes and stairs.
       this.velocity.y = GROUND_STICK;
@@ -353,14 +389,16 @@ export class PlayerController extends EventBus {
     });
 
     this._wasGrounded = this.grounded;
-    this.grounded = controller.computedGrounded();
+    // On the frame of a jump the controller still reports contact with the
+    // floor we just left; believing it would cancel the jump immediately.
+    this.grounded = jumped ? false : controller.computedGrounded();
 
     // If the controller ate our motion (we hit a wall), zero the corresponding
     // velocity so we don't keep accumulating speed into the wall.
     if (dt > 0) {
       if (Math.abs(corrected.x) < Math.abs(motion.x) * 0.25) this.velocity.x *= 0.25;
       if (Math.abs(corrected.z) < Math.abs(motion.z) * 0.25) this.velocity.z *= 0.25;
-      if (this.grounded && this.velocity.y < 0) this.velocity.y = 0;
+      if (this.grounded && !jumped && this.velocity.y < 0) this.velocity.y = 0;
     }
 
     // Speed is measured from the distance actually covered, not from the

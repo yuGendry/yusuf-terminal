@@ -130,29 +130,60 @@ export function buildChapter1(ctx) {
     wallMat: material('wallPlaster', { repeat: 2 }),
     ceilMat: material('ceiling', { repeat: 2 }),
     surface: 'wood',
-    openings: [{ side: 'w', at: 0, width: 1.5, top: 1.35 }],   // the ticket window
+    // A real window: wall below the counter, glassless gap above it, header
+    // over the top. The gap spans standing eye height so the player can see
+    // the torch on the far side, which is the entire premise of the puzzle.
+    openings: [{ side: 'w', at: 0, width: 1.6, sill: 1.0, top: 2.1 }],
     walls: { n: true, s: true, e: true, w: true },
   });
 
   // The counter and the grille.
-  kit.box(1.5, 0.12, 0.5, 9.9, 1.05, -3, material('paintedWood', { color: 0x3a2a1c }), { surface: 'wood' });
+  //
+  // The window is in the office's WEST wall (the wall at x = 9.9), so it opens
+  // along Z. Everything in it has to be laid out along Z as well: a grille
+  // whose bars march along X runs straight out through the wall into the
+  // lobby, and the player's view into the office is blocked by its own bars.
+  const WINDOW_X = 9.9;
+  const WINDOW_Z = -3;
+
+  // Counter: shallow through the wall, wide along it.
+  kit.box(0.55, 0.12, 1.5, WINDOW_X - 0.05, 1.05, WINDOW_Z,
+    material('paintedWood', { color: 0x3a2a1c }), { surface: 'wood' });
 
   const grille = new THREE.Group();
-  grille.position.set(9.9, 1.75, -3);
+  grille.position.set(WINDOW_X, 1.78, WINDOW_Z);
   scene.add(grille);
+
+  const BENT_BAR = 6;   // the one somebody has already been through
   for (let i = 0; i < 9; i++) {
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.2, 6), material('brass'));
-    bar.position.set(-0.6 + i * 0.15, 0, 0);
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.0, 6), material('brass'));
+    // Spaced along Z, across the opening.
+    bar.position.set(0, 0, -0.6 + i * 0.15);
     // One bar is bent aside. This is the whole puzzle, stated in geometry.
-    if (i === 5) {
-      bar.rotation.z = 0.34;
-      bar.position.x += 0.06;
+    if (i === BENT_BAR) {
+      bar.rotation.x = 0.38;
+      bar.position.z += 0.07;
     }
     bar.castShadow = true;
     grille.add(bar);
   }
 
+  // Top and bottom rails, so it reads as a fitted grille rather than loose bars.
+  for (const ry of [-0.5, 0.5]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 1.4), material('brass'));
+    rail.position.set(0, ry, 0);
+    rail.castShadow = true;
+    grille.add(rail);
+  }
+
   kit.sconce(12.4, 2.4, -1.2, { intensity: 6, flicker: { chance: 0.8, severity: 0.95, seed: 21 } });
+
+  // A little light over the ticket window itself, so the grille — and the bar
+  // that has been bent aside — is legible from the lobby.
+  const windowLamp = new THREE.PointLight(0xffc98a, 6, 5, 2);
+  windowLamp.position.set(WINDOW_X - 0.5, 2.5, WINDOW_Z);
+  windowLamp.castShadow = false;
+  scene.add(windowLamp);
 
   // The drawer, with the torch in it.
   const drawer = kit.box(0.7, 0.16, 0.5, 12.2, 0.85, -3.2,
@@ -170,10 +201,25 @@ export function buildChapter1(ctx) {
     lens.position.x = 0.186;
     torchMesh.add(body, head, lens);
   }
-  torchMesh.position.set(12.2, 0.94, -3.2);
+  // The torch starts in the drawer, deep in the office. When the drawer opens
+  // it rolls forward onto the counter, on the player's side of the grille —
+  // otherwise it sits ~3m away behind a wall, further than any sane reach, and
+  // the player can see the thing they need and simply cannot take it.
+  const TORCH_IN_DRAWER = new THREE.Vector3(12.2, 0.94, -3.2);
+  // On the counter, on the player's side of the wall — the wall slab itself
+  // occupies x 9.73..10.07, so anything at 10.05 is buried inside it.
+  const TORCH_ON_COUNTER = new THREE.Vector3(9.62, 1.17, -3.0);
+
+  torchMesh.position.copy(TORCH_IN_DRAWER);
+  torchMesh.rotation.y = 0.4;
   torchMesh.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   torchMesh.visible = false;
   scene.add(torchMesh);
+
+  // A small light on it once it is out, so it cannot be missed in the dark.
+  const torchGlint = new THREE.PointLight(0xffe0b0, 0, 2.2, 2);
+  torchGlint.position.copy(TORCH_ON_COUNTER).add(new THREE.Vector3(0, 0.2, 0));
+  scene.add(torchGlint);
 
   puzzles.register({
     id: 'ch1-ticket',
@@ -196,10 +242,23 @@ export function buildChapter1(ctx) {
     disabledLabel: 'The drawer is empty',
     onUse: () => {
       state.ticketDrawerOpen = true;
-      torchMesh.visible = true;
       drawer.position.x += 0.28;
-      audio?.leverClunk?.(new THREE.Vector3(12.2, 1, -3.2));
-      hud.say('Something rolls forward in the drawer.', { duration: 3 });
+      audio?.leverClunk?.(TORCH_IN_DRAWER);
+
+      // It rolls out of the drawer, across the counter, to the window.
+      torchMesh.visible = true;
+      torchGlint.intensity = 2.2;
+      let roll = 0;
+      const rollUpdate = kit.onUpdate((dt) => {
+        if (roll >= 1) return;
+        roll = Math.min(1, roll + dt * 1.4);
+        const e = roll * roll * (3 - 2 * roll);   // smoothstep
+        torchMesh.position.lerpVectors(TORCH_IN_DRAWER, TORCH_ON_COUNTER, e);
+        torchMesh.rotation.z -= dt * 7;
+      });
+      void rollUpdate;
+
+      hud.say('Something rolls forward in the drawer, and keeps rolling.', { duration: 3.4 });
       puzzles.solve('ch1-ticket');
       setTimeout(() => puzzles.activate('ch1-mask'), 900);
     },
@@ -207,11 +266,13 @@ export function buildChapter1(ctx) {
 
   interaction.register({
     object: torchMesh,
-    reach: 2.4,
+    reach: 2.6,
     label: 'Take the torch',
+    enabled: () => state.ticketDrawerOpen,
     onUse: () => {
       flashlight.give({ battery: 0.62 });
       torchMesh.visible = false;
+      torchGlint.intensity = 0;
       hud.say('A torch. Half a cell left, and somebody has scratched a W into the barrel.', { duration: 4.5 });
       hud.setObjective('Find the way into the house.');
       interaction.unregister(torchMesh);
@@ -290,6 +351,9 @@ export function buildChapter1(ctx) {
   // HOUSE — the auditorium
   // ==========================================================================
 
+  const STAGE_Z = -34;
+  const STAGE_H = 1.2;
+
   const house = kit.room({
     width: 24, depth: 26, height: 11, x: 0, z: -21,
     floorMat: material('lobbyFloor', { repeat: 7 }),
@@ -305,12 +369,106 @@ export function buildChapter1(ctx) {
 
   kit.dust(new THREE.Vector3(0, 5, -21), new THREE.Vector3(24, 10, 26), { count: 1400, seed: 5 });
 
+  // --- house lighting -------------------------------------------------------
+  //
+  // The auditorium used to be lit only by the stage rig and the house lights,
+  // both of which are off until the player solves a puzzle — which left the
+  // biggest room in the chapter pitch black, with the three breaker boxes the
+  // puzzle depends on invisible against the walls. Dark is the point, but
+  // unnavigable is not.
+  //
+  // What is on is what would plausibly still be on: the emergency circuit.
+
+  // Exit signs at the back of the house. Cold green, which also separates this
+  // room from the warm lobby behind it.
+  for (const ex of [-9.5, 9.5]) {
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.24, 0.08), material('exitSign'));
+    sign.position.set(ex, 3.1, -8.6);
+    scene.add(sign);
+    const l = new THREE.PointLight(0x2ecc71, 5, 7, 2);
+    l.position.set(ex, 3.0, -8.3);
+    l.castShadow = false;
+    scene.add(l);
+  }
+
+  // Aisle sconces down both side walls. Most are failing; two are dead.
+  const sconceZs = [-12, -17, -22, -27];
+  sconceZs.forEach((sz, i) => {
+    for (const side of [-1, 1]) {
+      const dead = (i === 2 && side < 0) || (i === 0 && side > 0);
+      kit.sconce(side * 11.5, 2.9, sz, {
+        rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
+        intensity: dead ? 0 : 11,
+        distance: 9,
+        flicker: dead ? null : { chance: 0.45 + i * 0.1, severity: 0.85, seed: 100 + i * 7 + side },
+      });
+    }
+  });
+
+  // The ghost light: a single bare bulb on a stand, downstage centre.
+  //
+  // Theatres genuinely leave one burning on an empty stage overnight — partly
+  // so nobody walks into the orchestra pit, and traditionally to give the
+  // building's ghosts a stage of their own so they do not want yours. It is
+  // the right object for this room in every sense, and it gives the player a
+  // fixed point to navigate the whole auditorium by.
+  {
+    const stand = new THREE.Group();
+    stand.position.set(-1.6, STAGE_H, -32.2);
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.06, 14), material('rustedSteel', { repeat: 1 }));
+    base.castShadow = true;
+    stand.add(base);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 1.75, 8), material('rustedSteel', { repeat: 1 }));
+    pole.position.y = 0.9;
+    pole.castShadow = true;
+    stand.add(pole);
+    const cage = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.11, 0.11, 0.26, 10, 1, true),
+      material('rustedSteel', { repeat: 1 })
+    );
+    cage.position.y = 1.86;
+    stand.add(cage);
+    const bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 12, 10),
+      material('bulbOn', { emissive: 0xffd9a0, emissiveIntensity: 7 })
+    );
+    bulb.position.y = 1.86;
+    bulb.scale.y = 1.3;
+    stand.add(bulb);
+
+    const ghost = new THREE.PointLight(0xffc98a, 46, 26, 2);
+    ghost.position.y = 1.86;
+    ghost.castShadow = true;
+    ghost.shadow.mapSize.setScalar(1024);
+    ghost.shadow.bias = -0.004;
+    ghost.shadow.normalBias = 0.03;
+    ghost.shadow.camera.near = 0.1;
+    ghost.shadow.camera.far = 26;
+    ghost.userData.maxShadowSize = 1024;
+    stand.add(ghost);
+
+    scene.add(stand);
+
+    // It breathes rather than flickers — this bulb has been burning for ten
+    // years and is the one thing in the building that still works properly.
+    kit.onUpdate((dt, t) => {
+      const b = 1 + Math.sin(t * 0.7) * 0.04 + Math.sin(t * 2.3) * 0.015;
+      ghost.intensity = 46 * b;
+      bulb.material.emissiveIntensity = 7 * b;
+    });
+  }
+
+  // A weak bounce so the ceiling and the upper walls are not a black lid.
+  const houseFill = new THREE.PointLight(0x9fb4d0, 9, 30, 1.6);
+  houseFill.position.set(0, 7.5, -20);
+  houseFill.castShadow = false;
+  scene.add(houseFill);
+
   // --- seating (instanced: ~120 seats for four draw calls) ------------------
   buildSeating(scene, kit, rng);
 
   // --- stage ---------------------------------------------------------------
-  const STAGE_Z = -34;
-  const STAGE_H = 1.2;
   kit.box(22, STAGE_H, 9, 0, STAGE_H / 2, STAGE_Z, material('stageFloor', { repeat: 4 }), { surface: 'wood' });
 
   // Proscenium.
@@ -343,8 +501,19 @@ export function buildChapter1(ctx) {
 
   const breakerMeshes = [];
   breakerPositions.forEach((pos, i) => {
+    // Painted grey rather than rusted: against aged plaster a rusted box is
+    // almost invisible, and the player has to be able to spot these from the
+    // aisle. The enamel plate above each one is the other half of that.
     const boxMesh = kit.box(0.34, 0.5, 0.18, pos.x, pos.y, pos.z,
-      material('rustedSteel', { repeat: 1 }), { surface: 'metal', solid: false });
+      material('steel', { repeat: 1 }), { surface: 'metal', solid: false });
+
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 0.09),
+      new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.75, side: THREE.DoubleSide })
+    );
+    plate.position.set(pos.x + (pos.x < 0 ? 0.1 : -0.1), pos.y + 0.34, pos.z);
+    plate.rotation.y = pos.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    scene.add(plate);
 
     const lever = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.16, 0.05),

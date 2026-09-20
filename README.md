@@ -51,7 +51,7 @@ wall-clock time for that reason.
 | Move | `W` `A` `S` `D` | |
 | Sprint | `Left Shift` | Costs stamina; hold or toggle (Settings → Accessibility) |
 | Crouch | `Left Ctrl` | Quieter, slower, fits through vents |
-| Jump / vault | `Space` | |
+| Jump | `Space` | With coyote time and an input buffer |
 | Interact | `E` | |
 | Veilmask on/off | `F` | |
 | Swap lens | `Q` / `R`, or scroll | |
@@ -66,13 +66,14 @@ Every binding is rebindable in **Settings → Controls**.
 
 ## Current state
 
-**Phases 1–2 plus Chapters 1 and 2 are playable.** You can start a new game and
-play through the lobby, the theatre, the rigging chase, the workshop, the kiln
-and the conveyor run — roughly 25–30 minutes of content, three puzzles per
-chapter, two lenses, two chases.
+**Chapters 1, 2 and 3 are playable.** You can start a new game and
+play through the lobby, the theatre, the rigging chase, the workshop, the kiln,
+the conveyor run, the rehearsal floor, the costume basement and the practice
+room — roughly 45 minutes, three puzzles per chapter, three lenses, three
+monsters.
 
-Chapters 3–5 are not built. Finishing Chapter 2 unlocks Chapter 3 in the menu
-and then tells you plainly that it does not exist yet.
+Chapters 4 and 5 are not built. Finishing Chapter 3 unlocks Chapter 4 in the
+menu and then says plainly that it does not exist yet.
 
 ### The Veilmask
 
@@ -120,6 +121,31 @@ temperature, and potters fire to a cone rather than to a dial precisely because
 dials drift. The cones are inside the kiln, so Ember is the only way to watch
 them. Trust the gauge and you will overfire to nearly 1530°C and crack
 everything — recoverable, but you will have to start the firing again.
+
+### Chapter 3 — Rehearsal
+
+The Echo lens shows what happened in a room. Ghosts are recordings, not
+characters: they walk a fixed path, perform at fixed times, and loop. They
+cannot see you and never react — which is what makes the lens read as looking
+at the past, and what lets a ghost be a fair clue, because it does the same
+thing every time you watch it.
+
+Three chalk marks on the rehearsal floor, and a rehearsal that never finished.
+Watch her walk them, then walk them yourself in the same order.
+
+Then the basement, and **Gloam**: blind, many-armed, hunting entirely by sound.
+It never tests line of sight, not once. It only ever moves toward a *sound
+event* — a position and a loudness — and it goes where the sound was, not where
+you are. Crouch and it cannot hear you. Stop moving and it loses you. Wear the
+mask and you are simply telling it where to come.
+
+The practice room holds **the Choir**: porcelain dolls that move only when
+unobserved. A doll counts as observed when it is inside the camera frustum,
+inside the player's attention cone, *and* not occluded — frustum alone is not
+enough, because a doll at the edge of a wide FOV is technically on screen while
+nobody is looking at it. Their heads are allowed to turn on screen, which is
+far worse than their feet moving. The gramophone by the door holds them still
+while it plays, for about twenty-five seconds.
 
 ### Mister Tangle
 

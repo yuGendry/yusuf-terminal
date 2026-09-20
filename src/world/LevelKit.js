@@ -97,21 +97,42 @@ export class LevelKit {
 
     const forSide = (side) => openings.filter((o) => o.side === side);
 
-    // Build each wall as a run of segments, skipping the openings.
+    /**
+     * Build a wall as a run of segments, leaving the openings out.
+     *
+     * An opening has an optional `sill` as well as a `top`. Without a sill
+     * every opening is a doorway — open all the way to the floor — which is
+     * wrong for a serving hatch or a ticket window, and quietly makes them
+     * unusable: a window whose top is below standing eye height cannot be
+     * looked through at all, because the header is in the way.
+     */
     const buildRun = (side, length, place) => {
       if (!walls[side]) return;
       const gaps = forSide(side)
-        .map((o) => ({ from: o.at - o.width / 2, to: o.at + o.width / 2, top: o.top ?? height }))
+        .map((o) => ({
+          from: o.at - o.width / 2,
+          to: o.at + o.width / 2,
+          top: o.top ?? height,
+          sill: o.sill ?? 0,
+        }))
         .sort((a, b) => a.from - b.from);
 
       let cursor = -length / 2;
       for (const gap of gaps) {
         const segLen = gap.from - cursor;
         if (segLen > 0.01) place(cursor + segLen / 2, segLen, height, y + height / 2);
-        // A header above the doorway, if the opening is shorter than the wall.
+
+        const gapCentre = (gap.from + gap.to) / 2;
+        const gapWidth = gap.to - gap.from;
+
+        // Wall below the sill.
+        if (gap.sill > 0.01) {
+          place(gapCentre, gapWidth, gap.sill, y + gap.sill / 2);
+        }
+        // Header above the opening.
         if (gap.top < height - 0.01) {
           const headerH = height - gap.top;
-          place((gap.from + gap.to) / 2, gap.to - gap.from, headerH, y + gap.top + headerH / 2);
+          place(gapCentre, gapWidth, headerH, y + gap.top + headerH / 2);
         }
         cursor = gap.to;
       }
