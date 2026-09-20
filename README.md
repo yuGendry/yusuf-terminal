@@ -109,6 +109,9 @@ spotlights, with a rehearsal poster showing which marks must be lit).
 Then the rigging run: Mister Tangle drops from the fly loft and you cross the
 catwalks to a fire door.
 
+The full solution, and every other puzzle's, is in
+[WALKTHROUGH.md](WALKTHROUGH.md).
+
 ### Chapter 2 — The Workshop
 
 The Ember lens, a rack of forty carved hands of which exactly one is warm, a

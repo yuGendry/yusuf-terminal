@@ -471,6 +471,38 @@ export function buildChapter1(ctx) {
   // --- stage ---------------------------------------------------------------
   kit.box(22, STAGE_H, 9, 0, STAGE_H / 2, STAGE_Z, material('stageFloor', { repeat: 4 }), { surface: 'wood' });
 
+  // Rehearsal treads at the front of the stage.
+  //
+  // Not decoration — without them the stage is a 1.2m wall. The character
+  // controller auto-steps 0.42m and a jump clears about 0.74m, so a player
+  // simply cannot get up, which makes the lighting board unreachable and the
+  // chapter unfinishable. Every working theatre has a set of these pushed
+  // against the apron for exactly this reason.
+  const STAGE_FRONT = STAGE_Z + 4.5;
+  const buildTreads = (tx) => {
+    const steps = 5;
+    const rise = STAGE_H / steps;
+    const tread = 0.34;
+    for (let i = 0; i < steps; i++) {
+      const h = rise * (i + 1);
+      // Lowest tread furthest from the stage, climbing toward it.
+      const tz = STAGE_FRONT + (steps - i) * tread - tread / 2;
+      kit.box(1.9, h, tread, tx, h / 2, tz,
+        material('paintedWood', { color: 0x3b2c20 }), { surface: 'wood' });
+    }
+    // A handrail, which also makes the steps readable from across the house.
+    for (const side of [-1, 1]) {
+      kit.box(0.07, 0.95, steps * tread + 0.2, tx + side * 1.0, STAGE_H * 0.55 + 0.5,
+        STAGE_FRONT + (steps * tread) / 2,
+        material('rustedSteel', { repeat: 1 }), { surface: 'metal' });
+    }
+  };
+
+  // Two sets, stage left and stage right, so the player meets one whichever
+  // side of the house they come down.
+  buildTreads(-6.5);
+  buildTreads(6.5);
+
   // Proscenium.
   const archMat = material('paintedWood', { color: 0x2e2018 });
   for (const side of [-1, 1]) {
@@ -602,7 +634,13 @@ export function buildChapter1(ctx) {
   boardGroup.position.set(3.2, 0, -31.6);
   scene.add(boardGroup);
 
-  kit.box(1.9, 1.0, 0.6, 3.2, STAGE_H + 0.5, -31.6, material('rustedSteel', { repeat: 1 }), { surface: 'metal' });
+  // A desk, not a cabinet. The faders sit on the TOP surface where a standing
+  // player can look down at them; on the front face they end up tucked under
+  // the desk's own top edge, and the view ray hits the woodwork before it ever
+  // reaches the fader — the control is visible and simply cannot be aimed at.
+  const BOARD_TOP = STAGE_H + 0.92;
+  kit.box(2.1, 0.92, 0.75, 3.2, STAGE_H + 0.46, -31.6,
+    material('rustedSteel', { repeat: 1 }), { surface: 'metal' });
 
   const sliderHandles = [];
   const spotlights = [];
@@ -641,33 +679,53 @@ export function buildChapter1(ctx) {
     spotlights.push({ spot, housing, index: i, x: sx });
   }
 
-  // Sliders, wired in a scrambled order.
+  // Faders on the desk top, travelling front-to-back the way real ones do.
+  const FADER_OUT = -31.38;    // slider at zero, nearest the operator
+  const FADER_FULL = -31.78;   // slider at full
+
   for (let i = 0; i < 6; i++) {
     const sx = 3.2 - 0.75 + i * 0.3;
 
+    // The slot the fader runs in, cut into the desk top.
     const track = new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 0.44, 0.03),
+      new THREE.BoxGeometry(0.045, 0.012, 0.46),
       material('feltDark')
     );
-    track.position.set(sx, STAGE_H + 0.78, -31.34);
+    track.position.set(sx, BOARD_TOP + 0.006, (FADER_OUT + FADER_FULL) / 2);
     scene.add(track);
 
+    // A numbered plate at the head of each slot, so the player can refer to
+    // "slider 4" without counting from an arbitrary end.
+    const numberPlate = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.07, 0.05),
+      new THREE.MeshStandardMaterial({
+        color: 0xd8d2c4, roughness: 0.8, side: THREE.DoubleSide,
+      })
+    );
+    numberPlate.position.set(sx, BOARD_TOP + 0.007, FADER_OUT + 0.14);
+    numberPlate.rotation.x = -Math.PI / 2;
+    scene.add(numberPlate);
+
+    // Chunky knobs. A fader cap sized like a real one is a 7cm target seen
+    // from a metre away at a steep angle, which is fussy to hit with a
+    // crosshair; making them taller and wider costs nothing and the desk
+    // still reads correctly.
     const handle = new THREE.Mesh(
-      new THREE.BoxGeometry(0.11, 0.07, 0.09),
+      new THREE.BoxGeometry(0.13, 0.13, 0.1),
       material('paintedWood', { color: 0xc9a227 })
     );
-    handle.position.set(sx, STAGE_H + 0.58, -31.3);
+    handle.position.set(sx, BOARD_TOP + 0.075, FADER_OUT);
     handle.castShadow = true;
     handle.userData.sliderIndex = i;
     scene.add(handle);
     sliderHandles.push(handle);
 
-    // The Threadlight wiring: a thread from this slider to the light it
+    // The Threadlight wiring: a thread from this fader to the lamp it
     // actually controls. Tangled deliberately — they cross.
     const target = spotlights[BOARD_WIRING[i]];
     addThreadRun(
       scene,
-      new THREE.Vector3(sx, STAGE_H + 0.6, -31.3),
+      new THREE.Vector3(sx, BOARD_TOP, -31.6),
       new THREE.Vector3(target.x, 8.8, -33),
       0x6fe3d4,
       { sag: 0.6 }
@@ -690,16 +748,33 @@ export function buildChapter1(ctx) {
     const i = handle.userData.sliderIndex;
     interaction.register({
       object: handle,
-      reach: 2.0,
+      reach: 2.4,
       label: () => `Slider ${i + 1} — ${state.boardSliders[i] > 0.5 ? 'full' : 'out'}`,
       onUse: () => {
         state.boardSliders[i] = state.boardSliders[i] > 0.5 ? 0 : 1;
-        handle.position.y = STAGE_H + 0.58 + state.boardSliders[i] * 0.38;
+        handle.position.z = FADER_OUT + (FADER_FULL - FADER_OUT) * state.boardSliders[i];
         audio?.leverClunk?.(handle.position);
         applyBoard();
       },
     });
   });
+
+  // A shaded lamp over the desk. The board is the room's second focal point
+  // after the ghost light, and the player has to be able to read six faders.
+  {
+    const lampLight = new THREE.SpotLight(0xffe0b0, 26, 5.5, Math.PI / 5, 0.5, 2);
+    lampLight.position.set(3.2, STAGE_H + 2.0, -31.5);
+    lampLight.target.position.set(3.2, BOARD_TOP, -31.6);
+    lampLight.castShadow = false;
+    scene.add(lampLight, lampLight.target);
+
+    const shade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.2, 0.18, 12, 1, true),
+      material('brass')
+    );
+    shade.position.set(3.2, STAGE_H + 2.02, -31.5);
+    scene.add(shade);
+  }
 
   // The poster: the clue. Shows three lights on three marks — by position.
   const poster = buildPoster(scene, kit);
@@ -712,7 +787,7 @@ export function buildChapter1(ctx) {
     hints: [
       'The torn rehearsal poster backstage is a lighting plan. It shows which marks on the stage should be lit — look at where the light falls in the picture, and at the chalk circles on the boards.',
       'The sliders are not wired in order. Slider one does not control light one. Put the mask on at the board and follow each thread up to the lamp it actually reaches.',
-      'Push sliders 2, 4 and 6 to full, and leave 1, 3 and 5 out. That lights the first, third and fifth marks — the three the poster shows.',
+      'Push sliders 2, 5 and 6 to full, and leave 1, 3 and 4 out. Slider 2 feeds the first lamp, slider 6 the third and slider 5 the fifth — the three marks the poster shows.',
     ],
   });
 
