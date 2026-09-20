@@ -79,8 +79,13 @@ A bolt draws back behind the stage.
 
 ### 5. The Rigging Run
 
-Through the rear door, up the metal stairs. A checkpoint sets at the top, then
-the lights snap on and **Mister Tangle** drops from the fly loft.
+Go through the door behind the stage. You are in a backstage passage; the
+**staircase is straight ahead and slightly to your left**, running away from
+the stage. Climb it to the top, cross the landing to the **right**, and follow
+the catwalk back out over the house.
+
+A checkpoint sets as you come out, then the lights snap on and **Mister Tangle**
+drops from the fly loft.
 
 **He can only travel along the ceiling rails.** Wear the mask and the rails
 glow — that is the whole trick. Where a rail does not reach, he cannot. Step out

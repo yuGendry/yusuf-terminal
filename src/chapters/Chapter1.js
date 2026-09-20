@@ -804,8 +804,15 @@ export function buildChapter1(ctx) {
   const stageDoor = kit.door({
     x: -1.1, y: STAGE_H, z: -38.2, width: 1.3, height: 2.3, locked: true, name: 'stage-rear',
   });
-  // The wall it sits in.
-  kit.box(22, 8, 0.4, 0, STAGE_H + 4, -38.4, material('wallPlaster', { repeat: 4 }), { surface: 'wood', shadow: false });
+  interaction.register({
+    object: stageDoor.object,
+    reach: 2.4,
+    label: () => (stageDoor.isLocked ? 'Bolted from the far side' : stageDoor.isOpen ? 'Close' : 'Open'),
+    enabled: () => !stageDoor.isLocked,
+    disabledLabel: 'Bolted from the far side',
+    deniedMessage: 'Bolted. The lighting board holds it.',
+    onUse: () => stageDoor.toggle(),
+  });
 
   // ==========================================================================
   // THE RIGGING — where the chase happens
@@ -851,13 +858,129 @@ export function buildChapter1(ctx) {
   // The dead-end branch — the wrong choice in the forced fork.
   addCatwalk(-7, -26, 2, -26);
 
-  // Stair up from behind the stage to the catwalk level.
-  for (let i = 0; i < 20; i++) {
-    const h = STAGE_H + i * 0.3;
-    kit.box(1.2, 0.1, 0.3, -9.2, h, -37.6 + i * 0.3,
-      material('steel', { repeat: 1 }), { surface: 'metal' });
+  // --- the back wall, WITH a hole in it ------------------------------------
+  //
+  // A door is a mesh that swings and a collider that is removed when it opens.
+  // It does not cut the wall it is mounted in. Building the back wall as one
+  // unbroken slab meant the door unbolted, swung open, and revealed solid
+  // plaster — the chapter's third puzzle completed onto a dead end.
+  //
+  // Two openings: the doorway itself, and a high one at catwalk level where
+  // the stairwell comes back out over the house.
+  //
+  // They OVERLAP in X — the catwalk leaves the stairwell directly above the
+  // door — so the wall is laid out as explicit vertical bands rather than as
+  // two independent holes. Punching them separately builds the low band of the
+  // high opening straight across the doorway, and the door swings open onto a
+  // fresh piece of wall.
+  const BACK_Z = -38.4;
+  const BACK_TOP = STAGE_H + 8;
+  const DOOR_L = -1.1;
+  const DOOR_R = 0.2;          // pivot + leaf width
+  const DOOR_TOP = STAGE_H + 2.3;
+  const EXIT_L = DOOR_L;       // shares the doorway's left edge
+  const EXIT_R = 0.9;          // the high opening's right edge
+  const EXIT_BOTTOM = catwalkY - 0.25;
+  const EXIT_TOP = catwalkY + 2.4;
+
+  const backMat = material('wallPlaster', { repeat: 4 });
+  const backWall = (xFrom, xTo, yFrom, yTo) => {
+    const w = xTo - xFrom;
+    const h = yTo - yFrom;
+    if (w <= 0.01 || h <= 0.01) return;
+    kit.box(w, h, 0.4, (xFrom + xTo) / 2, (yFrom + yTo) / 2, BACK_Z, backMat,
+      { surface: 'wood', shadow: false });
+  };
+
+  // Band 1: solid, west of everything.
+  backWall(-11, DOOR_L, STAGE_H, BACK_TOP);
+
+  // Band 2: the doorway, which is also under the high opening. Wall exists
+  // only between the door head and the underside of the catwalk opening.
+  backWall(DOOR_L, DOOR_R, DOOR_TOP, EXIT_BOTTOM);
+  backWall(DOOR_L, DOOR_R, EXIT_TOP, BACK_TOP);
+
+  // Band 3: under the high opening only — no door here, so wall to the floor.
+  backWall(DOOR_R, EXIT_R, STAGE_H, EXIT_BOTTOM);
+  backWall(DOOR_R, EXIT_R, EXIT_TOP, BACK_TOP);
+
+  // Band 4: solid, east of everything.
+  backWall(EXIT_R, 11, STAGE_H, BACK_TOP);
+
+  // --- the backstage stairwell ---------------------------------------------
+  //
+  // Straight on from the door, and climb. The stair runs AWAY from the stage
+  // rather than across the passage: a staircase rising sideways means walking
+  // through the door puts you alongside the treads rather than at the foot of
+  // them, and it is entirely possible to cross the room without ever meeting
+  // the stair you are looking for.
+  //
+  // Six metres of rise needs about nine metres of run, so the passage is deep
+  // rather than wide. There is nothing behind the stage to collide with.
+  const WELL_BACK = -52.0;
+  const WELL_W = 9;
+  // The stair run is offset WEST of the catwalk that leaves the top of it.
+  // Routing the catwalk back over its own staircase means the player climbs
+  // until their head meets its underside and simply stops, two thirds of the
+  // way up, with nothing to indicate why.
+  const WELL_CX = -1.0;
+  const STAIR_X = -3.6;
+  const EXIT_X = -0.1;
+  const wellCz = (BACK_Z + WELL_BACK) / 2;
+  const wellDepth = BACK_Z - WELL_BACK;
+
+  kit.floor(WELL_W, wellDepth, WELL_CX, wellCz, material('tileFloor', { repeat: 3 }),
+    { y: STAGE_H, surface: 'tile' });
+  kit.ceiling(WELL_W, wellDepth, WELL_CX, wellCz, BACK_TOP, material('ceiling', { repeat: 3 }));
+
+  kit.box(WELL_W, BACK_TOP - STAGE_H, 0.4, WELL_CX, (STAGE_H + BACK_TOP) / 2, WELL_BACK,
+    backMat, { surface: 'wood', shadow: false });
+  for (const side of [-1, 1]) {
+    kit.box(0.4, BACK_TOP - STAGE_H, wellDepth, WELL_CX + side * WELL_W / 2,
+      (STAGE_H + BACK_TOP) / 2, wellCz, backMat, { surface: 'wood', shadow: false });
   }
-  addCatwalk(-9.2, -31.6, -7, -31.6);
+
+  // The stair: treads wide across the passage, climbing away from the stage.
+  {
+    const steps = 28;
+    const rise = (catwalkY - STAGE_H) / steps;   // ~0.21m, an easy auto-step
+    const tread = 0.34;
+    const startZ = BACK_Z - 1.0;
+    for (let i = 0; i < steps; i++) {
+      const h = STAGE_H + rise * (i + 1);
+      kit.box(2.4, h - STAGE_H, tread, STAIR_X, (STAGE_H + h) / 2, startZ - i * tread,
+        material('steel', { repeat: 1 }), { surface: 'metal' });
+    }
+    // Landing at the top, level with the catwalks, wide enough to turn on.
+    kit.box(5.2, 0.16, 2.0, (STAIR_X + EXIT_X) / 2, catwalkY, startZ - steps * tread - 1.0,
+      material('steel', { repeat: 2 }), { surface: 'metal' });
+
+    // Handrails the whole way up, which also read as an arrow pointing up.
+    for (const side of [-1, 1]) {
+      const runLen = steps * tread + 1.6;
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, Math.hypot(runLen, catwalkY - STAGE_H)),
+        material('rustedSteel', { repeat: 1 })
+      );
+      rail.position.set(
+        STAIR_X + side * 1.15,
+        (STAGE_H + catwalkY) / 2 + 0.95,
+        startZ - runLen / 2 + 0.5
+      );
+      rail.rotation.x = -Math.atan2(catwalkY - STAGE_H, runLen);
+      rail.castShadow = true;
+      scene.add(rail);
+    }
+  }
+
+  // Out through the high opening, back over the house, onto the main run.
+  // The north run sits east of the stair so it never crosses above it.
+  addCatwalk(EXIT_X, -49.8, EXIT_X, -36.0);
+  addCatwalk(EXIT_X, -36.0, -7, -36.0);
+
+  // Two weak lights, so the stairwell is not a black shaft.
+  kit.sconce(WELL_CX + 4.0, STAGE_H + 2.2, BACK_Z - 2.0, { rotY: -Math.PI / 2, intensity: 9, flicker: { chance: 0.5, severity: 0.8, seed: 171 } });
+  kit.sconce(WELL_CX - 4.0, catwalkY - 0.8, WELL_BACK + 3.0, { rotY: Math.PI / 2, intensity: 9 });
 
   // Fire door at the end of the run.
   const fireDoorGroup = new THREE.Group();
