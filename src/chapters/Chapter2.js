@@ -244,13 +244,47 @@ export function buildChapter2(ctx) {
     kit.box(2.2, 0.04, 0.16, 7.6, 0.64 + r * 0.42, 1, material('rustedSteel', { repeat: 1 }), { surface: 'metal', solid: r === 0 });
   }
 
-  const corridorKey = new THREE.Mesh(
-    new THREE.BoxGeometry(0.03, 0.07, 0.006),
-    material('brass')
-  );
-  corridorKey.position.copy(handTransforms[WARM_HAND].pos).add(new THREE.Vector3(7.6, 0, -0.06));
+  // The key on the peg behind the warm hand.
+  //
+  // It is parented to the rack and positioned in the rack's LOCAL space. The
+  // previous version copied the hand's local position and then added the
+  // rack's x offset by hand while forgetting its z — which left the key
+  // hanging in mid-air a metre out from the rack, nowhere near the peg the
+  // hint tells the player to look at.
+  //
+  // It is also an actual key shape rather than a 3cm sliver: the player has
+  // to spot it across a dim workshop and put a crosshair on it.
+  const corridorKey = new THREE.Group();
+  {
+    const brass = material('brass');
+
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.009, 6, 14), brass);
+    bow.position.y = 0.055;
+    corridorKey.add(bow);
+
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.12, 8), brass);
+    shank.position.y = -0.01;
+    corridorKey.add(shank);
+
+    for (const [by, bw] of [[-0.05, 0.028], [-0.068, 0.02]]) {
+      const bit = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.016, 0.008), brass);
+      bit.position.set(bw / 2, by, 0);
+      corridorKey.add(bit);
+    }
+    corridorKey.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  }
+  corridorKey.position.copy(handTransforms[WARM_HAND].pos).add(new THREE.Vector3(0, -0.02, -0.05));
   corridorKey.visible = false;
-  scene.add(corridorKey);
+  handRack.add(corridorKey);
+
+  // A glint on it once it is uncovered, so it reads from across the room.
+  const keyGlint = new THREE.PointLight(0xffd9a0, 0, 2.6, 2);
+  keyGlint.position.set(
+    7.6 + handTransforms[WARM_HAND].pos.x,
+    handTransforms[WARM_HAND].pos.y,
+    1 - 0.25
+  );
+  scene.add(keyGlint);
 
   puzzles.register({
     id: 'ch2-hands',
@@ -284,8 +318,16 @@ export function buildChapter2(ctx) {
       warmHeat.visible = false;
       warmHeat.userData.lensOnly = undefined;
       corridorKey.visible = true;
+      keyGlint.intensity = 2.6;
       audio?.paperPickup?.();
-      hud.say('Still warm. Warmer than your own hand.', { duration: 4 });
+      // Stop the rack itself capturing the crosshair. It sits in front of the
+      // key and, once disabled, would hold focus as "an empty peg" forever —
+      // the player would be looking straight at the key and never be offered
+      // it.
+      interaction.unregister(handRack);
+
+      hud.say('Still warm. Warmer than your own hand — and there is a key on the peg behind it.', { duration: 5 });
+      hud.setObjective('Take the key from the peg.');
       puzzles.solve('ch2-hands');
     },
   });
@@ -296,6 +338,7 @@ export function buildChapter2(ctx) {
     label: 'Take the key',
     onUse: () => {
       corridorKey.visible = false;
+      keyGlint.intensity = 0;
       corridorDoor.unlock();
       interaction.unregister(corridorKey);
       hud.say('A brass key, worn smooth.', { duration: 3 });
