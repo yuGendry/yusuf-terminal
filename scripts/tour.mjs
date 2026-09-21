@@ -39,6 +39,20 @@ const TOURS = {
     ['storage-deep', [-4, -2.0, -28.0], Math.PI,       0.04],
     ['practice',     [20, -2.0, -15.0], 0,             0.05],
   ],
+  4: [
+    ['landing',      [0, 1.2, 11.0],    0,             0.04],
+    ['pump-room',    [-14, 1.2, 5.0],   Math.PI / 2,   0.04],
+    ['stair-head',   [6, 1.2, -4.8],    0,             0.22],
+    ['hall',         [6, -3.8, -21.0],  0,             0.02],
+    ['hall-west',    [12, -3.8, -32.0], Math.PI / 2,   0.05],
+    ['cut-stair',    [-8, -3.8, -30.0], Math.PI,       0.16],
+    ['lab',          [21, -3.8, -32.0], -Math.PI / 2,  0.04],
+    ['gallery',      [-8, 0.4, -47.5],  Math.PI,       0.04],
+    ['threadworks',  [-8, -0.8, -57.5], Math.PI,       0.02],
+    ['loom',         [-8, -3.8, -64.0], Math.PI,       0.04],
+    ['spool-wall',   [-8, -3.8, -80.0], Math.PI,       0.05],
+    ['lift',         [-8, -3.8, -88.0], Math.PI,       0.04],
+  ],
 };
 
 const browser = await chromium.launch({

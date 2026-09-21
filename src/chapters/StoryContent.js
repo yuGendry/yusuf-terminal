@@ -166,6 +166,51 @@ That is exactly why she chose it. She wanted a door that only opens for someone 
 
 If you are reading this you do not belong, so I have written it down, and I hope she never finds out which of us did it.`,
   },
+  // ---- Chapter 4 : Backstage --------------------------------------------
+  'ch4-note-pumps': {
+    chapter: 4,
+    title: 'Card wired to the pump house door',
+    body: `THE PUMPS RUN OR THE THREADWORKS FLOODS.
+
+Three valves. Intake, return, sluice. Open them in that order and only that order or you will send the whole sump back up the return line and into the hall.
+
+I am writing this on the door because the last two men who did it wrong are not available to be told.
+
+— G. HALE, MAINTENANCE`,
+  },
+  'ch4-note-water': {
+    chapter: 4,
+    title: 'Folded into a dry boot on the stair',
+    body: `It came up in one night. March, 89.
+
+Odile did not evacuate the floor. She had us carry the spools up to the landing and then she sent us home and went back down.
+
+She was down there four days. When she came up she was not wet.
+
+Nobody has asked her about it. Nobody is going to.`,
+  },
+  'ch4-note-stair': {
+    chapter: 4,
+    title: 'Works order, unsigned',
+    body: `REMOVE: north stair, sub-level 2 to sub-level 1.
+REASON: structural.
+DISPOSAL: none — see below.
+
+We did not take it anywhere. She said not to. We cut it out and left it exactly where it was and she signed off on that as if it made sense.
+
+You can still hear people using it.`,
+  },
+  'ch4-note-threadwork': {
+    chapter: 4,
+    title: 'Loom tag, four of them, wired together',
+    body: `WARP ORDER — DO NOT GUESS
+
+The heads take the thread in the order the tags run, not the order the spools sit. A head threaded out of sequence takes what it is given and keeps it.
+
+We lost Petrus that way. He is on the third head and he is still taking thread.
+
+If you are reading this and you do not know what a head is, put the tag down and leave.`,
+  },
   'ch3-note-choir': {
     chapter: 3,
     title: "Practice-room schedule, water-damaged",
@@ -219,6 +264,24 @@ export const TAPES = {
     transcript:
       'An instructional reel. The third rule is wrong the first time it is said, and the correction is not a correction.',
   },
+  'ch4-tape-threadworks': {
+    chapter: 4,
+    title: 'SUB-LEVEL 2 — Camera 4, 03:11',
+    duration: 46,
+    frames: [
+      { t: 0.0, kind: 'title', text: 'CAMERA 4', sub: 'Sub-level 2 — Threadworks' },
+      { t: 4.0, kind: 'scene', text: '', caption: 'A low concrete room. Water to the shin. A wall of spools, all turning.' },
+      { t: 9.0, kind: 'scene', text: '03:11', caption: 'Nothing moves for two minutes except the spools.' },
+      { t: 14.0, kind: 'scene', text: '03:13', caption: 'The water shifts. Something under it crosses from left to right without surfacing.' },
+      { t: 20.0, kind: 'scene', text: '03:14', caption: 'A woman walks into frame. She does not disturb the water at all.' },
+      { t: 26.0, kind: 'scene', text: '', caption: 'She stops at the loom, checks a tag, and threads a head by hand.' },
+      { t: 32.0, kind: 'scene', text: '03:19', caption: 'She looks directly up at the camera. The timecode stops. The picture does not.' },
+      { t: 38.0, kind: 'glitch', text: '', caption: 'Forty seconds of nothing. Then the same two minutes again, from the start.' },
+      { t: 42.0, kind: 'title', text: '03:11', sub: 'Camera 4' },
+    ],
+    transcript:
+      'A security loop from the night the basement flooded. The same two minutes, over and over, and one of the two people in it is not wet.',
+  },
   'ch3-tape-rehearsal': {
     chapter: 3,
     title: 'REHEARSAL — Act III, take 9',
@@ -253,6 +316,8 @@ export const STUBS = {
   'ch2-stub-3': { chapter: 2, index: 6, back: 'If the hands on the rack are pointing the same way, something moved them.' },
   'ch3-stub-1': { chapter: 3, index: 7, back: 'I learned the tune before I learned to read. So did everyone here.' },
   'ch3-stub-2': { chapter: 3, index: 8, back: "Don't run from the one in the basement. Running is the whole thing it wants." },
+  'ch4-stub-1': { chapter: 4, index: 9, back: 'The water is not the worst thing down here. The water is just how you know.' },
+  'ch4-stub-2': { chapter: 4, index: 10, back: 'She kept the fourth lens for herself. I took it back. It is in her desk.' },
 };
 
 /** Radio messages — the voice that turns out to be Wren. */
@@ -300,6 +365,34 @@ export const RADIO = {
       { t: 0, text: 'You found the log. Then you know she was firing them too cool on purpose.' },
       { t: 6.5, text: 'Hard porcelain is just a cup. She wanted them soft enough to hold someone.' },
       { t: 12, text: 'Fire it properly and whatever is inside it stops being a passenger.' },
+    ],
+  },
+  'ch4-radio-1': {
+    chapter: 4,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'You are on the stair. Stop before the water.' },
+      { t: 4.5, text: 'It is thigh-deep in the hall and every step you take in it is the loudest thing on this floor.' },
+      { t: 10.5, text: 'The pumps still work. Find the pump room before you find anything else.' },
+    ],
+  },
+  'ch4-radio-2': {
+    chapter: 4,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'That is the fourth lens. Hollow. She built it and then she never let anyone else wear it.' },
+      { t: 6, text: 'It shows you the building the way it was drawn, not the way it was built.' },
+      { t: 11.5, text: 'Stairs that were taken out. Doors that were bricked up. It is all still there and you can stand on it.' },
+      { t: 18, text: 'It will tear the mask off you in about twenty seconds. Do not be halfway across something when it does.' },
+    ],
+  },
+  'ch4-radio-3': {
+    chapter: 4,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'The sluice is open. The water is going down and it is going to hear that.' },
+      { t: 6, text: 'Whatever you do, do not go back for anything.' },
+      { t: 10, text: 'The lift is at the north end. Get in it.' },
     ],
   },
   'ch3-radio-1': {

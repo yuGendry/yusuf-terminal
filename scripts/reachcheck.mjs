@@ -32,7 +32,7 @@ import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 
 const EXE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const CHAPTERS = (process.env.CHAPTERS || '1,2,3').split(',').map(Number);
+const CHAPTERS = (process.env.CHAPTERS || '1,2,3,4').split(',').map(Number);
 
 const browser = await chromium.launch({
   executablePath: existsSync(EXE) ? EXE : undefined,
@@ -59,53 +59,60 @@ for (const chapter of CHAPTERS) {
   await page.waitForFunction(() => window.__stitchwork?.state === 'play', null, { timeout: 180000 });
 
   const report = await page.evaluate(async () => {
+    const { collisionGroups, GROUP } = await import('/src/core/Physics.js');
     const THREE = await import('/node_modules/three/build/three.module.js');
     const app = window.__stitchwork;
-    const scene = app.game.level.scene;
+    const ph = app.game.physics;
     const items = [...app.game.interaction.items.values()];
 
-    // Everything solid enough to stand on or be blocked by.
+    // Everything here is asked of the *physics* world rather than of the scene
+    // graph, because that is what the game asks. Interaction._hasClearPath
+    // raycasts against GROUP.WORLD colliders, so a mesh with no collider —
+    // water, a glow, a floating plank, a lens-only marker — cannot block an
+    // interaction and must not be treated as blocking one here either. A
+    // scene-graph raycast reported the water surface as an occluder and
+    // condemned every object standing under it.
+    const WORLD_ONLY = collisionGroups(0xffff, GROUP.WORLD);
+
+    // Support is a *visual* question, not a physics one, and so it is asked of
+    // the scene graph. Plenty of things in the game are legitimately rested on
+    // props that have no collider — a note on a gramophone cabinet, a stub on
+    // a shelf — and those look and read as supported. Only something with
+    // nothing under it at all is a bug.
     const solids = [];
-    scene.traverse((o) => {
+    app.game.level.scene.traverse((o) => {
       if (!o.isMesh || !o.visible) return;
       if (o.userData?.lensOnly || o.userData?.maskOnly) return;
       const m = o.material;
-      if (m?.transparent && (m.opacity ?? 1) < 0.55) return;
+      // Water, glass and glows are see-through: they hold nothing up.
+      if (m?.transmission > 0.25) return;
+      if (m?.transparent && (m.opacity ?? 1) < 0.9) return;
+      if (m?.blending && m.blending !== 1) return;   // additive / multiply
       solids.push(o);
     });
+    const vray = new THREE.Raycaster();
 
-    const ray = new THREE.Raycaster();
     const box = new THREE.Box3();
     const centre = new THREE.Vector3();
     const size = new THREE.Vector3();
 
     const EYE = 1.62;          // standing eye height above the feet
-    const HEADROOM = 1.75;     // a standing capsule needs this much clear
+    const HEADROOM = 1.7;      // a standing capsule needs this much clear
     const RING = [0.9, 1.4, 1.9, 2.4];
     const ANGLES = 16;
 
-    /** Is anything solid between two points (ignoring the target itself)? */
-    const blocked = (from, to, target) => {
-      const dir = to.clone().sub(from);
-      const dist = dir.length();
+    /** Is anything solid between two points? Stops short, as the game does. */
+    const blocked = (from, to) => {
+      const dir = { x: to.x - from.x, y: to.y - from.y, z: to.z - from.z };
+      const dist = Math.hypot(dir.x, dir.y, dir.z);
       if (dist < 1e-4) return false;
-      ray.set(from, dir.normalize());
-      ray.far = dist - 0.06;
-      for (const hit of ray.intersectObjects(solids, false)) {
-        // The target and its own children never block themselves.
-        let o = hit.object;
-        let own = false;
-        while (o) { if (o === target) { own = true; break; } o = o.parent; }
-        if (!own) return true;
-      }
-      return false;
+      dir.x /= dist; dir.y /= dist; dir.z /= dist;
+      return ph.raycast(from, dir, Math.max(0.05, dist - 0.14), WORLD_ONLY) !== null;
     };
 
     /** Floor height under a point, or null. */
     const floorUnder = (p) => {
-      ray.set(new THREE.Vector3(p.x, p.y + 2.2, p.z), new THREE.Vector3(0, -1, 0));
-      ray.far = 6;
-      const hit = ray.intersectObjects(solids, false)[0];
+      const hit = ph.raycast({ x: p.x, y: p.y + 2.4, z: p.z }, { x: 0, y: -1, z: 0 }, 7, WORLD_ONLY);
       return hit ? hit.point.y : null;
     };
 
@@ -125,21 +132,35 @@ for (const chapter of CHAPTERS) {
         ? (() => { try { return item.label(); } catch { return '(dynamic)'; } })()
         : (item.label ?? '(unlabelled)');
 
-      // --- floating? -------------------------------------------------------
-      // Look for support: floor below, or a surface within half a metre to
-      // any side. A key hanging in the air a metre from its peg passes every
-      // other check in the project and is still plainly broken.
+      // --- supported? ------------------------------------------------------
+      // Something under, beside or above it. Sampled across the footprint
+      // rather than from the centre alone, because an object resting on the
+      // very edge of a table misses a single downward ray and is reported as
+      // floating when it is merely badly placed.
+      const span = Math.max(size.x, size.y, size.z) / 2 + 0.55;
+      const inset = 0.32;
+      const probes = [];
+      for (const [ox, oz] of [[0, 0], [-inset, -inset], [inset, -inset], [-inset, inset], [inset, inset]]) {
+        probes.push({
+          from: new THREE.Vector3(centre.x + size.x * ox, centre.y, centre.z + size.z * oz),
+          dir: new THREE.Vector3(0, -1, 0),
+        });
+      }
+      for (const d of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
+        probes.push({ from: centre.clone(), dir: new THREE.Vector3(...d) });
+      }
+
       let supported = false;
-      const probes = [
-        [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0],
-      ];
-      for (const [dx, dy, dz] of probes) {
-        ray.set(centre, new THREE.Vector3(dx, dy, dz));
-        ray.far = Math.max(size.x, size.y, size.z) / 2 + 0.55;
-        for (const hit of ray.intersectObjects(solids, false)) {
-          let o = hit.object, own = false;
+      for (const probe of probes) {
+        vray.set(probe.from, probe.dir);
+        vray.far = span;
+        for (const hit of vray.intersectObjects(solids, false)) {
+          let o = hit.object;
+          let own = false;
           while (o) { if (o === obj) { own = true; break; } o = o.parent; }
-          if (!own) { supported = true; break; }
+          if (own) continue;
+          supported = true;
+          break;
         }
         if (supported) break;
       }
@@ -153,20 +174,18 @@ for (const chapter of CHAPTERS) {
           const px = centre.x + Math.cos(a) * r;
           const pz = centre.z + Math.sin(a) * r;
 
-          const fy = floorUnder(new THREE.Vector3(px, centre.y, pz));
+          const fy = floorUnder({ x: px, y: centre.y, z: pz });
           if (fy === null) continue;
-          // No standing on the object itself, or on something above head height.
+          // No standing on the object itself, or on a floor far from its level.
           if (Math.abs(fy - centre.y) > 3.0) continue;
 
-          const feet = new THREE.Vector3(px, fy + 0.05, pz);
-          // Headroom for a standing capsule.
-          ray.set(feet, new THREE.Vector3(0, 1, 0));
-          ray.far = HEADROOM;
-          if (ray.intersectObjects(solids, false).length) continue;
+          const feet = { x: px, y: fy + 0.08, z: pz };
+          if (ph.raycast(feet, { x: 0, y: 1, z: 0 }, HEADROOM, WORLD_ONLY)) continue;
 
-          const eye = new THREE.Vector3(px, fy + EYE, pz);
-          if (eye.distanceTo(centre) > reach) continue;
-          if (blocked(eye, centre, obj)) continue;
+          const eye = { x: px, y: fy + EYE, z: pz };
+          const d = Math.hypot(eye.x - centre.x, eye.y - centre.y, eye.z - centre.z);
+          if (d > reach) continue;
+          if (blocked(eye, centre)) continue;
 
           stand = [+px.toFixed(2), +fy.toFixed(2), +pz.toFixed(2)];
           break search;

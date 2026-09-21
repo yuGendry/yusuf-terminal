@@ -17,7 +17,7 @@ import { chromium } from 'playwright';
 import { existsSync } from 'node:fs';
 
 const EXE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const CHAPTERS = (process.env.CHAPTER ? [Number(process.env.CHAPTER)] : [1, 2, 3]);
+const CHAPTERS = (process.env.CHAPTER ? [Number(process.env.CHAPTER)] : [1, 2, 3, 4]);
 
 const browser = await chromium.launch({
   executablePath: existsSync(EXE) ? EXE : undefined,

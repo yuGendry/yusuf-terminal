@@ -62,7 +62,11 @@ export class LevelKit {
 
     if (solid) {
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0));
-      this.physics.addStaticBox({ x: w / 2, y: h / 2, z: d / 2 }, { x, y, z }, q, { surface });
+      // Kept on the mesh so a level can later turn the collision off without
+      // having to track a parallel list of physics handles beside its scene
+      // graph. Chapter 4's cut stair needs exactly that.
+      mesh.userData.physics = this.physics.addStaticBox(
+        { x: w / 2, y: h / 2, z: d / 2 }, { x, y, z }, q, { surface });
     }
     return mesh;
   }

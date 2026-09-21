@@ -19,7 +19,8 @@
     "reachcheck": "node scripts/reachcheck.mjs",
     "cinetest": "node scripts/cinetest.mjs",
     "tour": "node scripts/tour.mjs",
-    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs"
+    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/leakcheck.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs",
+    "leakcheck": "node scripts/leakcheck.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

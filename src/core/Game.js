@@ -31,6 +31,7 @@ const CHAPTER_LOADERS = {
   1: () => import('../chapters/Chapter1.js').then((m) => m.buildChapter1),
   2: () => import('../chapters/Chapter2.js').then((m) => m.buildChapter2),
   3: () => import('../chapters/Chapter3.js').then((m) => m.buildChapter3),
+  4: () => import('../chapters/Chapter4.js').then((m) => m.buildChapter4),
 };
 
 export class Game extends EventBus {
@@ -174,6 +175,12 @@ export class Game extends EventBus {
     this.level?.dispose?.();
     this.level = null;
     this.player = null;
+
+    // The physics world is created once at boot and shared by every chapter,
+    // so a level's collision does not go away when its scene does. Emptying it
+    // here is what stops the next chapter being loaded on top of this one's
+    // walls.
+    this.physics.clearWorld();
     for (const f of this._hallucFigures) f.parent?.remove(f);
     this._hallucFigures.length = 0;
   }
@@ -238,11 +245,16 @@ export class Game extends EventBus {
     this._ctx?.onFootstep?.(info);
 
     // Ask the world what is underfoot, so footsteps are correct in every level
-    // without the level having to declare zones.
-    const origin = info.position.clone();
-    origin.y += 0.25;
-    const hit = this.physics.raycast(origin, { x: 0, y: -1, z: 0 }, 1.8);
-    const surface = hit?.collider?.userData?.surface ?? 'wood';
+    // without the level having to declare zones — unless the player is standing
+    // in something, in which case what they are standing in wins. A boot going
+    // into half a metre of water does not sound like the tiles underneath it.
+    let surface = info.surface;
+    if (!surface) {
+      const origin = info.position.clone();
+      origin.y += 0.25;
+      const hit = this.physics.raycast(origin, { x: 0, y: -1, z: 0 }, 1.8);
+      surface = hit?.collider?.userData?.surface ?? 'wood';
+    }
     this.audio.footstep?.(surface, { loudness: info.loudness });
   }
 

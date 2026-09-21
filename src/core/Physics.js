@@ -50,6 +50,8 @@ export class Physics {
     this._synced = [];
     /** Colliders that act as sensors, keyed by collider handle. */
     this._sensors = new Map();
+    /** Character controllers, so clearWorld() can free them too. */
+    this._controllers = [];
 
     this.eventQueue = new RAPIER.EventQueue(true);
   }
@@ -77,6 +79,26 @@ export class Physics {
     const collider = this.world.createCollider(desc, body);
     collider.userData = userData;
     return { body, collider };
+  }
+
+  /**
+   * Turn a static collider on or off.
+   *
+   * Used for geometry that is only sometimes solid — Chapter 4's cut stair
+   * exists on the other side of the Hollow lens and nowhere else, so it has to
+   * stop being something the player can stand on the moment the mask comes
+   * off. Queries are refreshed because Rapier's broad phase is only rebuilt
+   * inside `world.step()`, and a collider re-enabled between steps would be
+   * invisible to the character controller until the next one — which, for a
+   * player standing on it four metres up, is a fall.
+   *
+   * @param {{collider: object}} handle  the value returned by addStaticBox
+   */
+  setColliderEnabled(handle, enabled) {
+    const collider = handle?.collider ?? handle;
+    if (!collider?.setEnabled) return;
+    collider.setEnabled(!!enabled);
+    this.refreshQueries();
   }
 
   /**
@@ -157,6 +179,40 @@ export class Physics {
     return { body, collider };
   }
 
+  /**
+   * Remove every body, collider, sensor and character controller.
+   *
+   * The Physics instance outlives any one chapter — it is created at boot and
+   * kept for the whole session — so unloading a level has to empty the world
+   * explicitly. Nothing did, which meant every chapter's collision was still
+   * in the world when the next one loaded: walk out of Chapter 1 into Chapter 2
+   * and you are walking through Chapter 1's lobby walls as well, invisibly.
+   *
+   * It went unnoticed because the harnesses load a single chapter per run and
+   * the level geometry mostly overlaps in ways that leave the doorways clear.
+   * The bug is only visible where two chapters put a wall and a walkway in the
+   * same place, which is exactly where it is worst.
+   */
+  clearWorld() {
+    // Rapier's sets must not be mutated while being iterated, so collect first.
+    const bodies = [];
+    this.world.forEachRigidBody((b) => bodies.push(b));
+    for (const b of bodies) {
+      try { this.world.removeRigidBody(b); } catch { /* already gone */ }
+    }
+
+    const controllers = this._controllers ?? [];
+    for (const c of controllers) {
+      try { this.world.removeCharacterController(c); } catch { /* already gone */ }
+    }
+    this._controllers = [];
+
+    this._sensors.clear();
+    this._synced.length = 0;
+    this._accumulator = 0;
+    this.refreshQueries();
+  }
+
   // --------------------------------------------------------------------------
   // Character controller
   // --------------------------------------------------------------------------
@@ -172,6 +228,7 @@ export class Physics {
 
     // 0.02 is the skin width Rapier keeps between the capsule and the world.
     const controller = this.world.createCharacterController(0.02);
+    (this._controllers ??= []).push(controller);
     controller.setUp({ x: 0, y: 1, z: 0 });
     controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180);
     controller.setMinSlopeSlideAngle((38 * Math.PI) / 180);

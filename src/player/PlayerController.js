@@ -48,6 +48,27 @@ export class PlayerController extends EventBus {
     this.physics = physics;
     this.camera = engine.camera;
 
+    /**
+     * Environmental modifiers a level can set — standing water, mud, debris.
+     *
+     * Kept here rather than baked into each level because they have to reach
+     * three separate systems that the level has no business touching: the
+     * movement speed, the loudness reported with each footstep (which is the
+     * entire contract with anything that hunts by sound), and the surface name
+     * the footstep sound is chosen from. A level that tried to slow the player
+     * by other means would slow them without making them louder, which in a
+     * chapter built around wading is exactly backwards.
+     */
+    this.env = {
+      speedScale: 1,
+      noiseScale: 1,
+      /** Overrides the surface the footstep sound is picked from. */
+      surface: null,
+      /** Height of standing water above the floor, for the camera and jumping. */
+      waterDepth: 0,
+      name: null,
+    };
+
     this.character = physics.createCharacter({
       radius: 0.3,
       halfHeight: STANCE.stand.halfHeight,
@@ -319,6 +340,7 @@ export class PlayerController extends EventBus {
     let targetSpeed = stance.speed;
     if (this.sprinting) targetSpeed *= SPRINT_MULTIPLIER;
     if (this.exhausted && this.stance === 'stand') targetSpeed *= 0.8;
+    targetSpeed *= this.env.speedScale;
 
     // --- horizontal acceleration ------------------------------------------
     const wishVel = this._desired.clone().multiplyScalar(hasInput ? targetSpeed : 0);
@@ -335,7 +357,7 @@ export class PlayerController extends EventBus {
     // work: a coyote window, so a jump pressed just after walking off an edge
     // still counts; and an input buffer, so a jump pressed just before landing
     // fires on touchdown instead of being eaten.
-    if (this.canMove && !this.frozen && input.pressed('jump')) {
+    if (this.canMove && !this.frozen && input.pressed('jump') && this.env.waterDepth < 0.5) {
       this._jumpBuffer = 0.14;
     }
     this._jumpBuffer = Math.max(0, this._jumpBuffer - dt);
@@ -429,12 +451,17 @@ export class PlayerController extends EventBus {
       this._stepDistance += this.moveSpeed * dt;
       if (this._stepDistance >= stride) {
         this._stepDistance -= stride;
+        const base = this.stance === 'crouch' ? 0.25 : this.sprinting ? 1.0 : 0.55;
         this.emit('footstep', {
           position: this.position.clone(),
           speed: this.moveSpeed,
           stance: this.stance,
           sprinting: this.sprinting,
-          loudness: this.stance === 'crouch' ? 0.25 : this.sprinting ? 1.0 : 0.55,
+          surface: this.env.surface,
+          // Water does not let you creep. Crouching in half a metre of standing
+          // water is not quiet, and a chapter that let it be quiet would throw
+          // away its own central idea.
+          loudness: Math.min(1.4, base * this.env.noiseScale),
         });
       }
     } else {
