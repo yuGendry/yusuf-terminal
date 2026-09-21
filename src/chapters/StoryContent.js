@@ -189,6 +189,18 @@ That is exactly why she chose it. She wanted a door that only opens for someone 
 
 If you are reading this you do not belong, so I have written it down, and I hope she never finds out which of us did it.`,
   },
+  'ch3-note-lantern': {
+    chapter: 3,
+    title: 'Pinned to the lantern case',
+    body: `Three discs. The company, on the stage, taken the night of the dress.
+
+Odile had it broken up so nobody could look at it whole. The discs are still in the machine because she never said to destroy them, and nobody here does anything they were not told to do.
+
+Line them up and you will see what the rest of us saw and were told we had not.
+
+Do not tell her you have looked.`,
+  },
+
   // ---- Chapter 4 : Backstage --------------------------------------------
   'ch4-note-pumps': {
     chapter: 4,

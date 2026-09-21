@@ -48,7 +48,7 @@ export const CHAPTERS = [
     lens: 'echo',
     lensName: 'Echo',
     stubs: 2,
-    notes: 5,
+    notes: 6,
     tapes: 1,
     estimatedMinutes: 15,
     theme: 'rehearsal',

@@ -58,6 +58,7 @@ export function buildChapter3(ctx) {
 
   const state = {
     echoFound: false,
+    lanternDone: false,
     marksHit: [],
     blockingDone: false,
     tineEntry: [],
@@ -85,6 +86,7 @@ export function buildChapter3(ctx) {
     openings: [
       { side: 's', at: 0, width: 1.8, top: 2.4 },     // in
       { side: 'n', at: -6, width: 2.2, top: 2.4 },    // to the stairwell
+      { side: 'e', at: 0, width: 1.8, top: 2.4 },     // to the green room
     ],
   });
 
@@ -327,6 +329,162 @@ export function buildChapter3(ctx) {
       }
     }
   });
+
+  // ==========================================================================
+  // PUZZLE 4 — The Magic Lantern
+  // ==========================================================================
+  //
+  // The green room, east off the rehearsal hall. A three-disc magic lantern
+  // with a photograph of the company broken across the discs; align all three
+  // and the projection resolves.
+  //
+  // Mechanically this is the one thing the game has not asked for yet —
+  // rotation, not sequence, not pitch, not deduction from labels. The
+  // projection updates on every turn, so the player is never guessing: they
+  // can see how wrong they are and in which direction.
+
+  const GREEN = { x: 20, z: 3, w: 14, d: 12, h: 5.0 };
+  kit.room({
+    width: GREEN.w, depth: GREEN.d, height: GREEN.h, x: GREEN.x, z: GREEN.z, y: 0,
+    floorMat: material('lobbyFloor', { repeat: 4 }),
+    wallMat: material('wallpaperLobby', { repeat: 3 }),
+    ceilMat: material('ceiling', { repeat: 3 }),
+    surface: 'carpet',
+    openings: [{ side: 'w', at: 0, width: 1.8, top: 2.4 }],
+  });
+
+  kit.practical(GREEN.x, 4.2, GREEN.z + 3, { intensity: 15, distance: 10, flicker: { chance: 0.5, severity: 0.85, seed: 96 } });
+  // On the east wall, not the north one — it was mounted nine centimetres in
+  // front of the projection, dead centre, with its shade in the middle of the
+  // picture.
+  kit.sconce(GREEN.x + 6.7, 2.5, GREEN.z - 3, { rotY: -Math.PI / 2, intensity: 6 });
+  kit.dust(new THREE.Vector3(GREEN.x, 2.4, GREEN.z), new THREE.Vector3(14, 5, 12), { count: 600, seed: 62 });
+  kit.sign(13.1, 2.5, GREEN.z, 'GREEN ROOM', { rotY: Math.PI / 2 });
+
+  // Worn furniture — this is where they waited.
+  kit.table(GREEN.x + 4.6, 0, GREEN.z + 3.6, { width: 2.0, depth: 0.9 });
+  for (let i = 0; i < 6; i++) {
+    kit.box(0.5, 0.45, 0.5, GREEN.x + 3.2 + (i % 3) * 0.9, 0.22, GREEN.z + 1.4 + Math.floor(i / 3) * 0.8,
+      material('seatVelvet', { repeat: 1 }), { surface: 'carpet', rotY: rng() * 0.5, shadow: false });
+  }
+  kit.shelving(GREEN.x + 6.4, 0, GREEN.z - 2, { width: 4, height: 2.4, rotY: Math.PI / 2, shelves: 4, fill: 0.8 });
+
+  // --- the lantern ----------------------------------------------------------
+  const LANTERN_X = GREEN.x;
+  const LANTERN_Z = GREEN.z + 4.2;
+  const SCREEN_Z = GREEN.z - 5.85;      // the north wall of the green room
+
+  kit.box(1.2, 0.9, 0.8, LANTERN_X, 0.45, LANTERN_Z,
+    material('paintedWood', { color: 0x2a1c12 }), { surface: 'wood', tile: 1.0 });
+
+  const lanternBody = kit.box(0.7, 0.5, 0.9, LANTERN_X, 1.16, LANTERN_Z,
+    material('rustedSteel', { repeat: 1 }), { surface: 'metal', tile: 0.5, solid: false });
+
+  const lanternLamp = new THREE.PointLight(0xfff0cc, 1.6, 2.2, 2);
+  lanternLamp.position.set(LANTERN_X, 1.16, LANTERN_Z - 0.6);
+  scene.add(lanternLamp);
+
+  // The projection. One canvas, redrawn from the three discs' rotations, so
+  // the screen can never disagree with the machine.
+  const projCanvas = document.createElement('canvas');
+  projCanvas.width = 512;
+  projCanvas.height = 384;
+  const projTex = new THREE.CanvasTexture(projCanvas);
+  projTex.colorSpace = THREE.SRGBColorSpace;
+
+  const projection = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.4, 2.55),
+    new THREE.MeshStandardMaterial({
+      // A projection is added light, not a painted surface: its blacks are
+      // the wall and its brights are the beam. So the albedo is almost nothing
+      // and the picture rides entirely on the emissive map.
+      //
+      // With a normal diffuse map it washed out completely the moment the
+      // player pointed their own torch at it — which they will, because it is
+      // dark and they are looking for something — and the picture, which is
+      // the entire puzzle, stopped being readable at exactly the moment they
+      // went to read it.
+      color: 0x090807,
+      emissiveMap: projTex, emissive: 0xffffff, emissiveIntensity: 1.1,
+      roughness: 1, metalness: 0,
+    })
+  );
+  projection.position.set(LANTERN_X, 2.0, SCREEN_Z + 0.06);
+  scene.add(projection);
+
+  // Three discs. `turn` is 0..3; the answer is all three at 0.
+  const DISCS = [
+    { turn: 1, mesh: null },
+    { turn: 3, mesh: null },
+    { turn: 2, mesh: null },
+  ];
+
+  const drawProjection = () => {
+    drawCompanyPhoto(projCanvas, DISCS.map((d) => d.turn));
+    projTex.needsUpdate = true;
+    const solved = DISCS.every((d) => d.turn === 0);
+    projection.material.emissiveIntensity = solved ? 1.6 : 1.1;
+  };
+
+  DISCS.forEach((disc, i) => {
+    const dx = LANTERN_X - 0.24 + i * 0.24;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.15, 0.022, 8, 20),
+      material('brass')
+    );
+    ring.position.set(dx, 1.42, LANTERN_Z);
+    ring.castShadow = true;
+    scene.add(ring);
+
+    // A notch, so the player can see the disc turn.
+    const notch = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.09, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x6a1f1c, roughness: 0.6 })
+    );
+    notch.position.set(0, 0.15, 0);
+    ring.add(notch);
+    disc.mesh = ring;
+    ring.rotation.z = -disc.turn * Math.PI / 2;
+
+    interaction.register({
+      object: ring,
+      reach: 2.0,
+      label: () => `Turn the ${['first', 'second', 'third'][i]} disc`,
+      enabled: () => !state.lanternDone,
+      disabledLabel: 'The picture is whole',
+      onUse: () => {
+        if (state.lanternDone) return;
+        disc.turn = (disc.turn + 1) % 4;
+        ring.rotation.z = -disc.turn * Math.PI / 2;
+        audio?.leverClunk?.(ring.position);
+        drawProjection();
+
+        if (DISCS.every((d) => d.turn === 0)) {
+          state.lanternDone = true;
+          puzzles.solve('ch3-lantern');
+          audio?.puzzleSolved?.();
+          lanternLamp.intensity = 2.8;
+          hud.say('Forty-three of them on the stage, and one more at the back who is not standing on the floor.', { duration: 7 });
+        }
+      },
+    });
+  });
+
+  drawProjection();
+
+  puzzles.register({
+    id: 'ch3-lantern',
+    name: 'The Magic Lantern',
+    objective: 'Put the picture back together.',
+    marker: new THREE.Vector3(LANTERN_X, 1.4, LANTERN_Z),
+    hints: [
+      'The green room is east off the rehearsal hall. The lantern on the table is still projecting; what it is projecting does not line up.',
+      'Three glass discs, each carrying a third of the picture, each turnable a quarter at a time — and turning one slides that band of the projection sideways. The brass index mark on a ring tells you where that disc is.',
+      'Line the bands up so the picture runs straight across. From where they start that is three turns of the first ring, one of the second and two of the third, which leaves all three index marks straight up.',
+    ],
+  });
+
+  placeNote(scene, interaction, reader, save, 'ch3-note-lantern', new THREE.Vector3(LANTERN_X + 4.6, 0.85, GREEN.z + 3.6), 0.4);
 
   // ==========================================================================
   // THE STAIR DOWN + COSTUME STORAGE (the Gloam section)
@@ -925,4 +1083,136 @@ function placeTape(scene, interaction, reader, save, id, position) {
     },
   });
   return tv;
+}
+
+/**
+ * The magic lantern's slide, drawn from the three discs' rotations.
+ *
+ * The photograph is cut into three horizontal bands — sky, the company, the
+ * stage floor — one to a disc. A disc turned a quarter, a half or three
+ * quarters draws its band rotated, which shears the picture apart exactly the
+ * way a misaligned lantern does: the content is all still there and none of it
+ * lines up.
+ *
+ * Drawing it this way rather than shipping four pre-made images means the
+ * screen and the machine can never disagree, and the near-misses are legible —
+ * one disc out is obviously one disc out.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {number[]} turns  quarter-turns of each disc, 0..3
+ */
+function drawCompanyPhoto(canvas, turns) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const g = canvas.getContext('2d');
+
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = '#0b0906';
+  g.fillRect(0, 0, W, H);
+
+  const band = H / 3;
+
+  /** Paint one third of the photograph into a scratch canvas. */
+  const paintBand = (index) => {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = band;
+    const b = c.getContext('2d');
+
+    // Sepia stock, brighter at the top.
+    const sky = b.createLinearGradient(0, 0, 0, band);
+    sky.addColorStop(0, index === 0 ? '#f0e3c2' : '#ddcaa1');
+    sky.addColorStop(1, index === 2 ? '#8a7350' : '#b8a27a');
+    b.fillStyle = sky;
+    b.fillRect(0, 0, W, band);
+
+    if (index === 0) {
+      // The fly tower and the top of the proscenium arch.
+      b.fillStyle = '#3c3122';
+      b.fillRect(0, 0, W, 18);
+      for (let i = 0; i < 9; i++) {
+        b.fillRect(24 + i * 54, 0, 12, 40 + (i % 3) * 14);
+      }
+      b.fillStyle = '#2c2418';
+      b.beginPath();
+      b.moveTo(40, band);
+      b.lineTo(40, 46);
+      b.lineTo(W - 40, 46);
+      b.lineTo(W - 40, band);
+      b.closePath();
+      b.stroke();
+    } else if (index === 1) {
+      // The company, in a row. Heads and shoulders, all the same height —
+      // except one at the back, which is the point of the picture.
+      b.fillStyle = '#2f2718';
+      for (let i = 0; i < 21; i++) {
+        const x = 16 + i * 23;
+        b.fillRect(x, band - 44, 15, 44);
+        b.beginPath();
+        b.arc(x + 7.5, band - 50, 7.5, 0, Math.PI * 2);
+        b.fill();
+      }
+      // The forty-fourth: taller, further back, feet above the line.
+      b.fillStyle = '#1d180f';
+      b.fillRect(W * 0.62, band - 74, 17, 60);
+      b.beginPath();
+      b.arc(W * 0.62 + 8.5, band - 82, 9.5, 0, Math.PI * 2);
+      b.fill();
+    } else {
+      // The stage floor, and the footlights along its lip.
+      b.fillStyle = '#4a3c28';
+      b.fillRect(0, band - 34, W, 34);
+      b.fillStyle = '#d8c48e';
+      for (let i = 0; i < 16; i++) {
+        b.beginPath();
+        b.ellipse(22 + i * 31, band - 30, 7, 4, 0, 0, Math.PI * 2);
+        b.fill();
+      }
+    }
+
+    // Grain and the circular vignette of a lantern slide.
+    const img = b.getImageData(0, 0, W, band);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 26;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    b.putImageData(img, 0, 0);
+
+    return c;
+  };
+
+  for (let i = 0; i < 3; i++) {
+    const strip = paintBand(i);
+    const turn = ((turns[i] ?? 0) % 4 + 4) % 4;
+
+    // A quarter turn SLIDES the band, it does not rotate the image.
+    //
+    // A disc carries its picture round its rim and the gate shows one arc of
+    // it, so turning the disc scrolls that band sideways and wraps. Rotating
+    // the band in place instead — which the first version did — takes a strip
+    // 512 wide and 128 tall and stands it on end, so seven eighths of the band
+    // falls outside the gate and the plate reads as missing rather than
+    // misaligned. Sliding keeps every piece of the photograph on the plate,
+    // which is what lets the player see how far out each disc is.
+    const offset = (turn * W) / 4;
+
+    g.save();
+    g.beginPath();
+    g.rect(0, i * band, W, band);
+    g.clip();
+    g.drawImage(strip, -offset, i * band);
+    g.drawImage(strip, W - offset, i * band);
+    g.restore();
+  }
+
+  // The lantern's own circular mask, over the whole plate.
+  // Gentle. A lantern's circular mask should frame the plate, not eat it —
+  // at 0.95 alpha from a third of the way out it took everything but a strip
+  // down the middle, which on a puzzle you have to read is fatal.
+  const mask = g.createRadialGradient(W / 2, H / 2, H * 0.52, W / 2, H / 2, H * 0.88);
+  mask.addColorStop(0, 'rgba(0,0,0,0)');
+  mask.addColorStop(1, 'rgba(6,5,4,0.75)');
+  g.fillStyle = mask;
+  g.fillRect(0, 0, W, H);
 }
