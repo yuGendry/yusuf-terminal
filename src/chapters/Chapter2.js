@@ -39,6 +39,36 @@ const CONES = [
 ];
 const GAUGE_ERROR = -305;      // the gauge under-reads by this much
 
+/**
+ * The glaze bench. Four pigment taps, and the works order gives the recipe in
+ * parts — but one pair of taps is cross-plumbed, so the label on the handle is
+ * not what comes out of it.
+ *
+ * That is the whole puzzle, and it is why it belongs in this chapter: the
+ * player already knows by now not to trust a label (the breaker plates rotted
+ * off, the kiln gauge reads low), and Threadlight shows a pipe running to the
+ * wrong drum the same way it showed a cable running to the wrong circuit.
+ *
+ * `delivers` is the pigment the handle ACTUALLY draws. Yellow and blue are
+ * swapped; white and red are honest.
+ */
+const PIGMENTS = {
+  white:  { label: 'LEAD WHITE',     rgb: [0.93, 0.91, 0.86] },
+  red:    { label: 'IRON RED',       rgb: [0.56, 0.13, 0.09] },
+  yellow: { label: 'CHROME YELLOW',  rgb: [0.85, 0.66, 0.12] },
+  blue:   { label: 'COBALT BLUE',    rgb: [0.13, 0.22, 0.55] },
+};
+
+const TAPS = [
+  { label: 'white',  delivers: 'white' },
+  { label: 'red',    delivers: 'red' },
+  { label: 'yellow', delivers: 'blue' },     // cross-plumbed
+  { label: 'blue',   delivers: 'yellow' },   // cross-plumbed
+];
+
+/** HOLLOWHART FLESH No. 3, as the works order gives it. */
+const GLAZE_RECIPE = { white: 5, red: 3, yellow: 2, blue: 0 };
+
 export function buildChapter2(ctx) {
   const { physics, engine, audio, music, save, puzzles, interaction, mask, flashlight, hud, reader } = ctx;
 
@@ -68,6 +98,9 @@ export function buildChapter2(ctx) {
     warmHandTaken: false,
     keypadEntry: [],
     paintDoorOpen: false,
+    glaze: { white: 0, red: 0, yellow: 0, blue: 0 },
+    glazeDone: false,
+    kilnKey: false,
     kilnTemp: 20,
     kilnFiring: false,
     kilnDone: false,
@@ -505,7 +538,9 @@ export function buildChapter2(ctx) {
         puzzles.solve('ch2-keypad');
         audio?.puzzleSolved?.();
         hud.setObjective('Get into the kiln room.');
-        setTimeout(() => puzzles.activate('ch2-kiln'), 1400);
+        // The glaze bench comes first now: the kiln room door is padlocked and
+        // the key is in the drying cabinet.
+        setTimeout(() => puzzles.activate('ch2-glaze'), 1400);
       } else {
         readout.material.emissive.setHex(0xc23b2e);
         readout.material.emissiveIntensity = 3;
@@ -565,7 +600,7 @@ export function buildChapter2(ctx) {
     ],
   });
   kit.practical(-1, 5.6, -25, { intensity: 30, distance: 14, flicker: { chance: 0.35, severity: 0.7, seed: 61 } });
-  kit.practical(7, 5.6, -26, { intensity: 24, distance: 12, castShadow: false, flicker: { chance: 0.5, severity: 0.8, seed: 63 } });
+  kit.practical(6, 5.6, -23, { intensity: 13, distance: 10, castShadow: false, flicker: { chance: 0.5, severity: 0.8, seed: 63 } });
   kit.dust(new THREE.Vector3(2, 2.8, -25), new THREE.Vector3(18, 6, 11), { count: 900, seed: 31 });
 
   // The new east bay: drying racks and a spray bench, so the extra floor is
@@ -603,6 +638,229 @@ export function buildChapter2(ctx) {
       scene.add(eye);
     }
   }
+
+  // ==========================================================================
+  // PUZZLE 4 — The Glaze
+  // ==========================================================================
+  //
+  // A mixing bench in the paint shop's east bay. Four taps, a pot, a works
+  // order with the recipe on it, and one pair of taps plumbed to each other's
+  // drums.
+
+  const GLAZE_X = 8.6;
+  const GLAZE_Z = -27.4;
+
+  kit.box(3.2, 1.0, 1.0, GLAZE_X, 0.5, GLAZE_Z,
+    material('paintedWood', { color: 0x3a2a1e }), { surface: 'wood', tile: 1.2 });
+
+  // The drums, above and behind the taps.
+  const drumOf = {};
+  TAPS.forEach((tap, i) => {
+    const dx = GLAZE_X - 1.2 + i * 0.8;
+    // The drum matches the plate under it, because that is what an honest
+    // workshop looks like and it is the pipes that are wrong, not the stock.
+    // Colouring the drum by what the tap actually delivers gives the whole
+    // puzzle away from across the room and makes the lens pointless.
+    const drum = kit.box(0.5, 0.7, 0.5, dx, 2.15, GLAZE_Z - 0.55,
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(...PIGMENTS[tap.label].rgb).multiplyScalar(0.32),
+        roughness: 0.92,
+      }), { surface: 'metal' });
+    drumOf[tap.label] = drum;
+
+    // The label plate on the HANDLE, which is what the player reads.
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.62, 0.16),
+      new THREE.MeshStandardMaterial({
+        map: makeGlazePlate(PIGMENTS[tap.label].label), roughness: 0.9, side: THREE.DoubleSide,
+      })
+    );
+    plate.position.set(dx, 1.34, GLAZE_Z - 0.28);
+    scene.add(plate);
+
+    // The pipe from drum to tap. Through Threadlight it runs to the drum the
+    // handle ACTUALLY draws from, which for two of the four is not its own.
+    const target = TAPS.findIndex((t) => t.label === tap.delivers);
+    const tx = GLAZE_X - 1.2 + target * 0.8;
+    const run = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.05, Math.abs(tx - dx)) + 0.06, 0.045, 0.045),
+      new THREE.MeshBasicMaterial({
+        color: 0x6fe3d4, transparent: true, opacity: 0.8,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    run.position.set((dx + tx) / 2, 1.62, GLAZE_Z - 0.42);
+    run.userData.lensOnly = 'threadlight';
+    scene.add(run);
+
+    const drop = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.5, 0.045),
+      new THREE.MeshBasicMaterial({
+        color: 0x6fe3d4, transparent: true, opacity: 0.8,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    drop.position.set(dx, 1.4, GLAZE_Z - 0.42);
+    drop.userData.lensOnly = 'threadlight';
+    scene.add(drop);
+  });
+
+  // The pot. Its colour is the answer the player is reading.
+  const potMat = new THREE.MeshStandardMaterial({ color: 0x1a1714, roughness: 0.6 });
+  const pot = kit.box(0.7, 0.34, 0.7, GLAZE_X + 1.1, 1.17, GLAZE_Z + 0.1,
+    material('rustedSteel', { repeat: 1 }), { surface: 'metal', tile: 0.5, solid: false });
+  const potSurface = new THREE.Mesh(new THREE.PlaneGeometry(0.58, 0.58), potMat);
+  potSurface.rotation.x = -Math.PI / 2;
+  potSurface.position.set(GLAZE_X + 1.1, 1.33, GLAZE_Z + 0.1);
+  scene.add(potSurface);
+
+  // Tight and modest. A bench lamp that blows the wall behind it out to white
+  // makes the pot — the one thing in the room the player has to judge a colour
+  // from — harder to read, not easier.
+  const potLight = new THREE.SpotLight(0xfff0d8, 5.5, 2.2, Math.PI / 5, 0.85, 2);
+  potLight.position.set(GLAZE_X + 1.1, 2.6, GLAZE_Z + 0.1);
+  potLight.target.position.set(GLAZE_X + 1.1, 1.3, GLAZE_Z + 0.1);
+  scene.add(potLight, potLight.target);
+
+  /** Weighted average of what is in the pot. Empty reads as dry metal. */
+  function glazeColour(parts) {
+    let total = 0;
+    const acc = [0, 0, 0];
+    for (const [id, n] of Object.entries(parts)) {
+      total += n;
+      for (let i = 0; i < 3; i++) acc[i] += PIGMENTS[id].rgb[i] * n;
+    }
+    if (total === 0) return new THREE.Color(0x1a1714);
+    return new THREE.Color(acc[0] / total, acc[1] / total, acc[2] / total);
+  }
+
+  const TARGET_COLOUR = glazeColour(GLAZE_RECIPE);
+
+  function refreshPot() {
+    potMat.color.copy(glazeColour(state.glaze));
+  }
+
+  function glazeMatches() {
+    // The ratio is what matters, not the absolute volume — but the pot is
+    // small, so the recipe's own quantities are the only ones that fit.
+    return Object.keys(GLAZE_RECIPE).every((id) => state.glaze[id] === GLAZE_RECIPE[id]);
+  }
+
+  TAPS.forEach((tap, i) => {
+    const dx = GLAZE_X - 1.2 + i * 0.8;
+    const handle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.24, 0.07),
+      material('brass')
+    );
+    handle.position.set(dx, 1.12, GLAZE_Z + 0.12);
+    handle.rotation.x = -0.35;
+    handle.castShadow = true;
+    scene.add(handle);
+
+    interaction.register({
+      object: handle,
+      reach: 2.0,
+      label: () => `Draw one part — ${PIGMENTS[tap.label].label}`,
+      enabled: () => !state.glazeDone,
+      disabledLabel: 'The glaze is mixed',
+      onUse: () => {
+        if (state.glazeDone) return;
+        state.glaze[tap.delivers] += 1;
+        refreshPot();
+        audio?.leverClunk?.(handle.position);
+
+        const total = Object.values(state.glaze).reduce((a, b) => a + b, 0);
+        if (glazeMatches()) {
+          state.glazeDone = true;
+          state.kilnKey = true;
+          kilnRoomDoor.unlock();
+          puzzles.solve('ch2-glaze');
+          audio?.puzzleSolved?.();
+          hud.say('Flesh No. 3. The cabinet catch springs — there is a key on the hook inside.', { duration: 6 });
+          setTimeout(() => puzzles.activate('ch2-kiln'), 3000);
+        } else if (total >= 10) {
+          hud.say('The pot is full and it is the wrong colour. Tip it out and start again.', { duration: 4.5 });
+        }
+      },
+    });
+  });
+
+  // Tipping the pot out, because a puzzle you can put into an unwinnable state
+  // and not get out of is not a puzzle, it is a reload.
+  const tipLever = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), material('brass'));
+  tipLever.position.set(GLAZE_X + 1.1, 1.3, GLAZE_Z + 0.55);
+  tipLever.rotation.x = 0.4;
+  tipLever.castShadow = true;
+  scene.add(tipLever);
+
+  interaction.register({
+    object: tipLever,
+    reach: 2.0,
+    label: 'Tip the pot out',
+    enabled: () => !state.glazeDone,
+    disabledLabel: 'The glaze is mixed',
+    onUse: () => {
+      state.glaze = { white: 0, red: 0, yellow: 0, blue: 0 };
+      refreshPot();
+      audio?.leverClunk?.(tipLever.position);
+      hud.say('Empty.', { duration: 1.8 });
+    },
+  });
+
+  // The works order, with the recipe and a painted swatch of the target.
+  {
+    const order = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.8, 1.0),
+      new THREE.MeshStandardMaterial({
+        map: makeWorksOrder(GLAZE_RECIPE, PIGMENTS, TARGET_COLOUR),
+        roughness: 0.94, side: THREE.DoubleSide,
+      })
+    );
+    order.position.set(10.85, 1.9, GLAZE_Z);
+    order.rotation.y = -Math.PI / 2;
+    scene.add(order);
+
+    const l = new THREE.SpotLight(0xffe0b0, 9, 2.8, Math.PI / 6, 0.8, 2);
+    l.position.set(9.9, 2.9, GLAZE_Z);
+    l.target.position.set(10.8, 1.9, GLAZE_Z);
+    scene.add(l, l.target);
+  }
+
+  puzzles.register({
+    id: 'ch2-glaze',
+    name: 'The Glaze',
+    objective: 'Mix Flesh No. 3.',
+    marker: new THREE.Vector3(GLAZE_X, 1.4, GLAZE_Z),
+    hints: [
+      'The kiln room is locked and the key is in the drying cabinet, which is shut. The works order pinned by the mixing bench says what the cabinet was last opened for.',
+      'Five parts white, three red, two yellow. Pull the handles and watch the pot — if it is going the wrong colour, the pot tips out and you start again. And nothing else in this building has been labelled correctly either.',
+      'Two of the taps are plumbed to each other\'s drums: the one marked CHROME YELLOW draws cobalt, and the one marked COBALT BLUE draws chrome. So pull WHITE five times, IRON RED three times, and COBALT BLUE twice.',
+    ],
+  });
+
+  // The kiln room door, which this opens.
+  // The hinge sits half a leaf on the +z side of the opening it fills: with
+  // rotY = PI/2 the leaf extends toward -z, so the centre of the door is at
+  // hinge_z - width/2, and the opening is at world z = -25.
+  const kilnRoomDoor = kit.door({
+    x: -7, z: -25 + 1.7 / 2, width: 1.7, height: 2.3, rotY: Math.PI / 2,
+    locked: true, name: 'kiln-room',
+  });
+
+  interaction.register({
+    object: kilnRoomDoor.object,
+    reach: 2.4,
+    label: () => (kilnRoomDoor.isLocked ? 'Locked — the kiln room' : kilnRoomDoor.isOpen ? 'Close' : 'Open'),
+    onUse: () => {
+      if (kilnRoomDoor.isLocked) {
+        hud.say('Locked. A works padlock, and the key is not on this side of it.', { duration: 3.6 });
+        return;
+      }
+      kilnRoomDoor.toggle();
+    },
+  });
+
+  refreshPot();
 
   // ==========================================================================
   // PUZZLE 3 — The Kiln
@@ -1182,4 +1440,107 @@ function placeTape(scene, interaction, reader, save, id, position) {
     },
   });
   return tv;
+}
+
+/** A tap's engraved label plate. */
+function makeGlazePlate(text) {
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 84;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2a2520';
+  g.fillRect(0, 0, 320, 84);
+  g.strokeStyle = '#9a8d78';
+  g.lineWidth = 3;
+  g.strokeRect(7, 7, 306, 70);
+  g.fillStyle = '#d8cdb4';
+  g.font = 'bold 26px "Helvetica Neue", Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 160, 44);
+  for (let i = 0; i < 90; i++) {
+    g.fillStyle = `rgba(18,14,10,${Math.random() * 0.3})`;
+    g.beginPath();
+    g.arc(Math.random() * 320, Math.random() * 84, Math.random() * 8, 0, Math.PI * 2);
+    g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/**
+ * The works order pinned by the mixing bench.
+ *
+ * It gives the recipe in parts and paints the target colour beside it, so the
+ * player has both the instruction and the thing to compare the pot against.
+ * The colour is computed from the same function the pot uses, so the swatch
+ * can never disagree with the answer.
+ */
+function makeWorksOrder(recipe, pigments, targetColour) {
+  const c = document.createElement('canvas');
+  c.width = 400; c.height = 500;
+  const g = c.getContext('2d');
+
+  g.fillStyle = '#d8ccae';
+  g.fillRect(0, 0, 400, 500);
+  for (let i = 0; i < 220; i++) {
+    g.fillStyle = `rgba(120,96,60,${Math.random() * 0.08})`;
+    g.beginPath();
+    g.arc(Math.random() * 400, Math.random() * 500, Math.random() * 20, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  g.fillStyle = '#2b1f16';
+  g.textAlign = 'center';
+  g.font = 'bold 25px Georgia, serif';
+  g.fillText('WORKS ORDER 4471', 200, 48);
+  g.font = 'italic 17px Georgia, serif';
+  g.fillText('HOLLOWHART FLESH No. 3', 200, 76);
+
+  g.strokeStyle = '#6a1f1c';
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(44, 94); g.lineTo(356, 94); g.stroke();
+
+  // The swatch.
+  const hex = `#${targetColour.getHexString()}`;
+  g.fillStyle = hex;
+  g.fillRect(120, 112, 160, 96);
+  g.strokeStyle = '#2b1f16';
+  g.lineWidth = 3;
+  g.strokeRect(120, 112, 160, 96);
+  g.fillStyle = '#4a3a2a';
+  g.font = '13px Georgia, serif';
+  g.fillText('matched wet', 200, 228);
+
+  // The recipe.
+  g.textAlign = 'left';
+  g.fillStyle = '#2b1f16';
+  g.font = 'bold 19px Georgia, serif';
+  g.fillText('PARTS BY VOLUME', 56, 274);
+  g.font = '21px Georgia, serif';
+  let y = 312;
+  for (const [id, n] of Object.entries(recipe)) {
+    if (!n) continue;
+    g.fillStyle = `rgb(${pigments[id].rgb.map((v) => Math.round(v * 255)).join(',')})`;
+    g.fillRect(56, y - 16, 20, 20);
+    g.strokeStyle = '#2b1f16';
+    g.lineWidth = 1.5;
+    g.strokeRect(56, y - 16, 20, 20);
+    g.fillStyle = '#2b1f16';
+    g.fillText(`${n}`, 90, y);
+    g.fillText(pigments[id].label, 122, y);
+    y += 40;
+  }
+
+  g.textAlign = 'center';
+  g.font = 'italic 14px Georgia, serif';
+  g.fillStyle = '#6a1f1c';
+  g.fillText('Bench was re-plumbed Feb. Nobody re-did', 200, 446);
+  g.fillText('the handles. Check before you draw.', 200, 466);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }

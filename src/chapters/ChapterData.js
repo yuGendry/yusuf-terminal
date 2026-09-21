@@ -89,6 +89,20 @@ export const CHAPTERS = [
   },
 ];
 
+/**
+ * Chapters that actually have a level behind them.
+ *
+ * This, and not the save file, is what chapter select gates on. Locking
+ * chapters behind progress made sense when the game was being played once,
+ * straight through; it makes no sense for someone who wants to jump back into
+ * the workshop to look at something, and it makes testing a later chapter mean
+ * beating the earlier ones first. A chapter you have not reached is a spoiler
+ * you chose to look at, which is your business.
+ */
+export const BUILT_CHAPTERS = [1, 2, 3, 4];
+
+export const isChapterBuilt = (id) => BUILT_CHAPTERS.includes(id);
+
 export const TOTAL_STUBS = CHAPTERS.reduce((n, c) => n + c.stubs, 0);   // 12
 
 export const getChapter = (id) => CHAPTERS.find((c) => c.id === id) ?? null;

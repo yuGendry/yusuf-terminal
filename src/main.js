@@ -24,7 +24,7 @@ import { Settings } from './core/Settings.js';
 import { Physics, initPhysics } from './core/Physics.js';
 import { Audio } from './audio/AudioEngine.js';
 import { Save } from './save/SaveSystem.js';
-import { CHAPTERS } from './chapters/ChapterData.js';
+import { CHAPTERS, BUILT_CHAPTERS } from './chapters/ChapterData.js';
 import { setTextureAnisotropy } from './world/Textures.js';
 
 import { MenuScene } from './menu/MenuScene.js';
@@ -605,8 +605,8 @@ function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Chapters that actually exist. The menu unlocks beyond this; the game stops. */
-const CHAPTER_AVAILABLE = [1, 2, 3, 4];
+/** Which chapters have a level behind them. Shared with the menu. */
+const CHAPTER_AVAILABLE = BUILT_CHAPTERS;
 
 // ---------------------------------------------------------------------------
 

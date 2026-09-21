@@ -8,7 +8,7 @@
 
 import { Audio } from '../audio/AudioEngine.js';
 import { Save, formatWhen, formatPlaytime } from '../save/SaveSystem.js';
-import { CHAPTERS, TOTAL_STUBS } from '../chapters/ChapterData.js';
+import { CHAPTERS, TOTAL_STUBS, isChapterBuilt, BUILT_CHAPTERS } from '../chapters/ChapterData.js';
 import { el } from './Widgets.js';
 import { Settings } from '../core/Settings.js';
 
@@ -136,11 +136,13 @@ export class MainMenu {
       }
     );
 
+    // Never disabled. It used to be greyed out until you had finished the
+    // first chapter, which meant the one thing you could not do from a fresh
+    // install was look at what was in the game.
     add(
       'Chapter Select',
-      highest > 1 ? `${highest} of 5 unlocked` : 'Unlocks as you progress',
-      () => this._openChapterSelect(),
-      { disabled: highest <= 1 }
+      `${BUILT_CHAPTERS.length} of ${CHAPTERS.length} built — all playable`,
+      () => this._openChapterSelect()
     );
 
     add('Settings', null, () => this.settingsMenu.show());
@@ -260,7 +262,9 @@ export class MainMenu {
       const frag = document.createDocumentFragment();
 
       for (const ch of CHAPTERS) {
-        const unlocked = Save.isChapterUnlocked(ch.id);
+        // Built, not unlocked. See BUILT_CHAPTERS.
+        const unlocked = isChapterBuilt(ch.id);
+        const reached = Save.isChapterUnlocked(ch.id);
         const card = el('div');
         card.style.cssText = `
           display:flex; gap:20px; align-items:flex-start;
@@ -276,11 +280,11 @@ export class MainMenu {
 
         const text = el('div');
         text.style.cssText = 'flex:1;min-width:0;';
-        const t = el('div', null, unlocked ? ch.title : 'Locked');
+        const t = el('div', null, ch.title);
         t.style.cssText = 'font-size:23px;color:var(--bone);letter-spacing:0.04em;';
         text.appendChild(t);
 
-        const st = el('div', null, unlocked ? ch.subtitle : `Finish chapter ${ch.id - 1} to unlock`);
+        const st = el('div', null, unlocked ? ch.subtitle : 'Not built yet');
         st.style.cssText = 'font-family:var(--mono-font);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(232,224,210,0.32);margin-top:4px;';
         text.appendChild(st);
 
@@ -294,7 +298,8 @@ export class MainMenu {
           const foundStubs = Save.profile.foundStubs.filter((s) => s.startsWith(`ch${ch.id}`)).length;
           meta.textContent =
             `~${ch.estimatedMinutes} MIN · STUBS ${foundStubs}/${ch.stubs}` +
-            (ch.lensName ? ` · LENS: ${ch.lensName.toUpperCase()}` : ' · FINALE');
+            (ch.lensName ? ` · LENS: ${ch.lensName.toUpperCase()}` : ' · FINALE') +
+            (reached ? '' : ' · NOT YET REACHED');
           text.appendChild(meta);
         }
         card.appendChild(text);
