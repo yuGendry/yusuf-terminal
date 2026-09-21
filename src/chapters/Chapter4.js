@@ -731,18 +731,28 @@ export function buildChapter4(ctx) {
       opacity: 0.62,
     });
 
+    // The flight is laid out from the TOP down, so the highest tread abuts the
+    // landing rather than stopping wherever fourteen treads of an arbitrary
+    // going happen to end. Laid out from the bottom up it finished a metre and
+    // a half short of the pad — four metres in the air, with nothing between
+    // the last tread and the doorway.
     const TREADS = 14;
+    const GOING = 0.62;
+    const PAD_Z = -45.2;
+    const PAD_D = 1.6;
+    const TOP_TREAD_Z = PAD_Z + PAD_D / 2 + GOING / 2;   // abutting the pad
+
     for (let i = 0; i < TREADS; i++) {
       const top = LOWER_Y + (4.2 / TREADS) * (i + 1);
-      const cz = -34.5 - i * 0.62;
-      const mesh = kit.box(2.2, 0.16, 0.62, -8, top - 0.08, cz, ghostMat,
+      const cz = TOP_TREAD_Z + (TREADS - 1 - i) * GOING;
+      const mesh = kit.box(2.2, 0.16, GOING, -8, top - 0.08, cz, ghostMat,
         { surface: 'wood', shadow: false });
       mesh.userData.lensOnly = 'hollow';
       cutStair.push(mesh);
     }
 
     // A landing at the top, in front of the doorway.
-    const pad = kit.box(2.4, 0.16, 1.6, -8, LOWER_Y + 4.12, -45.2, ghostMat, { surface: 'wood', shadow: false });
+    const pad = kit.box(2.4, 0.16, PAD_D, -8, LOWER_Y + 4.12, PAD_Z, ghostMat, { surface: 'wood', shadow: false });
     pad.userData.lensOnly = 'hollow';
     cutStair.push(pad);
   }
@@ -1209,6 +1219,18 @@ export function buildChapter4(ctx) {
     onPlayerReady(player) {
       gloam.player = player;
       understudy.player = player;
+    },
+
+    /**
+     * Make lens-gated collision solid for the walkability check.
+     *
+     * The cut stair is the only route to the gallery and everything past it,
+     * and it exists only while Hollow is being worn — so a flood fill that
+     * does not know about it reports half the chapter as severed. This is the
+     * level telling the tool "the player can get up there, and here is why".
+     */
+    forceSolid(on) {
+      setStairSolid(on);
     },
 
     onRespawn() {

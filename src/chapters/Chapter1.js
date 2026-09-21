@@ -583,6 +583,11 @@ export function buildChapter1(ctx) {
     object: torchMesh,
     reach: 2.6,
     label: 'Take the torch',
+    // It starts inside the drawer, deep in a room the player never enters, and
+    // only comes within reach when the drawer slides it out onto the counter.
+    // Told to the walkability check, which otherwise reports it — correctly,
+    // for the state it is in when the chapter loads — as unreachable.
+    reachedFromElsewhere: true,
     enabled: () => state.ticketDrawerOpen,
     onUse: () => {
       flashlight.give({ battery: 0.62 });
@@ -1164,9 +1169,18 @@ export function buildChapter1(ctx) {
     const rotY = Math.atan2(x2 - x1, z2 - z1);
     const deck = kit.box(1.5, 0.12, len, mid.x, catwalkY, mid.z,
       material('steel', { repeat: 2 }), { surface: 'metal', rotY });
-    // Handrails, which also stop the player walking off in the dark.
+    // Handrails, which also stop the player walking off in the dark — but
+    // stopping 1.1m short of each end, because the runs meet at right angles
+    // and a rail that goes all the way to the corner seals it.
+    //
+    // Every junction in this network was closed: the north-south run's west
+    // rail stood across the mouth of the east-west run, so the player could
+    // climb the stair, walk the catwalk, and be unable to turn. The chase
+    // route did not go anywhere. Nothing caught it because a catwalk is not a
+    // door, and the only check that could see it is one that tries to walk.
+    const railLen = Math.max(0.6, len - 2.2);
     for (const side of [-1, 1]) {
-      kit.box(0.06, 1.0, len,
+      kit.box(0.06, 1.0, railLen,
         mid.x + side * 0.72 * Math.cos(rotY),
         catwalkY + 0.56,
         mid.z - side * 0.72 * Math.sin(rotY),
@@ -1341,7 +1355,14 @@ export function buildChapter1(ctx) {
   // COLLECTIBLES
   // ==========================================================================
 
-  placeNote(kit, interaction, scene, reader, save, 'ch1-note-timecard', new THREE.Vector3(12.9, 1.1, -4.4), 0.4);
+  // On the office counter, just inside the window.
+  //
+  // It used to sit at x 12.9 — three and a half metres deep into a room whose
+  // only door is bolted and whose only opening is a serving hatch the player
+  // reaches through. It was, measured, uncollectable.
+  // On the ticket counter (top at y 1.11, x 9.575..10.125, z -3.75..-2.25),
+  // on the office side of the grille but well within arm's reach of it.
+  placeNote(kit, interaction, scene, reader, save, 'ch1-note-timecard', new THREE.Vector3(9.95, 1.14, -3.4), 0.4);
   placeNote(kit, interaction, scene, reader, save, 'ch1-note-boxoffice',
     // On the box office table (top at y 0.81, x -3.2..-1.6, z 5.2..6.0), not
     // beside it: at x -3.4 it hung 20cm off the end of the table and 30cm above

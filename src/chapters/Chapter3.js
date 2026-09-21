@@ -75,39 +75,41 @@ export function buildChapter3(ctx) {
   // REHEARSAL HALL
   // ==========================================================================
 
-  const HALL = { w: 20, d: 18, h: 8.4, x: 0, z: 0 };
+  const HALL = { w: 26, d: 24, h: 8.4, x: 0, z: 3 };
   kit.room({
-    width: HALL.w, depth: HALL.d, height: HALL.h, x: 0, z: 0,
+    width: HALL.w, depth: HALL.d, height: HALL.h, x: HALL.x, z: HALL.z,
     floorMat: material('stageFloor', { repeat: 6 }),
     wallMat: material('wallPlasterClean', { repeat: 4 }),
     ceilMat: material('ceiling', { repeat: 4 }),
     surface: 'wood',
     openings: [
       { side: 's', at: 0, width: 1.8, top: 2.4 },     // in
-      { side: 'n', at: -6, width: 1.6, top: 2.3 },    // to the stair down
+      { side: 'n', at: -6, width: 2.2, top: 2.4 },    // to the stairwell
     ],
   });
 
   // A mirrored wall along the west side, as every rehearsal room has. The
   // reflection is faked with a dark glossy plane — a real mirror would double
   // the scene cost, and at this light level nobody can tell.
-  kit.box(0.08, 3.6, 15, -9.9, 2.0, 0, new THREE.MeshPhysicalMaterial({
+  kit.box(0.08, 3.6, 19, -12.9, 2.0, 3, new THREE.MeshPhysicalMaterial({
     color: 0x14161c, roughness: 0.12, metalness: 0.6,
     clearcoat: 1, clearcoatRoughness: 0.08,
   }), { surface: 'tile', shadow: false });
 
   // The barre.
   for (let i = 0; i < 3; i++) {
-    kit.box(0.05, 0.05, 4.6, -9.5, 1.05, -5 + i * 5, material('paintedWood', { color: 0x6a4f34 }), { surface: 'wood' });
+    kit.box(0.05, 0.05, 4.6, -12.5, 1.05, -5 + i * 6, material('paintedWood', { color: 0x6a4f34 }), { surface: 'wood' });
   }
 
-  kit.window(9.9, 3.8, -4, { width: 1.5, height: 2.6, rotY: -Math.PI / 2, boarded: true, rayLength: 8, rayIntensity: 0.18 });
-  kit.window(9.9, 3.8, 4, { width: 1.5, height: 2.6, rotY: -Math.PI / 2, boarded: true, rayLength: 8, rayIntensity: 0.18 });
-  kit.dust(new THREE.Vector3(0, 3, 0), new THREE.Vector3(20, 6, 18), { count: 1100, seed: 61 });
+  kit.window(12.9, 3.8, -4, { width: 1.5, height: 2.6, rotY: -Math.PI / 2, boarded: true, rayLength: 9, rayIntensity: 0.18 });
+  kit.window(12.9, 3.8, 4, { width: 1.5, height: 2.6, rotY: -Math.PI / 2, boarded: true, rayLength: 9, rayIntensity: 0.18 });
+  kit.window(12.9, 3.8, 11, { width: 1.5, height: 2.6, rotY: -Math.PI / 2, boarded: true, rayLength: 9, rayIntensity: 0.15 });
+  kit.dust(new THREE.Vector3(0, 3.5, 3), new THREE.Vector3(26, 7, 24), { count: 1500, seed: 61 });
 
-  kit.practical(0, 6.2, 3, { intensity: 22, distance: 13, flicker: { chance: 0.4, severity: 0.8, seed: 91 } });
-  kit.practical(-3, 6.2, -5, { intensity: 16, distance: 10, flicker: { chance: 0.6, severity: 0.9, seed: 92 } });
-  kit.sconce(9.6, 2.7, 0, { rotY: -Math.PI / 2, intensity: 8 });
+  kit.practical(0, 6.2, 3, { intensity: 26, distance: 15, flicker: { chance: 0.4, severity: 0.8, seed: 91 } });
+  kit.practical(-3, 6.2, -5, { intensity: 18, distance: 11, flicker: { chance: 0.6, severity: 0.9, seed: 92 } });
+  kit.practical(3, 6.2, 11, { intensity: 16, distance: 11, castShadow: false, flicker: { chance: 0.7, severity: 0.9, seed: 93 } });
+  kit.sconce(12.6, 2.7, 0, { rotY: -Math.PI / 2, intensity: 8 });
 
   // Stacked chairs and a piano, because the room is still dressed for work.
   for (let i = 0; i < 12; i++) {
@@ -260,7 +262,7 @@ export function buildChapter3(ctx) {
   ghosts.push(blockingGhost);
 
   const northDoor = kit.door({
-    x: -6.8, z: -8.95, width: 1.6, height: 2.3, locked: true, name: 'hall-north',
+    x: -7.1, z: -8.95, width: 2.2, height: 2.4, locked: true, name: 'hall-north',
   });
   interaction.register({
     object: northDoor.object,
@@ -330,34 +332,73 @@ export function buildChapter3(ctx) {
   // THE STAIR DOWN + COSTUME STORAGE (the Gloam section)
   // ==========================================================================
 
-  // Stair.
-  for (let i = 0; i < 14; i++) {
-    kit.box(2.0, 0.22, 0.32, -6.8, -0.11 - i * 0.22, -9.6 - i * 0.32,
-      material('tileFloor', { repeat: 1 }), { surface: 'tile' });
-  }
-
   const BAS_Y = -3.2;
 
+  // --- the stairwell --------------------------------------------------------
+  //
+  // This room did not exist, and the chapter could not be finished without it.
+  // The stair descended out of the hall's north doorway straight into the
+  // costume store's SOUTH wall — an unbroken slab across the full width of the
+  // stairway and its full height, measured. The store's only declared openings
+  // were on its north and east walls, so nothing pointed at the hole the stair
+  // needed.
+  //
+  // doorcheck could never have found it: a hand-built flight of treads through
+  // a wall is not a declared opening, so there was nothing for it to test.
+  kit.room({
+    width: 6, depth: 5, height: 5.8, x: -6, z: -11.5, y: BAS_Y,
+    floorMat: material('tileFloor', { repeat: 2 }),
+    wallMat: material('wallPlaster', { repeat: 3 }),
+    ceilMat: material('ceiling', { repeat: 2 }),
+    surface: 'tile',
+    openings: [
+      // Sills are measured from this room's own floor at y = -3.2, so 3.2 is
+      // the hall's floor at world y = 0.
+      { side: 's', at: 0, width: 2.2, sill: 3.2, top: 5.6 },
+      { side: 'n', at: 0, width: 2.4, top: 2.4 },
+    ],
+  });
+
+  // A slab at the head of the flight, level with the hall floor.
+  kit.box(2.2, 0.4, 0.7, -6, -0.2, -9.35, material('tileFloor', { repeat: 1 }), { surface: 'tile' });
+
+  // Fourteen treads, dropping the full 3.2m from the hall floor to the store.
+  for (let i = 0; i < 14; i++) {
+    const top = -0.229 * (i + 1);
+    kit.box(2.2, 0.5, 0.32, -6, top - 0.25, -9.7 - i * 0.32,
+      material('tileFloor', { repeat: 1 }), { surface: 'tile', shadow: false });
+  }
+  kit.sconce(-3.2, BAS_Y + 3.6, -11.5, { rotY: -Math.PI / 2, intensity: 7, flicker: { chance: 0.6, severity: 0.9, seed: 95 } });
+
+  // --- costume storage ------------------------------------------------------
+  //
   // A long, low, branching storage floor. Deliberately dim and deliberately
   // full of soft things: the room is built to eat sound, so the player's own
   // footsteps are the loudest thing in it.
+  //
+  // 30 x 20, grown west. The east wall carries the practice room and the south
+  // wall now carries the stairwell, so neither can move.
   kit.room({
-    width: 26, depth: 22, height: 3.7, x: -4, z: -22, y: BAS_Y,
-    floorMat: material('tileFloor', { repeat: 7 }),
-    wallMat: material('wallPlaster', { repeat: 5 }),
-    ceilMat: material('ceiling', { repeat: 4 }),
+    width: 30, depth: 20, height: 3.7, x: -6, z: -24, y: BAS_Y,
+    floorMat: material('tileFloor', { repeat: 8 }),
+    wallMat: material('wallPlaster', { repeat: 6 }),
+    ceilMat: material('ceiling', { repeat: 5 }),
     surface: 'tile',
     openings: [
-      { side: 'n', at: 2.8, width: 1.8, top: 2.4 },   // to the stair up (north end)
-      { side: 'e', at: 6, width: 1.8, top: 2.4 },     // to the practice room
+      { side: 's', at: 0, width: 2.4, top: 2.4 },     // from the stairwell
+      // World z -22, from a centre at -24. The old value put this at z = -16,
+      // two rooms' worth away from the practice room's west door, opening onto
+      // the void between them.
+      { side: 'e', at: 2, width: 1.8, top: 2.4 },
     ],
   });
 
   // Costume racks forming the maze. Each is solid, so they are real cover.
   const rackRows = [
-    [-14, -16, 9], [-14, -21, 9], [-14, -26, 9],
-    [-2, -18, 7], [-2, -25, 7],
-    [6, -16, 6], [6, -23, 6],
+    [-17, -19, 9], [-17, -24, 9], [-17, -29, 9],
+    [-9, -20, 7], [-9, -28, 7],
+    [-1, -19, 7], [-1, -27, 7],
+    [6, -18, 6], [6, -25, 6],
   ];
   for (const [rx, rz, len] of rackRows) {
     // The rail.
@@ -393,9 +434,10 @@ export function buildChapter3(ctx) {
   }
 
   // Almost no light. Two failing tubes and the player's torch.
-  kit.practical(-10, BAS_Y + 2.9, -18, { intensity: 11, distance: 8, cordLength: 0.4, flicker: { chance: 0.85, severity: 0.95, seed: 121 } });
-  kit.practical(2, BAS_Y + 2.9, -26, { intensity: 9, distance: 7, cordLength: 0.4, flicker: { chance: 0.9, severity: 0.95, seed: 122 } });
-  kit.dust(new THREE.Vector3(-4, BAS_Y + 1.5, -22), new THREE.Vector3(26, 3, 22), { count: 700, seed: 81 });
+  kit.practical(-13, BAS_Y + 2.9, -20, { intensity: 11, distance: 8, cordLength: 0.4, flicker: { chance: 0.85, severity: 0.95, seed: 121 } });
+  kit.practical(2, BAS_Y + 2.9, -28, { intensity: 9, distance: 7, cordLength: 0.4, flicker: { chance: 0.9, severity: 0.95, seed: 122 } });
+  kit.practical(-6, BAS_Y + 2.9, -17, { intensity: 8, distance: 7, cordLength: 0.4, castShadow: false, flicker: { chance: 0.9, severity: 0.95, seed: 123 } });
+  kit.dust(new THREE.Vector3(-6, BAS_Y + 1.5, -24), new THREE.Vector3(30, 3, 20), { count: 900, seed: 81 });
 
   // --- Gloam ---------------------------------------------------------------
   const gloam = new Gloam({
@@ -403,10 +445,10 @@ export function buildChapter3(ctx) {
     player: null,
     hearingRange: 20,
     patrol: [
-      new THREE.Vector3(-14, BAS_Y, -13),
-      new THREE.Vector3(-14, BAS_Y, -29),
-      new THREE.Vector3(2, BAS_Y, -29),
-      new THREE.Vector3(6, BAS_Y, -14),
+      new THREE.Vector3(-17, BAS_Y, -16),
+      new THREE.Vector3(-17, BAS_Y, -31),
+      new THREE.Vector3(3, BAS_Y, -31),
+      new THREE.Vector3(6, BAS_Y, -16),
     ],
   });
   gloam.on('caught', () => ctx.onPlayerCaught('gloam'));
@@ -429,7 +471,7 @@ export function buildChapter3(ctx) {
   };
 
   kit.trigger({
-    x: -6.8, z: -12, y: BAS_Y + 1.5, width: 4, depth: 3,
+    x: -6, z: -15.4, y: BAS_Y + 1.5, width: 4, depth: 3,
     onEnter: () => {
       gloam.start();
       music.setMood('tension');
@@ -472,8 +514,10 @@ export function buildChapter3(ctx) {
   boxLight.position.set(8.4, BAS_Y + 1.25, -18.5);
   scene.add(boxLight);
 
+  // The hinge sits half a leaf on the +z side of the opening it fills; the
+  // opening is now at world z = -22.
   const costumeDoor = kit.door({
-    x: 8.2, z: -15.0, y: BAS_Y, width: 1.7, height: 2.3, locked: true, name: 'costume-exit', rotY: Math.PI / 2,
+    x: 8.2, z: -21.15, y: BAS_Y, width: 1.7, height: 2.3, locked: true, name: 'costume-exit', rotY: Math.PI / 2,
   });
 
   const playTine = (i, { quiet = false } = {}) => {
@@ -585,7 +629,10 @@ export function buildChapter3(ctx) {
   // PUZZLE 3 + CHASE — The Practice Room
   // ==========================================================================
 
-  const PRAC = { x: 20, z: -22, w: 18, d: 18, h: 6.6 };
+  // Widened from 18 to 22, which brings its west wall from x = 11 to x = 9 —
+  // where the costume store's east wall actually is. They were two metres
+  // apart, with the store's east doorway opening onto the gap.
+  const PRAC = { x: 20, z: -22, w: 22, d: 22, h: 6.6 };
   kit.room({
     width: PRAC.w, depth: PRAC.d, height: PRAC.h, x: PRAC.x, z: PRAC.z, y: BAS_Y,
     floorMat: material('lobbyFloor', { repeat: 5 }),
@@ -599,7 +646,7 @@ export function buildChapter3(ctx) {
   });
 
   kit.practical(PRAC.x, BAS_Y + 4.8, PRAC.z, { intensity: 14, distance: 11, flicker: { chance: 0.3, severity: 0.6, seed: 141 } });
-  kit.dust(new THREE.Vector3(PRAC.x, BAS_Y + 2, PRAC.z), new THREE.Vector3(18, 5, 18), { count: 800, seed: 91 });
+  kit.dust(new THREE.Vector3(PRAC.x, BAS_Y + 2, PRAC.z), new THREE.Vector3(22, 6, 22), { count: 1100, seed: 91 });
 
   // Tiered choir stands.
   for (let tier = 0; tier < 3; tier++) {
@@ -724,8 +771,8 @@ export function buildChapter3(ctx) {
 
   placeNote(scene, interaction, reader, save, 'ch3-note-blocking', new THREE.Vector3(-8.2, 0.86, 7.3), 0.3);
   placeNote(scene, interaction, reader, save, 'ch3-note-tuning', new THREE.Vector3(8.4, BAS_Y + 0.84, -18.0), -0.3);
-  placeNote(scene, interaction, reader, save, 'ch3-note-marta', new THREE.Vector3(-13.6, BAS_Y + 0.05, -21), 0.9);
-  placeNote(scene, interaction, reader, save, 'ch3-note-hearing', new THREE.Vector3(-6.6, BAS_Y + 0.05, -12.4), -0.5);
+  placeNote(scene, interaction, reader, save, 'ch3-note-marta', new THREE.Vector3(-15.6, BAS_Y + 0.05, -23), 0.9);
+  placeNote(scene, interaction, reader, save, 'ch3-note-hearing', new THREE.Vector3(-6.0, BAS_Y + 0.05, -16.4), -0.5);
   placeNote(scene, interaction, reader, save, 'ch3-note-choir', new THREE.Vector3(PRAC.x - 6.5, BAS_Y + 0.9, PRAC.z + 5.1), 0.2);
 
   placeStub(scene, interaction, reader, save, 'ch3-stub-1', new THREE.Vector3(7.4, 1.07, -6.4));
@@ -738,7 +785,7 @@ export function buildChapter3(ctx) {
   return {
     scene,
     kit,
-    spawn: new THREE.Vector3(0, 1.2, 7.6),
+    spawn: new THREE.Vector3(0, 1.2, 13.0),
     spawnYaw: 0,
     state,
 
