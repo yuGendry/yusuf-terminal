@@ -26,18 +26,21 @@ puts up **"Click to take control"**; click anywhere.
 
 ## Controls
 
-| Action | Key |
-| --- | --- |
-| Move | `W` `A` `S` `D` |
-| Sprint | `Left Shift` |
-| Crouch | `Left Ctrl` |
-| Jump | `Space` |
-| Interact | `E` |
-| Veilmask on / off | `F` |
-| Swap lens | `Q` / `R`, or scroll |
-| Flashlight | `L` |
-| Hint | `H` |
-| Pause | `Escape` |
+| Action | Key | Controller |
+| --- | --- | --- |
+| Move | `W` `A` `S` `D` | Left stick |
+| Sprint | `Left Shift` | `L3` |
+| Crouch | `Left Ctrl` | `◯` |
+| Jump | `Space` | `✕` |
+| Interact | `E` | `▢` |
+| Veilmask on / off | `F` | `△` |
+| Swap lens | `Q` / `R`, or scroll | `L1` / `R1` |
+| Flashlight | `L` | `R3` |
+| Hint | `H` | D-pad up |
+| Pause | `Escape` | `Options` |
+
+A DualSense or any standard gamepad works with nothing to set up — plug it in
+and press something. The prompts change to match whichever you last touched.
 
 ---
 
@@ -205,13 +208,18 @@ temperature, and that cone 6 is 1222 °C.
 low. Trusting it means firing to roughly 1530 °C and cracking the load.
 
 Potters fire to a cone, not to a dial, because dials drift. The three
-pyrometric cones are **inside** the kiln, so Ember is the only way to see them.
+pyrometric cones are **inside** the kiln, so Ember is the only way to see them
+— with the lens up the steel goes transparent and you are looking straight into
+the chamber.
 
-> **Answer:** interact with the brass valve to open the gas. Put the mask on
-> with **Ember** and look into the kiln — three small cones are standing inside.
-> They bend one after another as it heats. Close the valve the moment the
-> **third one (cone 6) slumps over**. Overfiring is recoverable: the kiln cools
-> and you can fire again.
+> **Answer:** interact with the brass valve to open the gas. Stand in front of
+> the kiln door, put the mask on with **Ember**, and look into the box: three
+> small cones stand on a shelf inside, numbered **4**, **5** and **6** from the
+> right. They bend over one after another as the heat climbs. Close the valve
+> the moment **cone 6 — the one on the left — goes over**. The climb slows
+> right down near temperature, so there are several seconds between cone 6
+> going and cone 7 (which is not shown) ruining the load. Overfiring is
+> recoverable anyway: the kiln cools and you can fire again.
 
 If you would rather read the dial than the cones: the gauge under-reads by 305,
 so cone 6 is **917 on the gauge**, and anything past **935** cracks the load.

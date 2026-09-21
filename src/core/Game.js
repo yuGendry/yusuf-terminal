@@ -16,6 +16,7 @@ import { PuzzleSystem } from '../puzzles/PuzzleSystem.js';
 import { Reader } from '../ui/Reader.js';
 import { MaskOverlay } from '../ui/MaskOverlay.js';
 import { Save } from '../save/SaveSystem.js';
+import { Jumpscare } from './Jumpscare.js';
 import { Settings } from './Settings.js';
 import { CHAPTERS, getChapter } from '../chapters/ChapterData.js';
 import { clamp, damp } from '../util/MathUtil.js';
@@ -53,6 +54,9 @@ export class Game extends EventBus {
 
     this.reader = new Reader();
     this.maskOverlay = new MaskOverlay();
+    this.jumpscare = new Jumpscare({
+      engine: this.engine, audio: this.audio, input: this.input, hud: this.hud,
+    });
 
     this._checkpoint = null;
     this._radioQueue = [];
@@ -339,7 +343,13 @@ export class Game extends EventBus {
   // Death and checkpoints
   // --------------------------------------------------------------------------
 
-  kill(cause = 'unknown') {
+  /**
+   * Caught.
+   *
+   * @param {string} cause
+   * @param {THREE.Object3D} [subject]  what got them, so it can be framed
+   */
+  kill(cause = 'unknown', subject = null) {
     if (this.dead) return;
     this.dead = true;
     this._deathTime = 0;
@@ -349,18 +359,29 @@ export class Game extends EventBus {
     this.music.setMood('silent');
     this.emit('died', cause);
 
+    // If the level did not name what caught them, ask the enemies. A player
+    // looking the other way still has to be shown what happened.
+    const by = subject ?? this.level?.subjectFor?.(cause) ?? null;
+    this.jumpscare.play({ subject: by, cause });
+
     this.hud.showDeath?.(cause);
   }
 
   _updateDeath(dt) {
     this._deathTime += dt;
-    // Restraint: no jump-scare sting. The picture closes in, the sound drops
-    // away, and the checkpoint reloads. Being caught is punishment enough.
-    this.engine.postfx.fx.fade = clamp(this._deathTime / 2.2, 0, 1);
-    this.engine.postfx.fx.saturation = clamp(1 - this._deathTime / 1.4, 0, 1);
 
-    if (this._deathTime > 2.8) {
+    if (this.jumpscare.active) {
+      this.jumpscare.update(dt);
+      return;
+    }
+
+    // The scare has played; hold black for a beat before the checkpoint comes
+    // back, so the cut is not straight from a face to a lit room.
+    this.engine.postfx.fx.fade = 1;
+
+    if (this._deathTime > 2.3) {
       this.dead = false;
+      this.jumpscare.reset();
       this.respawn();
     }
   }

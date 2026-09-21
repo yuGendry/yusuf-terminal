@@ -157,7 +157,12 @@ export class Interaction extends EventBus {
       ? (typeof next.label === 'function' ? next.label() : next.label)
       : (next.disabledLabel ?? (typeof next.label === 'function' ? next.label() : next.label));
 
-    this.hud?.setPrompt(label, next.key ?? 'E', { disabled: !usable, hold: next.holdTime > 0 });
+    // The glyph follows whichever device the player is actually holding, so a
+    // controller player is never told to press E.
+    const key = this.input.usingGamepad
+      ? (this.input.gamepad.glyph('interact') ?? next.key ?? 'E')
+      : (next.key ?? 'E');
+    this.hud?.setPrompt(label, key, { disabled: !usable, hold: next.holdTime > 0 });
     if (changed) this.emit('focusChanged', next);
   }
 
@@ -189,6 +194,9 @@ export class Interaction extends EventBus {
         this._holding = f.object;
         this.holdProgress += dt / f.holdTime;
         this.hud?.setHoldProgress?.(Math.min(this.holdProgress, 1));
+        // A held interaction is the one place a controller can say something
+        // sight and sound cannot: the resistance of the thing turning.
+        this.input.rumble?.(0.12 + this.holdProgress * 0.2, 0.05, 90);
         if (this.holdProgress >= 1) {
           this.holdProgress = 0;
           this._holding = null;
@@ -207,6 +215,7 @@ export class Interaction extends EventBus {
   }
 
   _fire(desc) {
+    this.input.rumble?.(0.35, 0.25, 130);
     try {
       desc.onUse?.(desc);
     } catch (err) {

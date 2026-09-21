@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "STITCHWORK — a first-person horror puzzle game set in the Hollowhart Puppet Works.",
+  "description": "STITCHWORK \u2014 a first-person horror puzzle game set in the Hollowhart Puppet Works.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -19,9 +19,11 @@
     "reachcheck": "node scripts/reachcheck.mjs",
     "cinetest": "node scripts/cinetest.mjs",
     "tour": "node scripts/tour.mjs",
-    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/leakcheck.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs && node scripts/walkcheck.mjs",
+    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/leakcheck.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs && node scripts/signcheck.mjs && node scripts/walkcheck.mjs",
     "leakcheck": "node scripts/leakcheck.mjs",
-    "walkcheck": "node scripts/walkcheck.mjs"
+    "walkcheck": "node scripts/walkcheck.mjs",
+    "signcheck": "node scripts/signcheck.mjs",
+    "portraits": "node scripts/portraits.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

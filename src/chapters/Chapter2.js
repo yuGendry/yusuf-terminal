@@ -909,11 +909,53 @@ export function buildChapter2(ctx) {
   kilnDoor.castShadow = true;
   scene.add(kilnDoor);
 
+  // Ember is a heat lens, and steel is not opaque to heat. The shell and its
+  // door drop out while Ember is up, which is the only reason the cones inside
+  // can be read at all — tagging the cones `lensOnly` made them visible, but
+  // they were still sitting behind three centimetres of rusted plate. The
+  // colliders are untouched (hiding a mesh does not touch physics), so the
+  // kiln is still solid to walk into.
+  kilnBody.userData.hiddenBy = 'ember';
+  kilnDoor.userData.hiddenBy = 'ember';
+
+  // What replaces the shell: the chamber seen from the inside. Without this
+  // the kiln simply disappears under Ember and the cones float in the middle
+  // of the room with the far wall behind them. BackSide so it is the interior
+  // faces you see, additive so it reads as glow rather than as paint.
+  const kilnGhost = new THREE.Mesh(
+    new THREE.BoxGeometry(3.12, 2.52, 2.52),
+    new THREE.MeshBasicMaterial({
+      color: 0x30150a, transparent: true, opacity: 0.4,
+      side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+  );
+  kilnGhost.position.set(-15, 1.3, -25);
+  kilnGhost.userData.lensOnly = 'ember';
+  scene.add(kilnGhost);
+
+  // The outline, so the kiln keeps its shape and its door still reads as a
+  // door when the steel goes see-through.
+  const kilnEdges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(3.2, 2.6, 2.6)),
+    new THREE.LineBasicMaterial({ color: 0xff8a3c, transparent: true, opacity: 0.3, depthWrite: false })
+  );
+  kilnEdges.position.set(-15, 1.3, -25);
+  kilnEdges.userData.lensOnly = 'ember';
+  scene.add(kilnEdges);
+
+  const kilnDoorEdges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.12, 1.8, 1.8)),
+    new THREE.LineBasicMaterial({ color: 0xff8a3c, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  kilnDoorEdges.position.set(-13.35, 1.2, -25);
+  kilnDoorEdges.userData.lensOnly = 'ember';
+  scene.add(kilnDoorEdges);
+
   // The interior glow: only visible through Ember, and it brightens with heat.
   const kilnHeat = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 1.8, 1.8),
+    new THREE.BoxGeometry(2.2, 1.5, 1.6),
     new THREE.MeshBasicMaterial({
-      color: 0xff5a1d, transparent: true, opacity: 0.3,
+      color: 0xff5a1d, transparent: true, opacity: 0.12,
       blending: THREE.AdditiveBlending, depthWrite: false,
     })
   );
@@ -947,24 +989,80 @@ export function buildChapter2(ctx) {
       new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, metalness: 0.3 })
     );
     plate.position.set(-13.28, 2.05, -25);
-    plate.rotation.y = -Math.PI / 2;
+    // +PI/2, not -PI/2. A plane's normal is +Z, and rotating by -PI/2 about Y
+    // sends it to -X — into the kiln. The player stands east of the kiln, so
+    // the stencil and the gauge below it were both facing the wrong way and
+    // were single-sided, which is to say invisible from the only place you can
+    // stand. Same fix on the gauge and on the cone numbers.
+    plate.rotation.y = Math.PI / 2;
+    // Bolted to the door, so it goes where the door goes.
+    plate.userData.hiddenBy = 'ember';
     scene.add(plate);
   }
 
   // The three witness cones inside, visible only as heat.
+  //
+  // They sit on a plaque near the door at eye height rather than on the floor
+  // of the chamber: a cone you have to crouch and squint at through a glowing
+  // box is not a readable instrument. The numbers are stamped beside them,
+  // because "the third one" is only obvious to somebody who already knows
+  // which end of the row is which.
+  const CONE_SHELF_Y = 1.32;
+  const kilnShelf = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.05, 1.7),
+    new THREE.MeshBasicMaterial({
+      color: 0x6b2c10, transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+  );
+  kilnShelf.position.set(-14.05, CONE_SHELF_Y - 0.025, -25);
+  kilnShelf.userData.lensOnly = 'ember';
+  scene.add(kilnShelf);
+
   const coneMeshes = CONES.slice(0, 3).map((c, i) => {
     const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.035, 0.18, 6),
+      new THREE.ConeGeometry(0.06, 0.28, 6),
       new THREE.MeshBasicMaterial({
-        color: 0xffaa66, transparent: true, opacity: 0.9,
+        color: 0xffaa66, transparent: true, opacity: 1,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     );
-    cone.position.set(-13.9, 0.55, -25.5 + i * 0.5);
+    // Pivot at the base: a cone bends over its foot, it does not spin about
+    // its middle.
+    cone.geometry.translate(0, 0.14, 0);
+    cone.position.set(-14.05, CONE_SHELF_Y, -25.5 + i * 0.5);
     cone.userData.lensOnly = 'ember';
     cone.userData.coneNumber = c.number;
     cone.userData.temp = c.temp;
     scene.add(cone);
+
+    // The stamped number, facing the door.
+    const lc = document.createElement('canvas');
+    lc.width = 64; lc.height = 64;
+    const lg = lc.getContext('2d');
+    lg.fillStyle = '#000';
+    lg.fillRect(0, 0, 64, 64);
+    lg.fillStyle = '#ffb877';
+    lg.font = 'bold 46px "IBM Plex Mono", monospace';
+    lg.textAlign = 'center';
+    lg.textBaseline = 'middle';
+    lg.fillText(`${c.number}`, 32, 35);
+    const ltex = new THREE.CanvasTexture(lc);
+    ltex.colorSpace = THREE.SRGBColorSpace;
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.17, 0.17),
+      new THREE.MeshBasicMaterial({
+        map: ltex, transparent: true, opacity: 1,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    // Above the cone, not beside it: a cone that has gone over should leave
+    // its number standing so you can still tell which one fell.
+    label.position.set(-13.95, CONE_SHELF_Y + 0.42, -25.5 + i * 0.5);
+    label.rotation.y = Math.PI / 2;
+    label.userData.lensOnly = 'ember';
+    scene.add(label);
+
     return cone;
   });
 
@@ -978,7 +1076,7 @@ export function buildChapter2(ctx) {
     new THREE.MeshStandardMaterial({ map: gaugeTex, emissiveMap: gaugeTex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.6 })
   );
   gauge.position.set(-13.32, 2.2, -25);
-  gauge.rotation.y = -Math.PI / 2;
+  gauge.rotation.y = Math.PI / 2;
   scene.add(gauge);
 
   const drawGauge = () => {
@@ -1081,26 +1179,49 @@ export function buildChapter2(ctx) {
   // Kiln simulation.
   kit.onUpdate((dt) => {
     if (state.kilnFiring && !state.kilnDone) {
-      // ~80 seconds from cold to cone 7, which is enough time to read the
-      // cones but not so much that it is boring.
-      state.kilnTemp = Math.min(1400, state.kilnTemp + dt * 17.5);
+      // ~85 seconds from cold to cone 7, which is enough time to read the
+      // cones but not so much that it is boring — and, crucially, the climb
+      // flattens out at the top the way a real kiln's does.
+      //
+      // At a flat 17.5 degrees a second the whole window between cone 6 going
+      // over (1222) and cone 7 going over (1240) was one second wide. That is
+      // a reaction test, not a puzzle: the player who is doing exactly the
+      // right thing — watching the cones rather than the dial — still loses
+      // the load because they were half a second late on the valve. Slowing
+      // the last stretch turns it into about six seconds, which is time to
+      // see it happen and decide.
+      const t0 = state.kilnTemp;
+      const rate = t0 < 1100 ? 17.5 : t0 < 1200 ? 9 : 3.2;
+      state.kilnTemp = Math.min(1400, t0 + dt * rate);
     } else if (!state.kilnFiring && state.kilnTemp > 20) {
       state.kilnTemp = Math.max(20, state.kilnTemp - dt * 26);
     }
 
     const t = state.kilnTemp;
     const glow = clamp((t - 300) / 1000, 0, 1);
-    kilnHeat.material.opacity = 0.12 + glow * 0.7;
-    kilnHeat.material.color.setHSL(lerp(0.08, 0.02, glow), 1, lerp(0.3, 0.62, glow));
+    // Deliberately dim. The haze is additive and fills most of the chamber,
+    // so at the old 0.12 + glow * 0.7 it saturated to a flat orange slab with
+    // the cones invisible inside it — which mattered not at all while the
+    // steel hid the whole thing, and matters entirely now that Ember sees
+    // through it. The cones are the instrument; everything else is context.
+    kilnHeat.material.opacity = 0.05 + glow * 0.2;
+    kilnHeat.material.color.setHSL(lerp(0.08, 0.02, glow), 1, lerp(0.3, 0.55, glow));
     kilnLight.intensity = glow * 14;
+    // The chamber walls hold the heat too, so the x-ray shell brightens with
+    // the load rather than sitting at a constant dull red.
+    kilnGhost.material.color.setHSL(lerp(0.07, 0.03, glow), 1, lerp(0.04, 0.14, glow));
+    kilnEdges.material.opacity = 0.2 + glow * 0.3;
 
     // Cones slump as they reach temperature. A cone bends over about 10°
     // before its rating and is fully down at it — which is what the player
     // watches for.
     coneMeshes.forEach((cone) => {
-      const bend = clamp((t - (cone.userData.temp - 14)) / 14, 0, 1);
-      cone.rotation.z = bend * Math.PI * 0.42;
-      cone.material.color.setHSL(lerp(0.1, 0.03, glow), 1, lerp(0.45, 0.75, glow));
+      const bend = clamp((t - (cone.userData.temp - 20)) / 20, 0, 1);
+      // About X, so the cone tips across the player's view. Bending about Z
+      // tipped it straight toward the door, where a cone at 45 degrees and a
+      // cone standing up look identical.
+      cone.rotation.x = bend * Math.PI * 0.48;
+      cone.material.color.setHSL(lerp(0.1, 0.05, glow), 1, lerp(0.5, 0.9, glow));
     });
 
     if (state.kilnFiring) drawGauge();
@@ -1243,6 +1364,11 @@ export function buildChapter2(ctx) {
      */
     onPlayerReady(player) {
       tangle.player = player;
+    },
+
+    /** What caught them, so the jumpscare frames the right thing. */
+    subjectFor(cause) {
+      return cause === 'tangle' ? tangle.root : null;
     },
 
     /** Re-arm the chase so a death gives a clean run at it, not a loop. */

@@ -312,6 +312,24 @@ export class SettingsMenu {
     }));
     frag.appendChild(makeToggle({ label: 'Invert vertical look', key: 'invertY' }));
 
+    frag.appendChild(makeSectionHeader('Controller'));
+    const padNote = el('p', 'opt-desc');
+    padNote.style.cssText = 'margin:0 0 10px;max-width:none;';
+    padNote.textContent = 'A DualSense or other standard gamepad is picked up automatically — there is nothing to turn on. The on-screen prompts swap to controller glyphs the moment you touch a stick or a button, and swap back the moment you touch the keyboard.';
+    frag.appendChild(padNote);
+
+    frag.appendChild(makeSlider({
+      label: 'Stick sensitivity', key: 'gamepadSensitivity',
+      min: 0.1, max: 3, step: 0.05, format: MULT,
+      description: 'How fast the right stick turns the camera. Separate from mouse sensitivity, because the two are never right at the same number.',
+    }));
+    frag.appendChild(makeToggle({ label: 'Invert vertical look (controller)', key: 'gamepadInvertY' }));
+    frag.appendChild(makeToggle({
+      label: 'Vibration',
+      key: 'rumble',
+      description: 'Haptics for footsteps on metal, a valve turning under your hand, and whatever is behind you.',
+    }));
+
     frag.appendChild(makeSectionHeader('Key bindings'));
     const note = el('p', 'opt-desc');
     note.style.cssText = 'margin:0 0 10px;max-width:none;';

@@ -116,18 +116,77 @@ export class Choir extends EventBus {
     skull.receiveShadow = true;
     head.add(skull);
 
-    // Two sunken eyes and an open mouth. That is the whole face, and it is
-    // enough — a choir doll is meant to be a shape you recognise too late.
+    // The face. Kept to a handful of meshes — there are eleven of these and
+    // they are seen in silhouette, at distance, in the dark — but not to the
+    // three it used to be, because the one moment that matters is the one
+    // where a doll is suddenly close.
     const dark = new THREE.MeshStandardMaterial({ color: 0x0a0806, roughness: 0.35 });
+
+    // Sunken sockets, then a pale ball with a black pupil inside each. The
+    // pale ball is the whole difference between two holes and two eyes.
     for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), dark);
-      eye.position.set(side * 0.036, 0.012, -0.086);
-      head.add(eye);
+      // Asymmetric on purpose: one socket sits lower than the other.
+      const drop = side > 0 ? -0.007 : 0;
+
+      const socket = new THREE.Mesh(
+        new THREE.SphereGeometry(0.031, 9, 7),
+        new THREE.MeshStandardMaterial({ color: 0x120d0a, roughness: 0.95 })
+      );
+      socket.position.set(side * 0.036, 0.012 + drop, -0.079);
+      socket.scale.set(1, 0.85, 0.6);
+      head.add(socket);
+
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(0.019, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xe4ddd0, roughness: 0.2 })
+      );
+      ball.position.set(side * 0.036, 0.012 + drop, -0.083);
+      head.add(ball);
+
+      const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.0075, 10), dark);
+      pupil.position.set(side * 0.036, 0.012 + drop, -0.101);
+      head.add(pupil);
     }
-    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), dark);
-    mouth.position.set(0, -0.045, -0.084);
-    mouth.scale.set(0.7, 1.25, 0.6);
+
+    // The mouth, open, with a ring of small teeth round it.
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), dark);
+    mouth.position.set(0, -0.045, -0.082);
+    mouth.scale.set(0.72, 1.3, 0.6);
     head.add(mouth);
+
+    const toothMat = new THREE.MeshStandardMaterial({ color: 0xc8bda4, roughness: 0.5 });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.0055, 0.016, 4), toothMat);
+      tooth.position.set(
+        Math.cos(a) * 0.019,
+        -0.045 + Math.sin(a) * 0.026,
+        -0.092
+      );
+      tooth.rotation.x = Math.PI / 2;
+      head.add(tooth);
+    }
+
+    // Crazing. Three cracks down the skull, placed from the doll's own seed so
+    // no two in the row are alike — a line of identical dolls reads as a
+    // render, a line of dolls that are each slightly broken reads as a choir.
+    const crackMat = new THREE.MeshStandardMaterial({ color: 0x2a211b, roughness: 1 });
+    for (let i = 0; i < 3 + Math.floor(rng() * 3); i++) {
+      const t = rng() * Math.PI * 2;
+      const ph = 0.3 + rng() * 1.5;
+      const crack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.0022, 0.03 + rng() * 0.03, 0.0012),
+        crackMat
+      );
+      crack.position.set(
+        Math.sin(ph) * Math.sin(t) * 0.101,
+        Math.cos(ph) * 0.101,
+        Math.sin(ph) * Math.cos(t) * 0.101
+      );
+      crack.lookAt(0, 0, 0);
+      crack.rotateZ(rng() * Math.PI);
+      head.add(crack);
+    }
 
     this.scene.add(root);
 
@@ -257,6 +316,23 @@ export class Choir extends EventBus {
   }
 
   /** Put every doll back where it started. Used on respawn. */
+  /**
+   * The doll closest to the player, for the jumpscare to frame.
+   *
+   * There are eleven of them and only one of them reached you; a scare that
+   * cut to the middle of the group would show the player the wrong thing.
+   */
+  get nearestDoll() {
+    if (!this.player || !this.dolls?.length) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const doll of this.dolls) {
+      const d = doll.root.position.distanceToSquared(this.player.position);
+      if (d < bestD) { bestD = d; best = doll; }
+    }
+    return best?.root ?? null;
+  }
+
   reset() {
     for (const doll of this.dolls) {
       doll.root.position.copy(doll.home);

@@ -224,6 +224,10 @@ export class MisterTangle extends EventBus {
       strings: false,          // his strings go up to the rail, built below
       faceStyle: 'smile',
       clothColor: 0x2a1018,
+      // He has been up on that rail for ten years. The crazing is most of
+      // what makes him read as old rather than as a model.
+      damage: 0.85,
+      seed: 31,
     });
     this.puppet = puppet;
 

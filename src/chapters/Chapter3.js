@@ -947,9 +947,22 @@ export function buildChapter3(ctx) {
     spawnYaw: 0,
     state,
 
+    // Exposed so the portrait and playtest scripts can find them. They are
+    // the two things in this chapter worth photographing, and a tool that
+    // has to guess at a level's internals photographs nothing.
+    gloam,
+    choir,
+
     onPlayerReady(player) {
       gloam.player = player;
       choir.player = player;
+    },
+
+    /** What caught them, so the jumpscare frames the right thing. */
+    subjectFor(cause) {
+      if (cause === 'gloam') return gloam.root;
+      if (cause === 'choir') return choir.nearestDoll;
+      return null;
     },
 
     onRespawn() {

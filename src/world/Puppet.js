@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import { material } from './Materials.js';
-import { clamp, lerp } from '../util/MathUtil.js';
+import { clamp, lerp, randRange, makeRng } from '../util/MathUtil.js';
 
 /** Proportion sets. Lengths are in metres for a 1.0-scale puppet. */
 export const PUPPET_PRESETS = {
@@ -120,8 +120,19 @@ export function buildPuppet({
   stringHeight = 2.2,
   faceStyle = 'smile',
   clothColor = 0x3a1f26,
+  /**
+   * 0..1. How badly the porcelain has gone.
+   *
+   * Drives crack density, how far off true the features sit, and how much of
+   * the paint has chipped away. A doll in a shop window gets a little; one
+   * that has been hanging in a flooded basement for ten years gets most of it.
+   */
+  damage = 0.45,
+  /** Deterministic, so the same doll is the same doll every time it loads. */
+  seed = 1,
 } = {}) {
   const P = PUPPET_PRESETS[preset] ?? PUPPET_PRESETS.marionette;
+  const rng = makeRng(seed * 7919 + 13);
 
   const root = new THREE.Group();
   root.name = `puppet:${preset}`;
@@ -208,7 +219,7 @@ export function buildPuppet({
   skull.receiveShadow = true;
   head.add(skull);
 
-  addFace(head, P, faceStyle, mats);
+  addFace(head, P, faceStyle, mats, { damage, rng });
 
   // ---- arms ---------------------------------------------------------------
   for (const side of [-1, 1]) {
@@ -285,11 +296,55 @@ export function buildPuppet({
 
   root.userData.puppet = { joints, preset: P, stringSystem };
 
+  const _gazeTmp = new THREE.Vector3();
+  const _gazeLocal = new THREE.Vector3();
+
   return {
     root,
     joints,
     proportions: P,
     stringSystem,
+
+    /**
+     * Point the eyes at a world position.
+     *
+     * The single cheapest frightening thing a doll can do. Only the eyes turn
+     * — the head does not — because a head that tracks you reads as a
+     * character looking at you, and eyes that track you inside a face that
+     * does not reads as something wearing the face.
+     *
+     * The rotation is clamped: an eye that can swivel all the way round is
+     * comic. Past the limit it simply stares ahead, which is worse.
+     *
+     * @param {THREE.Vector3} target
+     * @param {number} [amount] 0..1, how much of the way to look
+     */
+    gaze(target, amount = 1) {
+      const eyes = joints.head?.userData?.eyes;
+      if (!eyes?.length || !target) return;
+
+      const LIMIT = 0.42;   // radians, about 24 degrees
+      for (const eye of eyes) {
+        eye.getWorldPosition(_gazeTmp);
+        _gazeLocal.copy(target).sub(_gazeTmp);
+        // Into the eye's parent space, so the clamp is about the socket.
+        eye.parent.worldToLocal(_gazeLocal.add(_gazeTmp));
+        _gazeLocal.sub(eye.position);
+
+        const yaw = Math.atan2(_gazeLocal.x, -_gazeLocal.z);
+        const pitch = Math.atan2(_gazeLocal.y, Math.hypot(_gazeLocal.x, _gazeLocal.z));
+
+        eye.rotation.y = clamp(yaw, -LIMIT, LIMIT) * amount;
+        eye.rotation.x = clamp(-pitch, -LIMIT * 0.7, LIMIT * 0.7) * amount;
+      }
+    },
+
+    /** Drop the jaw. 0 is shut, 1 is as wide as the hinge goes. */
+    setJaw(open) {
+      const jaw = joints.head?.userData?.jaw;
+      if (jaw) jaw.rotation.x = clamp(open, 0, 1) * 0.55;
+    },
+
     /** Convenience: total standing height in world units. */
     height:
       (P.upperLeg + P.lowerLeg + P.pelvisHeight + P.torsoHeight + P.neckLength + P.headRadius * 2) * scale,
@@ -300,48 +355,87 @@ export function buildPuppet({
  * Faces are painted with geometry rather than textures so they read clearly at
  * any distance and can be lit dramatically from below.
  */
-function addFace(head, P, style, mats) {
+function addFace(head, P, style, mats, { damage = 0.45, rng = Math.random } = {}) {
   const r = P.headRadius;
   const eyeMat = new THREE.MeshStandardMaterial({
-    color: 0x0a0806, roughness: 0.25, metalness: 0,
+    color: 0x090707, roughness: 0.14, metalness: 0,
   });
 
+  /** Where the eyes live, exposed so they can be made to follow the player. */
+  const eyes = [];
+
   for (const side of [-1, 1]) {
-    // Recessed socket, then a glossy bead inside it. The recess is what makes
-    // the eyes read as sunken and dead rather than as painted dots.
+    // ASYMMETRY.
+    //
+    // A face whose two halves match reads as a toy. The same face with one eye
+    // four millimetres lower and a per-cent bigger reads as wrong, and the
+    // viewer cannot say why — which is the entire effect being aimed for here.
+    // It scales with damage because a cracked head is a warped head.
+    const drop = side < 0 ? 0 : -r * 0.075 * damage;
+    const swell = side < 0 ? 1 : 1 + 0.1 * damage;
+    const splay = side * r * (0.36 + 0.03 * damage * (side < 0 ? -1 : 1));
+
+    // Recessed socket, then the eye inside it. The recess is what makes the
+    // eyes read as sunken and dead rather than as painted dots.
     const socket = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 0.245, 12, 10),
-      new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.9 })
+      new THREE.SphereGeometry(r * 0.27 * swell, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0x120d0a, roughness: 0.95 })
     );
-    socket.position.set(side * r * 0.36, r * 0.12, -r * 0.80);
-    socket.scale.set(1, 0.86, 0.6);
+    socket.position.set(splay, r * 0.12 + drop, -r * 0.78);
+    socket.scale.set(1, 0.84, 0.62);
     head.add(socket);
 
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(r * 0.15, 12, 10), eyeMat);
-    eye.position.set(side * r * 0.36, r * 0.12, -r * 0.86);
-    head.add(eye);
+    // The eye is on its own pivot so it can turn in the socket.
+    const pivot = new THREE.Group();
+    pivot.position.set(splay, r * 0.12 + drop, -r * 0.80);
+    head.add(pivot);
+    eyes.push(pivot);
 
-    // A tiny specular bead. Catching a highlight is what makes a dead eye
-    // look like it might be watching.
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(r * 0.16 * swell, 14, 12),
+      new THREE.MeshStandardMaterial({ color: 0xe8e2d6, roughness: 0.22 })
+    );
+    pivot.add(ball);
+
+    // A pale iris ring around a black pupil. Without the ring the eye is a
+    // hole; with it, it is an eye, and an eye can be looking at you.
+    const iris = new THREE.Mesh(
+      new THREE.CircleGeometry(r * 0.095 * swell, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x5d6b63, roughness: 0.3, emissive: 0x11160f, emissiveIntensity: 0.4,
+      })
+    );
+    iris.position.z = -r * 0.155 * swell;
+    pivot.add(iris);
+
+    const pupil = new THREE.Mesh(new THREE.CircleGeometry(r * 0.05 * swell, 14), eyeMat);
+    pupil.position.z = -r * 0.162 * swell;
+    pivot.add(pupil);
+
+    // A specular bead. Catching a highlight is what makes a dead eye look
+    // like it might be watching.
     const glint = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 0.045, 8, 6),
+      new THREE.SphereGeometry(r * 0.032, 8, 6),
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
-    glint.position.set(side * r * 0.36 - r * 0.04, r * 0.18, -r * 0.94);
-    head.add(glint);
+    glint.position.set(-r * 0.05 * side, r * 0.05, -r * 0.17);
+    pivot.add(glint);
 
     // Rosy circle on each cheek — the "cute" that curdles under bad lighting.
     const cheek = new THREE.Mesh(
       new THREE.CircleGeometry(r * 0.2, 14),
       new THREE.MeshStandardMaterial({
-        color: 0xa2453f, roughness: 0.75, transparent: true, opacity: 0.55,
+        color: 0xa2453f, roughness: 0.75, transparent: true,
+        opacity: 0.55 * (1 - damage * 0.5),
       })
     );
-    cheek.position.set(side * r * 0.52, -r * 0.22, -r * 0.80);
+    cheek.position.set(side * r * 0.52, -r * 0.22 + drop, -r * 0.80);
     cheek.rotation.y = side * 0.5;
     cheek.lookAt(side * r * 2, -r * 0.22, -r * 4);
     head.add(cheek);
   }
+
+  head.userData.eyes = eyes;
 
   // Hinged jaw. Kept as a joint so it can drop open.
   const jaw = new THREE.Group();
@@ -349,7 +443,7 @@ function addFace(head, P, style, mats) {
   head.add(jaw);
   head.userData.jaw = jaw;
 
-  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x140a08, roughness: 0.95 });
+  const mouthMat = new THREE.MeshStandardMaterial({ color: 0x0c0605, roughness: 0.97 });
 
   if (style === 'smile') {
     // A carved grin: a shallow torus arc cut into the lower face.
@@ -360,37 +454,154 @@ function addFace(head, P, style, mats) {
     grin.rotation.set(Math.PI, 0, Math.PI);
     grin.position.set(0, -r * 0.05, -r * 0.72);
     jaw.add(grin);
+
+    // Teeth behind the grin. Two millimetres of them, barely visible until a
+    // torch catches the face — which is exactly when it matters.
+    for (let i = 0; i < 9; i++) {
+      const t = (i / 8 - 0.5) * 2;
+      const tooth = new THREE.Mesh(
+        new THREE.BoxGeometry(r * 0.05, r * 0.07, r * 0.03),
+        new THREE.MeshStandardMaterial({ color: 0xcfc4ac, roughness: 0.45 })
+      );
+      tooth.position.set(t * r * 0.3, -r * 0.02 - Math.abs(t) * r * 0.05, -r * 0.7);
+      tooth.rotation.z = t * 0.3;
+      jaw.add(tooth);
+    }
   } else if (style === 'open') {
     const hole = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 0.26, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+      new THREE.SphereGeometry(r * 0.3, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
       mouthMat
     );
-    hole.position.set(0, -r * 0.08, -r * 0.66);
+    hole.position.set(0, -r * 0.08, -r * 0.64);
     hole.rotation.x = -Math.PI / 2;
-    hole.scale.set(1, 1, 0.6);
+    hole.scale.set(1, 1.25, 0.65);
     jaw.add(hole);
+
+    // A ring of small pegs around the opening. A mouth with nothing in it is
+    // a hole; a mouth with teeth in it is a mouth.
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const tooth = new THREE.Mesh(
+        new THREE.ConeGeometry(r * 0.028, r * 0.09, 5),
+        new THREE.MeshStandardMaterial({ color: 0xc8bda4, roughness: 0.5 })
+      );
+      tooth.position.set(
+        Math.cos(a) * r * 0.22,
+        -r * 0.08 + Math.sin(a) * r * 0.22 * 0.8,
+        -r * 0.72
+      );
+      tooth.rotation.x = Math.PI / 2;
+      tooth.rotation.z = a;
+      jaw.add(tooth);
+    }
   } else {
     // 'stitched' — the Understudy and the Choir wear this.
     for (let i = 0; i < 7; i++) {
       const t = (i / 6 - 0.5) * 2;
       const stitch = new THREE.Mesh(
-        new THREE.BoxGeometry(r * 0.02, r * 0.14, r * 0.02),
+        new THREE.BoxGeometry(r * 0.02, r * 0.16, r * 0.02),
         mouthMat
       );
       stitch.position.set(t * r * 0.34, -r * 0.06 - Math.abs(t) * r * 0.05, -r * 0.76);
-      stitch.rotation.z = t * 0.35;
+      stitch.rotation.z = t * 0.35 + (rng() - 0.5) * 0.3 * damage;
       jaw.add(stitch);
     }
+    // The seam the stitches are holding shut.
+    const seam = new THREE.Mesh(
+      new THREE.BoxGeometry(r * 0.7, r * 0.022, r * 0.02),
+      mouthMat
+    );
+    seam.position.set(0, -r * 0.06, -r * 0.78);
+    jaw.add(seam);
   }
 
-  // Nose: a small cone, which catches light and gives the face a readable profile.
+  // Nose: a small cone, which catches light and gives the face a readable
+  // profile. Knocked off centre by damage, because they always are.
   const nose = new THREE.Mesh(
     new THREE.ConeGeometry(r * 0.1, r * 0.22, 8),
     mats.face
   );
-  nose.position.set(0, -r * 0.03, -r * 0.92);
+  nose.position.set(r * 0.03 * damage, -r * 0.03, -r * 0.92);
   nose.rotation.x = -Math.PI / 2;
+  nose.rotation.z = (rng() - 0.5) * 0.4 * damage;
   head.add(nose);
+
+  addCrazing(head, r, damage, rng, mouthMat);
+}
+
+/**
+ * Crazing — the web of fine cracks that runs through old glazed porcelain.
+ *
+ * Built as thin boxes laid on the surface of the skull rather than as a
+ * texture, because the head is barely a hundred triangles and a normal map on
+ * it would be read as noise. Cracks that follow the curve catch the torch
+ * edge-on and disappear when the light moves, which is exactly how they behave
+ * on a real doll and is most of why they are unsettling.
+ *
+ * One long crack is always drawn down from the crown, whatever the damage: a
+ * face with no history is a toy, and this is the cheapest possible history.
+ */
+function addCrazing(head, r, damage, rng, darkMat) {
+  const count = Math.round(3 + damage * 14);
+  const crackMat = new THREE.MeshStandardMaterial({
+    color: 0x2a211b, roughness: 1, metalness: 0,
+  });
+
+  const place = (theta, phi, length, width, tilt) => {
+    // Spherical position on the skull, then oriented to lie along the surface.
+    const x = Math.sin(phi) * Math.sin(theta);
+    const y = Math.cos(phi);
+    const z = Math.sin(phi) * Math.cos(theta);
+
+    const crack = new THREE.Mesh(
+      new THREE.BoxGeometry(width, length, width * 0.5),
+      crackMat
+    );
+    crack.position.set(x * r * 1.005, y * r * 1.005, z * r * 1.005);
+    crack.lookAt(0, 0, 0);
+    crack.rotateZ(tilt);
+    head.add(crack);
+    return crack;
+  };
+
+  // The main fracture: crown to brow, in four jointed segments so it wanders.
+  let theta = Math.PI + (rng() - 0.5) * 0.7;
+  let phi = 0.25;
+  for (let i = 0; i < 4; i++) {
+    place(theta, phi, r * 0.34, r * 0.017, (rng() - 0.5) * 0.9);
+    phi += 0.28;
+    theta += (rng() - 0.5) * 0.45;
+  }
+
+  // And the crazing around it.
+  for (let i = 0; i < count; i++) {
+    place(
+      rng() * Math.PI * 2,
+      0.25 + rng() * 2.2,
+      r * (0.1 + rng() * 0.26),
+      r * (0.008 + rng() * 0.008),
+      rng() * Math.PI
+    );
+  }
+
+  // Chips: shallow dark discs where the glaze has come away entirely.
+  const chips = Math.round(damage * 5);
+  for (let i = 0; i < chips; i++) {
+    const t = rng() * Math.PI * 2;
+    const p = 0.5 + rng() * 1.6;
+    const chip = new THREE.Mesh(
+      new THREE.CircleGeometry(r * (0.05 + rng() * 0.08), 8),
+      darkMat
+    );
+    chip.position.set(
+      Math.sin(p) * Math.sin(t) * r * 1.002,
+      Math.cos(p) * r * 1.002,
+      Math.sin(p) * Math.cos(t) * r * 1.002
+    );
+    chip.lookAt(0, 0, 0);
+    chip.rotateY(Math.PI);
+    head.add(chip);
+  }
 }
 
 /**

@@ -791,7 +791,11 @@ export class LevelKit {
 
   /** A hanging, unfinished puppet body — set dressing that reads as a threat. */
   hangingBody(x, y, z, { scale = 1, preset = 'marionette', hangHeight = 2.4, sway = true } = {}) {
-    const p = buildPuppet({ preset, scale, strings: true, stringHeight: hangHeight, faceStyle: 'stitched' });
+    const p = buildPuppet({
+      preset, scale, strings: true, stringHeight: hangHeight, faceStyle: 'stitched',
+      damage: 0.55 + this.rng() * 0.4,
+      seed: Math.floor(this.rng() * 100000),
+    });
     p.root.position.set(x, y, z);
     p.root.rotation.y = this.rng() * Math.PI * 2;
     p.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });

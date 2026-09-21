@@ -124,6 +124,15 @@ export class PostFX {
       lensTint: new THREE.Color(1, 1, 1),
       saturation: 1,
       chromaBoost: 0,     // chases push this up
+      /**
+       * Added to the player's own vignette setting rather than replacing it.
+       *
+       * The vignette is a comfort preference — some people turn it right down
+       * — so an effect that wants to close the frame in has to push it rather
+       * than overwrite it, or being caught silently undoes a setting the
+       * player chose.
+       */
+      vignetteBoost: 0,
       shakeTrauma: 0,
     };
     this._smoothed = { fade: 0, mask: 0, strain: 0, damage: 0, distortion: 0, chroma: 0 };
@@ -226,7 +235,7 @@ export class PostFX {
     f.uDistortion.value = sm.distortion;
     f.uSaturation.value = this.fx.saturation;
     f.uBrightness.value = s.brightness;
-    f.uVignette.value = s.vignetteIntensity;
+    f.uVignette.value = s.vignetteIntensity + this.fx.vignetteBoost;
     f.uGrain.value = s.filmGrain ? s.filmGrainIntensity : 0;
     f.uChroma.value = s.chromaticAberration
       ? s.chromaticAberrationIntensity * (1 + sm.chroma * 2)

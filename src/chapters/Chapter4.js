@@ -1216,9 +1216,20 @@ export function buildChapter4(ctx) {
     spawnYaw: 0,
     state,
 
+    // Exposed for the portrait and playtest scripts — see Chapter 3.
+    gloam,
+    understudy,
+
     onPlayerReady(player) {
       gloam.player = player;
       understudy.player = player;
+    },
+
+    /** What caught them, so the jumpscare frames the right thing. */
+    subjectFor(cause) {
+      if (cause === 'gloam') return gloam.root;
+      if (cause === 'understudy') return understudy.root;
+      return null;
     },
 
     /**

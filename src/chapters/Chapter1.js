@@ -1490,6 +1490,11 @@ export function buildChapter1(ctx) {
       tangle.player = player;
     },
 
+    /** What caught them, so the jumpscare frames the right thing. */
+    subjectFor(cause) {
+      return cause === 'tangle' ? tangle.root : null;
+    },
+
     /**
      * Put the chase back to its starting conditions so the player gets a clean
      * run at it, rather than respawning into the middle of one.

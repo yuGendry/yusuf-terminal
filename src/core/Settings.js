@@ -119,6 +119,11 @@ const DEFAULTS = {
   showObjective: true,
   crosshair: true,
   cinematics: true,
+
+  // ---- controller ---------------------------------------------------------
+  gamepadSensitivity: 1.0,
+  gamepadInvertY: false,
+  rumble: true,
 };
 
 /** Keys that, when changed individually, flip `preset` to "custom". */

@@ -298,11 +298,24 @@ export class PlayerController extends EventBus {
     // --- gather wish direction in world space ------------------------------
     let ix = 0;
     let iz = 0;
+    let analogue = 0;
     if (this.canMove && !this.frozen) {
-      if (input.isDown('forward')) iz += 1;
-      if (input.isDown('back')) iz -= 1;
-      if (input.isDown('right')) ix += 1;
-      if (input.isDown('left')) ix -= 1;
+      // The left stick, when there is one, is used INSTEAD of normalising the
+      // keys — a stick is analogue and its magnitude is the whole point. Eased
+      // half over, the player walks; pushed to the stop, they move at the same
+      // speed the keyboard gives. Normalising it the way WASD is normalised
+      // would throw that away and make a controller a worse keyboard.
+      const stick = input.moveAxis;
+      if (stick) {
+        ix = stick.x;
+        iz = stick.y;
+        analogue = Math.min(1, Math.hypot(ix, iz));
+      } else {
+        if (input.isDown('forward')) iz += 1;
+        if (input.isDown('back')) iz -= 1;
+        if (input.isDown('right')) ix += 1;
+        if (input.isDown('left')) ix -= 1;
+      }
     }
 
     const hasInput = ix !== 0 || iz !== 0;
@@ -343,7 +356,9 @@ export class PlayerController extends EventBus {
     targetSpeed *= this.env.speedScale;
 
     // --- horizontal acceleration ------------------------------------------
-    const wishVel = this._desired.clone().multiplyScalar(hasInput ? targetSpeed : 0);
+    // `analogue` is 0 on the keyboard, which reads as full deflection.
+    const throttle = analogue > 0 ? analogue : 1;
+    const wishVel = this._desired.clone().multiplyScalar(hasInput ? targetSpeed * throttle : 0);
 
     // Separate accel/decel: quick to get going, slower to stop, much weaker in
     // the air. These numbers are the whole "feel" of the character.

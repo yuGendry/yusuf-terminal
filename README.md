@@ -31,7 +31,7 @@ with no server-side component.
 ### Development tooling
 
 ```bash
-npm run verify       # the four checks that catch unplayable builds
+npm run verify       # the checks that catch unplayable builds
 npm run smoke        # headless launch check: boots the game, reports errors
 npm run playtest     # movement, collision, stairs, ramps, crouch headroom
 npm run chaptertest  # drives a chapter's puzzle chain (CHAPTER=2 for the second)
@@ -39,11 +39,13 @@ npm run doorcheck    # proves every doorway in every chapter is actually passabl
 npm run reachcheck   # proves every interactable can be stood next to and seen
 npm run walkcheck    # floods each level from the spawn; proves you can get there
 npm run leakcheck    # proves a chapter takes its collision with it when it unloads
+npm run signcheck    # proves every sign, chart and gauge faces somewhere you can stand
 npm run controlstest # every control, through real KeyboardEvents
 npm run chasetest    # exercises Mister Tangle's rail AI and catch volume
 npm run cinetest     # menu → drive → title page → opening → play → ending
 npm run tour         # photographs every room in a chapter (CHAPTER=2)
 npm run beauty       # renders framed screenshots at a chosen quality preset
+npm run portraits    # close-ups of every creature, and the jumpscare frame by frame
 ```
 
 These use Playwright against a software renderer, so they verify *simulation and
@@ -51,7 +53,7 @@ correctness*, not frame rate. They wait on the engine's own clock rather than on
 wall-clock time for that reason, and they load with `?nocine=1` so they spend
 their budget on the game rather than on the cutscenes.
 
-Four of them exist because of specific bugs that shipped:
+Five of them exist because of specific bugs that shipped:
 
 - **doorcheck** unlocks and opens every door and every doorless gap in every
   chapter, then fires a grid of rays through it and reports what blocked them.
@@ -70,6 +72,13 @@ Four of them exist because of specific bugs that shipped:
   The other checks cannot see any of that: doorcheck tests declared openings
   one at a time, and reachcheck never asks whether you can get to the place it
   wants you to stand.
+- **signcheck** checks the clues nothing else can: the gauges, charts, works
+  orders and notices that are read by looking rather than by pressing a key, so
+  no harness that drives interactables ever touches them. For each single-sided
+  plane it asks whether the face carrying the picture points at floor a player
+  can stand on. Chapter 2's kiln gauge was mounted a quarter turn the wrong way
+  — the readable side faced into the kiln's own steel — and the number the
+  puzzle's whole lesson depends on could not be seen from anywhere in the room.
 - **leakcheck** loads every chapter twice — once clean, once after every other
   chapter — and fails if the collider count drifts. The physics world is shared
   for the whole session, so a chapter that does not remove its collision leaves
@@ -94,6 +103,36 @@ Four of them exist because of specific bugs that shipped:
 | Pause | `Escape` | |
 
 Every binding is rebindable in **Settings → Controls**.
+
+### Controller
+
+A DualSense — or any gamepad the browser reports as standard — is picked up
+automatically. There is nothing to enable and nothing to pair in-game: plug it
+in or connect it over Bluetooth and press something.
+
+| Action | Button |
+| --- | --- |
+| Move | Left stick (analogue: a half-pushed stick walks) |
+| Look | Right stick |
+| Sprint | `L3` |
+| Crouch | `◯` |
+| Jump | `✕` |
+| Interact | `▢` |
+| Veilmask on/off | `△` |
+| Swap lens | `L1` / `R1` |
+| Flashlight | `R3` |
+| Hint | D-pad up |
+| Journal | D-pad down |
+| Pause | `Options` |
+
+The on-screen prompts follow whichever device you last touched, so a controller
+player is never told to press `E` and a keyboard player is never shown a `▢`. A
+pad that is merely plugged in does not take the prompts over — only real input
+does, so a drifting stick cannot steal them from the keyboard.
+
+Vibration, stick sensitivity and vertical inversion are under
+**Settings → Controls → Controller**. The stick has its own sensitivity because
+a number that is right for a mouse never is for a thumbstick.
 
 ---
 
@@ -169,9 +208,13 @@ The kiln puzzle is built on real pottery practice. The gauge was last
 calibrated in 1984 and reads about 300°C low; the log tells you to fire to
 cone 6. A pyrometric cone is a slug of clay formulated to slump at a known
 temperature, and potters fire to a cone rather than to a dial precisely because
-dials drift. The cones are inside the kiln, so Ember is the only way to watch
-them. Trust the gauge and you will overfire to nearly 1530°C and crack
-everything — recoverable, but you will have to start the firing again.
+dials drift. The cones are inside the kiln, and Ember does not merely light
+them — it renders the steel shell transparent, so you watch three numbered
+cones stand, lean and go over inside a box you cannot open. The climb flattens
+out near temperature the way a real firing does, which is what makes the gap
+between cone 6 going over and cone 7 going over a decision rather than a
+reflex. Trust the gauge instead and you will overfire to nearly 1530°C and
+crack everything — recoverable, but you will have to start the firing again.
 
 ### Chapter 3 — Rehearsal
 

@@ -190,6 +190,10 @@ export class MenuScene {
       stringHeight: 2.6,
       faceStyle: 'smile',
       clothColor: 0x4a1d28,
+      // The menu doll is the first thing anyone sees, so it carries a
+      // moderate amount: enough to be wrong, not so much it is a wreck.
+      damage: 0.55,
+      seed: 7,
     });
     puppet.root.position.set(0, stageH, stageZ - 2.6);
     puppet.root.rotation.y = Math.PI;   // face the audience

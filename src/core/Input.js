@@ -9,6 +9,7 @@
 
 import { Settings } from './Settings.js';
 import { EventBus } from '../util/EventBus.js';
+import { GamepadInput } from './Gamepad.js';
 
 /** Keys that are modifiers themselves, and so are bindable as actions. */
 const MODIFIER_CODES = new Set([
@@ -34,6 +35,16 @@ export class Input extends EventBus {
 
     this.locked = false;
     this.enabled = true;
+
+    /**
+     * The pad, polled from beginFrame().
+     *
+     * Every action query below checks the keyboard and then the pad, so a game
+     * system never needs to know which one the player is holding — and both
+     * work at once, which matters more than it sounds: a player with a
+     * controller still uses the keyboard for the menus.
+     */
+    this.gamepad = new GamepadInput();
     /** When true, key events go to a rebinding listener instead of the game. */
     this.captureNextKey = null;
 
@@ -64,6 +75,8 @@ export class Input extends EventBus {
       if (!this.down.has(e.code)) {
         this.down.add(e.code);
         this._pressedCodes.add(e.code);
+        // Touching the keyboard hands the prompts back to the keyboard.
+        this.gamepad.standDown();
         this.emit('keydown', e.code);
       }
 
@@ -186,25 +199,52 @@ export class Input extends EventBus {
     return Settings.get('keybinds')[action];
   }
 
-  /** Is the action's key held right now? */
+  /** Is the action's key or pad button held right now? */
   isDown(action) {
     if (!this.enabled) return false;
     const code = this._code(action);
-    return code ? this.down.has(code) : false;
+    if (code && this.down.has(code)) return true;
+    return this.gamepad.isDown(action);
   }
 
-  /** Did the action's key go down during this frame? */
+  /** Did the action go down during this frame, on either device? */
   pressed(action) {
     if (!this.enabled) return false;
     const code = this._code(action);
-    return code ? this._pressedCodes.has(code) : false;
+    if (code && this._pressedCodes.has(code)) return true;
+    return this.gamepad.pressed(action);
   }
 
-  /** Did the action's key come up during this frame? */
+  /** Did the action come up during this frame, on either device? */
   released(action) {
     if (!this.enabled) return false;
     const code = this._code(action);
-    return code ? this._releasedCodes.has(code) : false;
+    if (code && this._releasedCodes.has(code)) return true;
+    return this.gamepad.released(action);
+  }
+
+  /**
+   * Left stick, as a movement vector. Zero when no pad is in use.
+   *
+   * Returned separately from the WASD query rather than folded into it,
+   * because a stick is analogue: the player controller wants the magnitude,
+   * so that easing the stick over walks rather than runs.
+   */
+  get moveAxis() {
+    if (!this.enabled || !this.gamepad.active) return null;
+    const { moveX, moveY } = this.gamepad;
+    if (moveX === 0 && moveY === 0) return null;
+    return { x: moveX, y: moveY };
+  }
+
+  /** True while the player is driving with a controller. */
+  get usingGamepad() {
+    return this.gamepad.active;
+  }
+
+  /** Rumble, if there is a pad and the player has left it switched on. */
+  rumble(strong, weak, ms) {
+    this.gamepad.rumble(strong, weak, ms);
   }
 
   /** Raw physical-key query, for things like the "any key" prompt. */
@@ -223,6 +263,22 @@ export class Input extends EventBus {
     this._pendingDx = 0;
     this._pendingDy = 0;
     this._pendingWheel = 0;
+
+    this.gamepad.poll();
+
+    // The right stick is folded into the mouse delta rather than handled
+    // separately, so every camera-facing system — the look, the mask overlay,
+    // the interaction raycast — needs no knowledge of it at all.
+    //
+    // It is scaled by dt-independent constants on purpose: a stick reports a
+    // position, so the turn it produces has to be per-frame like a mouse
+    // delta, and the player controller already damps that.
+    if (this.gamepad.active) {
+      const sens = Settings.get('gamepadSensitivity');
+      const invert = Settings.get('gamepadInvertY') ? -1 : 1;
+      this.mouse.dx += this.gamepad.lookX * 13 * sens;
+      this.mouse.dy += this.gamepad.lookY * 10 * sens * invert;
+    }
   }
 
   /** Called once per frame after all systems have read input. */
@@ -232,6 +288,7 @@ export class Input extends EventBus {
   }
 
   dispose() {
+    this.gamepad.dispose();
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('blur', this._onBlur);
