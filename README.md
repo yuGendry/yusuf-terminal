@@ -37,6 +37,8 @@ npm run playtest     # movement, collision, stairs, ramps, crouch headroom
 npm run chaptertest  # drives a chapter's puzzle chain (CHAPTER=2 for the second)
 npm run doorcheck    # proves every doorway in every chapter is actually passable
 npm run reachcheck   # proves every interactable can be stood next to and seen
+npm run walkcheck    # floods each level from the spawn; proves you can get there
+npm run leakcheck    # proves a chapter takes its collision with it when it unloads
 npm run controlstest # every control, through real KeyboardEvents
 npm run chasetest    # exercises Mister Tangle's rail AI and catch volume
 npm run cinetest     # menu → drive → title page → opening → play → ending
@@ -49,7 +51,7 @@ correctness*, not frame rate. They wait on the engine's own clock rather than on
 wall-clock time for that reason, and they load with `?nocine=1` so they spend
 their budget on the game rather than on the cutscenes.
 
-Two of them exist because of specific bugs that shipped:
+Four of them exist because of specific bugs that shipped:
 
 - **doorcheck** unlocks and opens every door and every doorless gap in every
   chapter, then fires a grid of rays through it and reports what blocked them.
@@ -60,6 +62,18 @@ Two of them exist because of specific bugs that shipped:
   headroom there, whether the object is within its own declared reach, and
   whether the line to it is clear. Calling `onUse` by label — which every other
   harness does — passes happily on an object walled into the masonry.
+- **walkcheck** floods the level from the spawn point and reports anything the
+  game needs that the flood never reached, plus whole regions of floor that are
+  cut off. It found a chapter whose stair descended into an unbroken wall, a
+  chapter whose exit door opened onto the void where the next room was supposed
+  to be, and a chase route whose every corner was sealed by its own handrail.
+  The other checks cannot see any of that: doorcheck tests declared openings
+  one at a time, and reachcheck never asks whether you can get to the place it
+  wants you to stand.
+- **leakcheck** loads every chapter twice — once clean, once after every other
+  chapter — and fails if the collider count drifts. The physics world is shared
+  for the whole session, so a chapter that does not remove its collision leaves
+  the next one built inside its walls.
 
 ---
 
