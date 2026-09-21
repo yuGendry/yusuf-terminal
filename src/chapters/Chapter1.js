@@ -50,6 +50,7 @@ export function buildChapter1(ctx) {
 
   const state = {
     ticketDrawerOpen: false,
+    cellarKey: false,
     breakersOn: [false, false, false],
     boardSliders: [0, 0, 0, 0, 0, 0],
     stageDoorOpen: false,
@@ -62,35 +63,48 @@ export function buildChapter1(ctx) {
   // LOBBY  — the player enters through the coal door at the south end
   // ==========================================================================
 
+  // 28 x 22, grown west and south.
+  //
+  // The north wall carries the house and the east wall carries the ticket
+  // office, so neither can move; the room's centre therefore shifts to
+  // (-4, 3), and every opening measured from that centre has to shift with it
+  // or it lands somewhere else in the world. The north doorway is `at: 4`
+  // rather than `at: 0` for the same world position it always had.
   const lobby = kit.room({
-    width: 20, depth: 16, height: 8.5, x: 0, z: 0,
-    floorMat: material('lobbyFloor', { repeat: 6 }),
+    width: 28, depth: 22, height: 8.5, x: -4, z: 3,
+    floorMat: material('lobbyFloor', { repeat: 8 }),
     wallMat: material('wallpaperLobby', { repeat: 4 }),
-    ceilMat: material('ceiling', { repeat: 4 }),
+    ceilMat: material('ceiling', { repeat: 5 }),
     surface: 'carpet',
     openings: [
-      { side: 'n', at: 0, width: 3.4, top: 3.2 },      // into the house
+      { side: 'n', at: 4, width: 3.4, top: 3.2 },      // into the house
       // The ticket window. Both sides of this wall must agree it is a window
       // and not a doorway: a sill here, a sill in the office, and the counter
       // between them. `walkable: false` tells the passability check that the
       // counter blocking it is the point, not a bug.
-      { side: 'e', at: -3, width: 1.6, sill: 1.0, top: 2.1, walkable: false },
+      { side: 'e', at: -6, width: 1.6, sill: 1.0, top: 2.1, walkable: false },
+      { side: 'w', at: 0, width: 1.9, top: 2.5 },      // to the saloon bar
     ],
   });
 
   // Runner carpet down the centre, which also tells the player where to walk.
-  kit.box(3.6, 0.02, 15, 0, 0.011, 0, material('seatVelvet', { repeat: 4 }), {
+  kit.box(3.6, 0.02, 21, 0, 0.011, 3, material('seatVelvet', { repeat: 4 }), {
+    surface: 'carpet', solid: false, shadow: false,
+  });
+  // A second runner, west, pointing at the bar doors.
+  kit.box(9, 0.02, 2.4, -9.5, 0.011, 3, material('seatVelvet', { repeat: 3 }), {
     surface: 'carpet', solid: false, shadow: false,
   });
 
   // Boarded entrance doors behind the player — the way they came in.
-  kit.window(0, 2.4, 7.9, { width: 3.2, height: 3.6, boarded: true, rayLength: 9, rayIntensity: 0.12 });
+  kit.window(0, 2.4, 13.9, { width: 3.2, height: 3.6, boarded: true, rayLength: 9, rayIntensity: 0.12 });
 
-  // Two more windows high on the west wall, doing most of the lighting work.
-  kit.window(-9.9, 3.6, -2, { width: 1.6, height: 2.4, rotY: Math.PI / 2, boarded: true, rayLength: 9, rayIntensity: 0.19 });
-  kit.window(-9.9, 3.6, 3, { width: 1.6, height: 2.4, rotY: Math.PI / 2, boarded: true, rayLength: 9, rayIntensity: 0.19 });
+  // Three windows high on the west wall, doing most of the lighting work.
+  kit.window(-17.9, 3.6, -2, { width: 1.6, height: 2.4, rotY: Math.PI / 2, boarded: true, rayLength: 10, rayIntensity: 0.19 });
+  kit.window(-17.9, 3.6, 8, { width: 1.6, height: 2.4, rotY: Math.PI / 2, boarded: true, rayLength: 10, rayIntensity: 0.19 });
+  kit.window(-17.9, 3.6, 12, { width: 1.6, height: 2.4, rotY: Math.PI / 2, boarded: true, rayLength: 10, rayIntensity: 0.15 });
 
-  kit.dust(new THREE.Vector3(0, 3, 0), new THREE.Vector3(20, 6, 16), { count: 900, seed: 11 });
+  kit.dust(new THREE.Vector3(-4, 3.5, 3), new THREE.Vector3(28, 8, 22), { count: 1400, seed: 11 });
 
   // A grand staircase stub going nowhere (the upper floor collapsed).
   for (let i = 0; i < 6; i++) {
@@ -104,7 +118,9 @@ export function buildChapter1(ctx) {
   }
 
   kit.practical(0, 5.9, 2, { intensity: 22, distance: 13, flicker: { chance: 0.55, severity: 0.9, seed: 3 } });
-  kit.sconce(-9.6, 2.6, 5, { rotY: Math.PI / 2, intensity: 7, flicker: { chance: 0.3, severity: 0.6, seed: 8 } });
+  kit.practical(-9, 5.9, 9, { intensity: 16, distance: 12, castShadow: false, flicker: { chance: 0.7, severity: 0.95, seed: 4 } });
+  kit.sconce(-17.6, 2.6, 5, { rotY: Math.PI / 2, intensity: 7, flicker: { chance: 0.3, severity: 0.6, seed: 8 } });
+  kit.sconce(-17.6, 2.6, 11, { rotY: Math.PI / 2, intensity: 6 });
   kit.sconce(9.6, 2.6, 5, { rotY: -Math.PI / 2, intensity: 7 });
 
   // Set dressing: a velvet rope line nobody will ever queue in again.
@@ -115,6 +131,301 @@ export function buildChapter1(ctx) {
     ballTop.position.set(px, 0.96, 4.2);
     ballTop.castShadow = true;
     scene.add(ballTop);
+  }
+
+  // ==========================================================================
+  // THE WEST WING — the saloon bar, the cloakroom and the cellar
+  // ==========================================================================
+
+  // --- the saloon bar -------------------------------------------------------
+  kit.room({
+    width: 16, depth: 14, height: 5.6, x: -26, z: 3,
+    floorMat: material('lobbyFloor', { repeat: 5 }),
+    wallMat: material('wallpaperLobby', { repeat: 4 }),
+    ceilMat: material('ceiling', { repeat: 3 }),
+    surface: 'wood',
+    openings: [
+      { side: 'e', at: 0, width: 1.9, top: 2.5 },      // back to the lobby
+      { side: 'n', at: -4, width: 1.6, top: 2.3 },     // to the cloakroom
+    ],
+  });
+
+  kit.practical(-26, 4.8, 4, { intensity: 24, distance: 13, flicker: { chance: 0.6, severity: 0.9, seed: 12 } });
+  kit.practical(-30, 4.8, -1, { intensity: 16, distance: 10, castShadow: false, flicker: { chance: 0.8, severity: 0.95, seed: 13 } });
+  // Under-gantry light behind the bar, so the counter reads as a bar rather
+  // than as a long box.
+  const gantry = new THREE.SpotLight(0xffc27a, 26, 7, Math.PI / 3, 0.8, 2);
+  gantry.position.set(-26, 2.9, -3.0);
+  gantry.target.position.set(-26, 1.1, -2.2);
+  scene.add(gantry, gantry.target);
+  kit.dust(new THREE.Vector3(-26, 2.6, 3), new THREE.Vector3(16, 5, 14), { count: 700, seed: 14 });
+
+  // The bar itself: a long counter with a gantry of upturned glasses behind it.
+  kit.box(10, 1.1, 0.9, -26, 0.55, -2.2, material('paintedWood', { color: 0x2a1c12 }), { surface: 'wood', tile: 1.1 });
+  kit.box(10.4, 0.08, 1.2, -26, 1.14, -2.2, material('paintedWood', { color: 0x3d2a1b }), { surface: 'wood', shadow: false });
+  for (let r = 0; r < 3; r++) {
+    kit.box(9, 0.06, 0.4, -26, 1.7 + r * 0.55, -3.5,
+      material('paintedWood', { color: 0x2a1c12 }), { surface: 'wood', solid: false, shadow: false });
+  }
+  for (let i = 0; i < 22; i++) {
+    const g = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.028, 0.11, 7),
+      material('porcelain')
+    );
+    g.position.set(-30.2 + (i % 11) * 0.84, 1.79 + Math.floor(i / 11) * 0.55, -3.5);
+    g.rotation.z = Math.PI;
+    scene.add(g);
+  }
+
+  // Dust sheets over the tables: white shapes in a dark room, which is most of
+  // what makes a closed bar unpleasant to walk through.
+  for (let i = 0; i < 5; i++) {
+    const tx = -31 + (i % 3) * 4.4;
+    const tz = 3.5 + Math.floor(i / 3) * 4.2;
+    kit.box(1.5, 0.78, 1.5, tx, 0.39, tz, material('paintedWood', { color: 0x2f231a }), { surface: 'wood' });
+    kit.box(1.9, 0.06, 1.9, tx, 0.81, tz,
+      new THREE.MeshStandardMaterial({ color: 0xbfb7a6, roughness: 1 }), { surface: 'carpet', shadow: false });
+  }
+
+  kit.sign(-18.4, 2.6, 3, 'SALOON BAR', { rotY: -Math.PI / 2 });
+
+  // --- the cloakroom --------------------------------------------------------
+  const CLOAK = { x: -30, z: -9, w: 12, d: 10, h: 4.4 };
+  kit.room({
+    width: CLOAK.w, depth: CLOAK.d, height: CLOAK.h, x: CLOAK.x, z: CLOAK.z, y: 0,
+    floorMat: material('tileFloor', { repeat: 3 }),
+    wallMat: material('wallPlaster', { repeat: 3 }),
+    ceilMat: material('ceiling', { repeat: 2 }),
+    surface: 'tile',
+    // No pilasters: the north wall of this room is the puzzle, and a pier
+    // every four metres stands in front of three of the pegs.
+    piers: false,
+    openings: [
+      { side: 's', at: 0, width: 1.6, top: 2.3 },
+      { side: 'w', at: 0, width: 1.4, top: 2.2 },      // the cellar door
+    ],
+  });
+
+  kit.practical(CLOAK.x, 3.8, CLOAK.z + 1, { intensity: 20, distance: 11, flicker: { chance: 0.45, severity: 0.85, seed: 15 } });
+  kit.sconce(CLOAK.x + 5.6, 2.4, CLOAK.z, { rotY: -Math.PI / 2, intensity: 6 });
+  kit.box(6, 1.05, 0.7, CLOAK.x, 0.52, CLOAK.z + 3.4,
+    material('paintedWood', { color: 0x2a1c12 }), { surface: 'wood', tile: 1.1 });
+
+  kit.sign(CLOAK.x, 2.5, CLOAK.z + 4.7, 'CLOAKROOM');
+
+  // A picture light over the peg rack.
+  //
+  // The rack is a puzzle surface: three small number plates on it are the
+  // entire solution, and they have to be readable from standing distance in a
+  // building with no mains lighting. Lit from a lamp six metres away across
+  // the room they were, measured, black.
+  for (const lx of [-3.0, 0, 3.0]) {
+    const strip = new THREE.SpotLight(0xffd9a0, 34, 6.5, Math.PI / 3.4, 0.7, 2);
+    strip.position.set(CLOAK.x + lx, 3.4, CLOAK.z - 3.4);
+    strip.target.position.set(CLOAK.x + lx, 1.9, CLOAK.z - 4.8);
+    scene.add(strip, strip.target);
+
+    const shade = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.1, 0.3),
+      material('brass')
+    );
+    shade.position.set(CLOAK.x + lx, 3.45, CLOAK.z - 3.4);
+    shade.castShadow = true;
+    scene.add(shade);
+  }
+
+  // ==========================================================================
+  // PUZZLE 4 — The Cloakroom
+  // ==========================================================================
+  //
+  // Twenty-four pegs on the north wall. The ticket says 14; almost every
+  // number plate has fallen off, and the three that survive are the whole
+  // puzzle — 3, 11 and 19 only line up if the numbering runs DOWN each column
+  // of three rather than across each row of eight.
+  //
+  //   number = (column - 1) * 3 + row        (row 1 at the top)
+  //
+  // Threadlight confirms it rather than solving it: the little brass chains
+  // that link the plates run vertically, column by column. A player who has
+  // already worked it out sees they were right; a player who has not still
+  // has to count.
+
+  const PEG_COLS = 8;
+  const PEG_ROWS = 3;
+  const PEG_X0 = CLOAK.x - 4.55;
+  const PEG_DX = 1.3;
+  // Rows sit above the dado rail (y 1.06) rather than across it: the bottom
+  // row at 1.15 had the moulding running straight through it.
+  const PEG_Y = [2.45, 1.95, 1.45];        // row 1, 2, 3 — top to bottom
+  const PEG_Z = CLOAK.z - 4.8;             // on the north wall
+
+  const PLATES_SHOWN = [3, 11, 19];
+  const KEY_PEG = 14;
+  const COAT_PEGS = [2, 7, 14, 20, 23];
+
+  const pegNumber = (col, row) => col * PEG_ROWS + row + 1;   // 0-indexed in
+  const coats = [];
+
+  for (let col = 0; col < PEG_COLS; col++) {
+    for (let row = 0; row < PEG_ROWS; row++) {
+      const n = pegNumber(col, row);
+      const px = PEG_X0 + col * PEG_DX;
+      const py = PEG_Y[row];
+
+      const peg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.022, 0.026, 0.16, 7),
+        material('brass')
+      );
+      peg.position.set(px, py, PEG_Z + 0.1);
+      peg.rotation.x = Math.PI / 2;
+      peg.castShadow = true;
+      scene.add(peg);
+
+      if (PLATES_SHOWN.includes(n)) {
+        const plate = new THREE.Mesh(
+          // Large enough to read from the middle of the room. These three
+          // plates are the entire puzzle; if they cannot be read at a glance
+          // the puzzle is a pixel hunt.
+          new THREE.PlaneGeometry(0.32, 0.19),
+          new THREE.MeshStandardMaterial({ map: makePegPlate(n), roughness: 0.8, side: THREE.DoubleSide })
+        );
+        plate.position.set(px, py - 0.2, PEG_Z + 0.03);
+        scene.add(plate);
+      } else {
+        // The screw holes where a plate used to be. The absence has to be
+        // visible or the player cannot tell the plates are missing rather
+        // than never fitted.
+        for (const dx of [-0.07, 0.07]) {
+          const hole = new THREE.Mesh(
+            new THREE.CircleGeometry(0.012, 8),
+            new THREE.MeshStandardMaterial({ color: 0x14100d, roughness: 1 })
+          );
+          hole.position.set(px + dx, py - 0.2, PEG_Z + 0.03);
+          scene.add(hole);
+        }
+      }
+
+      if (COAT_PEGS.includes(n)) {
+        const coat = new THREE.Group();
+        coat.position.set(px, py - 0.02, PEG_Z + 0.22);
+        // Every coat is the same. Tinting the one with the key in it — which
+        // the first version did — hands the player the answer from across the
+        // room and makes the three surviving number plates decoration.
+        const coatMat = material('feltDark', { color: 0x1b1a17 });
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.5, 4, 8), coatMat);
+        body.position.y = -0.36;
+        body.scale.set(1, 1, 0.5);
+        coat.add(body);
+        const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.1, 0.12), coatMat);
+        shoulders.position.y = -0.08;
+        coat.add(shoulders);
+        coat.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        scene.add(coat);
+        coats.push({ group: coat, number: n });
+      }
+    }
+
+    // The Threadlight chain linking this column's plates, top to bottom. This
+    // is the confirmation, not the answer.
+    const chain = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.008, 1.2, 5),
+      new THREE.MeshBasicMaterial({
+        color: 0x6fe3d4, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    chain.position.set(PEG_X0 + col * PEG_DX, 1.45, PEG_Z + 0.02);
+    chain.userData.lensOnly = 'threadlight';
+    scene.add(chain);
+  }
+
+  const cellarKeyTaken = { value: false };
+
+  for (const coat of coats) {
+    interaction.register({
+      object: coat.group,
+      reach: 2.2,
+      label: 'Search the coat',
+      enabled: () => !cellarKeyTaken.value,
+      onUse: () => {
+        if (cellarKeyTaken.value) return;
+        if (coat.number !== KEY_PEG) {
+          audio?.paperPickup?.();
+          hud.say('Empty. Whoever left it was not coming back for it either.', { duration: 3.4 });
+          return;
+        }
+        cellarKeyTaken.value = true;
+        state.cellarKey = true;
+        cellarDoor.unlock();
+        audio?.puzzleSolved?.();
+        puzzles.solve('ch1-cloakroom');
+        hud.say('A brass key on a wooden fob. CELLAR, burnt into it.', { duration: 4.5 });
+        for (const c of coats) interaction.unregister(c.group);
+        setTimeout(() => puzzles.activate('ch1-breakers'), 2400);
+      },
+    });
+  }
+
+  puzzles.register({
+    id: 'ch1-cloakroom',
+    name: 'The Cloakroom',
+    objective: 'Find the cellar key.',
+    marker: new THREE.Vector3(CLOAK.x, 1.6, PEG_Z + 0.5),
+    hints: [
+      'The ticket in the bar has a number on it, and the back of it has instructions. Read both sides.',
+      'Almost every number plate has come off the pegs. Three are left — 3, 11 and 19 — and they only make sense if the numbering runs down each column of three, not across the rows.',
+      'Numbering down: peg 14 is the fifth column along, middle row. That coat has the key in it.',
+    ],
+  });
+
+  // --- the cellar -----------------------------------------------------------
+  const CELLAR = { x: -41, z: -9, w: 10, d: 8, h: 3.6 };
+  kit.room({
+    width: CELLAR.w, depth: CELLAR.d, height: CELLAR.h, x: CELLAR.x, z: CELLAR.z, y: 0,
+    floorMat: material('tileFloor', { repeat: 3 }),
+    wallMat: material('wallPlaster', { repeat: 3 }),
+    ceilMat: material('ceiling', { repeat: 2 }),
+    surface: 'tile',
+    openings: [{ side: 'e', at: 0, width: 1.4, top: 2.2 }],
+  });
+
+  // `kit.door` takes the HINGE position, not the centre of the leaf — the door
+  // swings about the point you give it. With rotY = PI/2 the leaf extends in
+  // -z, so the hinge sits half a leaf-width on the +z side of the opening or
+  // the whole door ends up offset from the hole it is supposed to fill.
+  const CELLAR_DOOR_W = 1.3;
+  const cellarDoor = kit.door({
+    x: -36, z: CELLAR.z + CELLAR_DOOR_W / 2, width: CELLAR_DOOR_W, height: 2.15,
+    rotY: Math.PI / 2, locked: true, name: 'cellar',
+  });
+
+  interaction.register({
+    object: cellarDoor.object,
+    reach: 2.4,
+    label: () => (cellarDoor.isLocked
+      ? 'Locked — a brass keyhole'
+      : cellarDoor.isOpen ? 'Close' : 'Open'),
+    onUse: () => {
+      if (cellarDoor.isLocked) {
+        audio?.doorOpen?.(new THREE.Vector3(-36, 1.2, CELLAR.z));
+        hud.say('Locked. The keyhole is brass and the lock has been oiled recently.', { duration: 3.6 });
+        return;
+      }
+      cellarDoor.toggle();
+    },
+  });
+
+  kit.practical(CELLAR.x, 3.0, CELLAR.z, { intensity: 17, distance: 9, flicker: { chance: 0.7, severity: 0.95, seed: 16 } });
+  // The breaker on the west wall needs to be findable; a dead cellar with one
+  // failing bulb is atmospheric right up until it hides the objective.
+  const breakerLamp = new THREE.SpotLight(0xffd9a0, 22, 5.5, Math.PI / 4, 0.7, 2);
+  breakerLamp.position.set(CELLAR.x - 2.4, 2.9, CELLAR.z);
+  breakerLamp.target.position.set(CELLAR.x - 4.8, 1.5, CELLAR.z);
+  scene.add(breakerLamp, breakerLamp.target);
+  kit.dust(new THREE.Vector3(CELLAR.x, 1.8, CELLAR.z), new THREE.Vector3(10, 3.5, 8), { count: 500, seed: 17 });
+  kit.shelving(CELLAR.x - 4.4, 0, CELLAR.z, { width: 5, height: 2.4, rotY: Math.PI / 2, shelves: 4, fill: 0.9 });
+  for (let i = 0; i < 6; i++) {
+    kit.crate(CELLAR.x + 2.6 + (i % 2) * 0.8, 0.3 + Math.floor(i / 2) * 0.62, CELLAR.z + 2.4 + (i % 3) * 0.5, 0.55);
   }
 
   // ==========================================================================
@@ -346,7 +657,9 @@ export function buildChapter1(ctx) {
         hud.setObjective('Put the mask on.');
         music.setMood('unease');
         setTimeout(() => ctx.playRadio(RADIO['ch1-radio-2']), 3000);
-        puzzles.activate('ch1-breakers');
+        // The cloakroom now comes first: the breaker that feeds the board is
+        // in the cellar, and the cellar is locked.
+        puzzles.activate('ch1-cloakroom');
       };
     },
   });
@@ -527,9 +840,14 @@ export function buildChapter1(ctx) {
   // and only one of the three goes to the board. The other two feed the house
   // lights (which wake Tangle early — a real cost, not a fail state).
 
+  // The board breaker is not in the house. It is on the cellar wall, behind a
+  // locked door, behind the cloakroom — which is what makes the west wing part
+  // of the chapter rather than an optional room full of collectibles. The two
+  // breakers the player finds first are both wrong, and pulling either of them
+  // has a real cost.
   const breakerPositions = [
     new THREE.Vector3(-11.4, 1.5, -14),
-    new THREE.Vector3(11.4, 1.5, -18),
+    new THREE.Vector3(-45.8, 1.5, -9),
     new THREE.Vector3(-11.4, 1.5, -26),
   ];
   // Breaker 1 is the board. The others are the house lights and a dead circuit.
@@ -547,15 +865,15 @@ export function buildChapter1(ctx) {
       new THREE.PlaneGeometry(0.3, 0.09),
       new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.75, side: THREE.DoubleSide })
     );
-    plate.position.set(pos.x + (pos.x < 0 ? 0.1 : -0.1), pos.y + 0.34, pos.z);
-    plate.rotation.y = pos.x < 0 ? Math.PI / 2 : -Math.PI / 2;
+    plate.position.set(pos.x + 0.1, pos.y + 0.34, pos.z);
+    plate.rotation.y = Math.PI / 2;
     scene.add(plate);
 
     const lever = new THREE.Mesh(
       new THREE.BoxGeometry(0.06, 0.16, 0.05),
       material('paintedWood', { color: 0x6a1f1c })
     );
-    lever.position.set(pos.x + (pos.x < 0 ? 0.12 : -0.12), pos.y + 0.1, pos.z);
+    lever.position.set(pos.x + 0.12, pos.y + 0.1, pos.z);
     lever.castShadow = true;
     scene.add(lever);
     breakerMeshes.push({ boxMesh, lever, pos, role: BREAKER_ROLE[i], index: i });
@@ -567,6 +885,8 @@ export function buildChapter1(ctx) {
       : BREAKER_ROLE[i] === 'house'
         ? new THREE.Vector3(0, 10.4, -21)
         : new THREE.Vector3(pos.x, 0.2, pos.z + (pos.z < -20 ? -3 : 3));
+    // The cellar run is the long one: it leaves the room, and following it is
+    // the point of the lens.
 
     addThreadRun(scene, pos, dest, BREAKER_ROLE[i] === 'dead' ? 0x555555 : 0x6fe3d4);
   });
@@ -577,9 +897,9 @@ export function buildChapter1(ctx) {
     objective: 'Get power to the stage.',
     marker: breakerPositions[1].clone(),
     hints: [
-      'The lighting board on the stage is dead. Something upstream of it is switched off. There are three breaker boxes around the walls of the house.',
-      'The labels rotted off decades ago, so throwing them blind is a gamble. The mask shows you where a cable actually goes — put it on and look at each box before you touch it.',
-      'The breaker on the east wall, about halfway down the house, is the one whose thread runs forward to the stage. Throw that one. The other two feed the house lights, and you do not want those on.',
+      'The lighting board on the stage is dead. Something upstream of it is switched off. There are breaker boxes on the walls of the house — and one more that is not in the house at all.',
+      'The labels rotted off decades ago, so throwing them blind is a gamble. The mask shows you where a cable actually goes — put it on and look at each box before you touch it. Both of the ones in the house run somewhere you do not want.',
+      'The one that feeds the board is on the cellar wall, through the bar and the cloakroom in the west wing. Throw that one and leave the two in the house alone.',
     ],
   });
 
@@ -1027,9 +1347,14 @@ export function buildChapter1(ctx) {
     // beside it: at x -3.4 it hung 20cm off the end of the table and 30cm above
     // the surface, which reads as a bug the moment a torch finds it.
     new THREE.Vector3(-2.9, 0.85, 5.86), -0.2);
-  placeNote(kit, interaction, scene, reader, save, 'ch1-note-child', new THREE.Vector3(-9.5, 0.55, 1.2), 1.1);
+  // On the bar counter (top at y 1.14), where a player exploring the west
+  // wing finds it before they reach the pegs. It used to sit at y 0.55 held up
+  // by nothing but the old west wall, which moved.
+  placeNote(kit, interaction, scene, reader, save, 'ch1-note-child', new THREE.Vector3(-28.4, 1.18, -2.2), 1.1);
+  placeNote(kit, interaction, scene, reader, save, 'ch1-note-cloakroom', new THREE.Vector3(-24.2, 1.18, -2.2), -0.4);
+  placeNote(kit, interaction, scene, reader, save, 'ch1-note-cellar', new THREE.Vector3(-42.4, 0.03, -10.6), 0.6);
 
-  placeStub(kit, interaction, scene, reader, save, 'ch1-stub-1', new THREE.Vector3(8.2, 0.08, 6.6));
+  placeStub(kit, interaction, scene, reader, save, 'ch1-stub-1', new THREE.Vector3(-38.6, 0.08, -7.4));
   placeStub(kit, interaction, scene, reader, save, 'ch1-stub-2', new THREE.Vector3(-10.4, 0.5, -24.5));
   placeStub(kit, interaction, scene, reader, save, 'ch1-stub-3', new THREE.Vector3(-6.4, catwalkY + 0.12, -33.2));
 
@@ -1129,7 +1454,7 @@ export function buildChapter1(ctx) {
   return {
     scene,
     kit,
-    spawn: new THREE.Vector3(0, 1.2, 6.4),
+    spawn: new THREE.Vector3(0, 1.2, 12.2),
     // Facing -Z: down the lobby toward the house, not back at the boarded
     // doors the player just came through.
     spawnYaw: 0,
@@ -1521,4 +1846,46 @@ function placeTape(kit, interaction, scene, reader, save, id, position) {
     },
   });
   return tv;
+}
+
+/**
+ * A cloakroom peg's number plate.
+ *
+ * Only three of these survive in the room, and between them they are the whole
+ * puzzle — so the numbers have to be legible from standing distance in a dark
+ * room, which means large, high-contrast, and nothing else on the plate.
+ */
+function makePegPlate(n) {
+  const c = document.createElement('canvas');
+  c.width = 176; c.height = 104;
+  const g = c.getContext('2d');
+
+  g.fillStyle = '#b9a473';
+  g.fillRect(0, 0, 176, 104);
+  for (let i = 0; i < 70; i++) {
+    g.fillStyle = `rgba(60,46,26,${Math.random() * 0.22})`;
+    g.beginPath();
+    g.arc(Math.random() * 176, Math.random() * 104, Math.random() * 10, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  g.fillStyle = '#20180f';
+  g.font = 'bold 66px Georgia, serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(String(n), 88, 56);
+
+  // The two screws that hold it on — the same two holes the missing plates
+  // leave behind, so the player can tell what is absent.
+  for (const x of [22, 154]) {
+    g.fillStyle = '#4a3a22';
+    g.beginPath();
+    g.arc(x, 52, 7, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }

@@ -16,7 +16,7 @@ export const CHAPTERS = [
     lens: 'threadlight',
     lensName: 'Threadlight',
     stubs: 3,
-    notes: 4,
+    notes: 6,
     tapes: 1,
     estimatedMinutes: 14,
     theme: 'lullaby',

@@ -117,6 +117,15 @@ export class LevelKit {
     /** Skirting, dado rail and (in tall rooms) a cornice. */
     trim = true,
     trimMat = null,
+    /**
+     * Pilasters on long runs.
+     *
+     * Off for any room whose walls are a working surface — a rack, a board, a
+     * chart. A pier standing 16cm proud of the wall every four metres is
+     * exactly what a long blank elevation needs and exactly what a wall of
+     * numbered cloakroom pegs does not: it hides the pegs behind it.
+     */
+    piers = true,
   }) {
     const halfW = width / 2;
     const halfD = depth / 2;
@@ -224,7 +233,7 @@ export class LevelKit {
       // do rescue it, because each one throws its own shadow and the run of
       // them gives the eye a rhythm to measure the room by. Every building of
       // this size has them for structural reasons anyway.
-      if (len >= PIER_MIN_RUN) {
+      if (piers && len >= PIER_MIN_RUN) {
         const count = Math.max(1, Math.round(len / PIER_SPACING) - 1);
         const step = len / (count + 1);
         const DEPTH = 0.16;
@@ -443,6 +452,68 @@ export class LevelKit {
     this.scene.add(lamp);
     if (lamp.userData.update) this.onUpdate((dt, t) => lamp.userData.update(dt, t));
     return lamp;
+  }
+
+  /**
+   * A painted or illuminated sign on a wall.
+   *
+   * Signage is what stops a large building reading as a series of rooms: it
+   * tells the player what a space is before they have walked into it, and it
+   * is the cheapest way to make somewhere feel designed rather than generated.
+   * Drawn to a canvas so any text works without a font asset.
+   */
+  sign(x, y, z, text, {
+    rotY = 0, width = null, height = 0.42, colour = '#d8cdb4', back = '#1b1611',
+    lit = false, glow = 0xffb066,
+  } = {}) {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = back;
+    g.fillRect(0, 0, 512, 128);
+    g.strokeStyle = colour;
+    g.lineWidth = 3;
+    g.strokeRect(10, 10, 492, 108);
+    g.fillStyle = colour;
+    g.font = 'bold 54px Georgia, serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, 256, 68);
+    // Age it, so it is part of the building rather than a label on top of it.
+    for (let i = 0; i < 140; i++) {
+      g.fillStyle = `rgba(20,16,12,${Math.random() * 0.3})`;
+      g.beginPath();
+      g.arc(Math.random() * 512, Math.random() * 128, Math.random() * 11, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+
+    const w = width ?? height * 4;
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, height),
+      new THREE.MeshStandardMaterial({
+        map: tex,
+        roughness: 0.85,
+        side: THREE.DoubleSide,
+        emissiveMap: lit ? tex : null,
+        emissive: lit ? new THREE.Color(glow) : new THREE.Color(0x000000),
+        emissiveIntensity: lit ? 1.4 : 0,
+      })
+    );
+    mesh.position.set(x, y, z);
+    mesh.rotation.y = rotY;
+    this.scene.add(mesh);
+
+    if (lit) {
+      const l = new THREE.PointLight(glow, 2.2, 3.4, 2);
+      l.position.set(x, y, z);
+      this.scene.add(l);
+    }
+    return mesh;
   }
 
   /** A wall sconce: small, warm, short range. Good for corridors. */

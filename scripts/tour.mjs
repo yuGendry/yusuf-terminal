@@ -19,8 +19,15 @@ mkdirSync(OUT, { recursive: true });
 /** Stops per chapter: [name, [x, y, z], yaw, pitch]. */
 const TOURS = {
   1: [
-    ['lobby-in',     [0, 1.2, 6.0],    0,             -0.02],
+    ['lobby-in',     [0, 1.2, 12.0],   0,             -0.02],
+    ['lobby-west',   [-6, 1.2, 3.0],   Math.PI / 2,    0.0],
     ['lobby-desk',   [6.0, 1.2, -2.0], -1.2,           0.02],
+    ['bar',          [-20, 1.2, 3.0],  Math.PI / 2,    0.0],
+    ['bar-counter',  [-26, 1.2, 1.0],  0,              0.02],
+    ['cloakroom',    [-30, 1.2, -5.5], 0,              0.08],
+    ['pegs',         [-30, 1.2, -7.6], 0,              0.14],
+    ['pegs-close',   [-30, 1.2, -11.6], 0,             0.24],
+    ['cellar',       [-37.5, 1.2, -9.0], Math.PI / 2,  0.02],
     ['house-rear',   [0, 1.2, -10.0],  0,              0.05],
     ['house-stage',  [0, 1.2, -28.0],  0,              0.12],
   ],

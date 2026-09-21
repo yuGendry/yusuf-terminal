@@ -46,6 +46,29 @@ Above them, six strings come down out of the sky. Each one ends in a small caref
 At the bottom, in an adult's handwriting:
 "Ellie — please stop drawing this one."`,
   },
+  'ch1-note-cloakroom': {
+    chapter: 1,
+    title: 'Cloakroom ticket, still in its envelope',
+    body: `HOLLOWHART — CLOAKROOM
+No. 14
+
+One coat. Paid.
+
+On the back, in pencil, in a child's hand:
+
+"if you are reading this then she has gone and got it wrong again. the numbers go DOWN not ACROSS. three to a row and then start again. i worked it out when i was nine and nobody has ever checked."`,
+  },
+  'ch1-note-cellar': {
+    chapter: 1,
+    title: 'Chalked on the cellar wall',
+    body: `BOARD FEED — DO NOT PULL
+
+Whoever keeps switching this off: the board is the only circuit in the building that does not also wake the house.
+
+If you want the stage lit, this is the one. If you want the house lit, pull one of the other two and then run.
+
+— G. HALE`,
+  },
   'ch1-note-wren': {
     chapter: 1,
     title: 'Folded into the lining of the mask',
