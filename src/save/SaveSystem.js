@@ -172,14 +172,20 @@ class SaveSystemImpl extends EventBus {
   }
 
   clearSlot(n = 0) {
-    localStorage.removeItem(SLOT_KEY(n));
+    // Guarded like every other access here. The single-file build is opened
+    // straight off the disk, where the page is an opaque origin and storage
+    // can be refused outright — and a throw from "delete this save" would take
+    // the settings screen down with it.
+    try { localStorage.removeItem(SLOT_KEY(n)); } catch { /* no storage */ }
     this.emit('slotCleared', n);
   }
 
   /** Wipe everything, including the archive. Used by "Erase all data". */
   eraseAll() {
-    localStorage.removeItem(PROFILE_KEY);
-    for (let i = 0; i < 3; i++) localStorage.removeItem(SLOT_KEY(i));
+    try {
+      localStorage.removeItem(PROFILE_KEY);
+      for (let i = 0; i < 3; i++) localStorage.removeItem(SLOT_KEY(i));
+    } catch { /* no storage */ }
     this.profile = { ...EMPTY_PROFILE };
     this.emit('erased');
   }
