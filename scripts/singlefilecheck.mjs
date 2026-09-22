@@ -54,7 +54,44 @@ const check = (name, ok, detail = '') => {
   if (!ok) failures++;
 };
 
-await page.goto(`file://${FILE}`, { waitUntil: 'load', timeout: 600000 });
+// Two things have to be true before the first frame is drawn.
+//
+// `?nocine=1` skips the cutscenes, exactly as every other harness does.
+// Without it `startGame` settles in the `cinematic` state, not `play`, and a
+// check waiting for `play` condemns a chapter that loaded perfectly well. A
+// query string works on a file:// URL like any other.
+//
+// And the quality has to come down. Every other harness opens with
+// `applyPreset('low')` and a quarter resolution scale; this one did not, so it
+// was rasterising full-quality frames through a software renderer — thirty
+// minutes on a chapter the others load in two or three. There is no module to
+// import from inside a single-file build, so the settings go in through the
+// storage key directly and the page is reloaded to pick them up. That this
+// works at all is worth knowing on its own: it is the same localStorage the
+// game saves into, so it doubles as proof the opaque origin really does keep
+// data.
+const PAGE = `file://${FILE}?nocine=1`;
+const SETTINGS_KEY = 'stitchwork.settings.v1';
+
+await page.goto(PAGE, { waitUntil: 'load', timeout: 600000 });
+
+const seeded = await page.evaluate((key) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      preset: 'low', resolutionScale: 0.25, shadows: 'off', ssao: false,
+      bloom: false, motionBlur: false, filmGrain: false, godRays: false,
+      antialias: 'off',
+    }));
+    return true;
+  } catch { return false; }
+}, SETTINGS_KEY);
+
+if (seeded) {
+  // The reload is the run that gets measured, so forget what the first one did.
+  fetched.length = 0;
+  errors.length = 0;
+  await page.goto(PAGE, { waitUntil: 'load', timeout: 600000 });
+}
 
 let booted = true;
 try {
