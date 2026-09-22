@@ -280,9 +280,45 @@ noise does.
   stop dead and wait — it will arrive at an empty aisle and cast about.
 - Keep the costume racks between you and it. They are solid cover.
 
-The exit is on the **east wall at the far end**.
+The way on is **west**, through the doorway in the middle of the far wall.
+(The music box on the east side has no cylinder in it; what it needs is through
+here.)
 
-### 5. The Music Box
+### 5. The Crossover
+
+Forty feet of stacked flats, stage weights and dead hampers. **Everything
+except the middle of the floor is loud to walk on** — a step off the boards
+lands on somebody's discarded scenery and Gloam hears it from anywhere in the
+room.
+
+Put the mask on with **Echo** and you can see the path the crew wore down the
+centre of the boards. But the mask hums, and the hum is what Gloam listens for
+before anything else.
+
+> **Answer:** look with Echo, memorise the line, **take the mask off**, and
+> walk it. When you lose the line, stop moving, put the mask back on, look, and
+> take it off again. Never walk and wear it at the same time.
+
+### 6. The Dressing Rooms and the Calls Panel
+
+Five dressing rooms off a corridor. **Room 3** is opposite the way in, its
+bulbs are dead, and the **music-box cylinder** is on the table inside it. Take
+it — and read the note beside it.
+
+The **calls panel** is at the far (south) end of the corridor. Five buttons,
+one per room. The note pinned above it says which room is never called; the
+**Echo ghost** still standing at the panel shows you the same thing, reaching
+for 3, stopping, and going on.
+
+> **Answer:** press **5, 2, 4, 1**. Never 3 — pressing it resets the call and
+> makes a great deal of noise.
+
+The call then goes out over the horn at the **north** dead end of the corridor,
+and Gloam goes to answer it. That is your window to get back east across the
+crossover, and it is about **twenty-five seconds**. Go as soon as you hear the
+announcement — do not wait to watch it pass.
+
+### 7. The Music Box
 
 Six brass tines. The cylinder is the lock and the tune is the key.
 
@@ -292,11 +328,12 @@ tine she strikes lights up. Watch her and you can read the sequence by eye.
 Left to right the tines are **D, E, F, G, A, B♭**. The phrase is **D – F – A –
 G – F – E**.
 
-> **Answer:** strike tines **1, 3, 5, 4, 3, 2** in that order.
+> **Answer:** fit the cylinder you took from dressing room 3 (hold `E` on the
+> box), then strike tines **1, 3, 5, 4, 3, 2** in that order.
 
 Every strike is loud. Do it when nothing is nearby.
 
-### 6. The Practice Room — the Choir
+### 8. The Practice Room — the Choir
 
 Porcelain dolls that move **only when nobody is looking at them**. Not "when
 your back is turned" — a doll you are actually looking at, that is not hidden
@@ -338,7 +375,27 @@ The hall drains to ankle depth. It is quiet enough to think in now.
 Through the **east** door out of the flooded hall, into Odile's laboratory. The
 case is on her desk.
 
-### 3. The Cut Stair
+### 3. The Dip Tank
+
+Through the **west** door out of the flooded hall into the dye house. The
+loom later on needs a **green spool**, and it is in a crate on the bottom of
+the dip tank. There is no reaching down that far.
+
+The only tool in the room is the tank itself: the **cock on the west wall**
+fills and empties it, as often as you like. A crate floats — this one does not,
+for two reasons, and both of them can only be got at while the tank is empty.
+The standing orders screwed to the wall list them.
+
+> **Answer:** with the tank empty, go down the steps inside it. **Throw the
+> clamp off the crate**, then **shut its lid**. Climb out, and **fill the tank**
+> from the cock on the wall. The crate comes up to the rim, where you can reach
+> the spool from the walkway.
+
+Get it wrong and you can see which half you got wrong: flood it with the lid
+open and the crate fills and sits on the bottom; flood it with the clamp still
+on and it lifts a hand's breadth and stops. Drain it and start again.
+
+### 4. The Cut Stair
 
 There is a doorway four metres up the hall's **north** wall with nothing under
 it. The staircase was removed in 1989 and left exactly where it was.
@@ -348,15 +405,27 @@ it. The staircase was removed in 1989 and left exactly where it was.
 > faster than the other lenses, so do not stop halfway to look — if the mask
 > tears off while you are up there, you fall.
 
-### 4. The Warp
+### 5. The Warp — and the long walk
 
-Down the steel stair from the gallery into the Threadworks. Four threading
-heads on the loom, each with a tag wired to it. The number on the tag is its
-**position in the warp**, not its position on the bench.
+Down the steel stair from the gallery into the Threadworks. First, **set the
+green spool in the cradle** at the end of the bench: nothing on the loom runs
+without it.
 
-> **Answer:** **amber, red, violet, green.**
+Doing that brings **the Understudy** down onto the floor. It is not hunting
+you yet — it walks a fixed loop of the room at its one unvarying pace and never
+looks up. It will still kill you if it walks into you.
 
-### 5. The Counterweight
+Four threading heads on the loom, each with a tag wired to it. The number on
+the tag is its **position in the warp**, not its position on the bench.
+
+> **Answer:** watch one full circuit before you commit to anything, then
+> thread **amber, red, violet, green**, always working the head on the far
+> side of the bench from wherever it is. Each head takes about a second to
+> thread, which is time you have to have already bought.
+
+Finishing the warp is what makes it start hunting.
+
+### 6. The Counterweight
 
 The lift gate will not rise because the counterweight is sitting on the bottom
 of an empty tank. It is not a weight, it is a **float** — and you emptied the
@@ -365,9 +434,9 @@ tank yourself.
 > **Answer:** go back up to the **gallery** and close the sluice. The floor
 > floods again and the gate lifts.
 
-### 6. The Understudy
+### 7. The Understudy
 
-Closing the sluice wakes it. It walks, slightly slower than you walk, and it
+Closing the sluice sends it after you in earnest. It walks, slightly slower than you walk, and it
 never stops — and it wades, so water slows it exactly as much as it slows you.
 You cannot lose it and you do not need to. Go down through the Threadworks and
 into the **lift** at the north end, and do not go back for anything.
@@ -376,7 +445,7 @@ into the **lift** at the north end, and do not go back for anything.
 
 ## Ticket stubs
 
-Twelve across the game; ten exist so far. Finding all twelve changes the
+Twelve across the game, and all twelve now exist. Finding all twelve changes the
 ending. They glow faintly through the **Threadlight** lens — Wren handled every
 one of them.
 
@@ -384,5 +453,5 @@ one of them.
 | --- | --- |
 | 1 | The cellar, behind the cloakroom · east wall of the house, in the seating · the catwalk above the stage |
 | 2 | Carving room floor, west end · kiln room floor · on the first conveyor belt |
-| 3 | On the piano in the rehearsal hall · costume basement, south end |
-| 4 | The gallery, above the flooded hall · Odile's desk in the laboratory |
+| 3 | On the piano in the rehearsal hall · costume basement, south end · dressing room 3 |
+| 4 | The gallery, above the flooded hall · Odile's desk in the laboratory · the dye house floor, east end |

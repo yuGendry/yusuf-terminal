@@ -715,26 +715,31 @@ export function buildChapter3(ctx) {
 
   // The worn path, under Echo. Eleven years of the same feet in the dark.
   {
+    // The canvas runs long-side-along-X to match the quad, so the gradient
+    // that softens the edges of the path runs across the corridor (V) and the
+    // footfalls run along it (U). The first version was 64x512 with the quad
+    // spun by PI/2 about Z to compensate, which does not work: a plane laid
+    // flat by rotation.x has its width on X and its height on Z already, and
+    // the extra spin put a twenty-three metre strip across a five metre room,
+    // most of it inside the walls.
     const c = document.createElement('canvas');
-    c.width = 64; c.height = 512;
+    c.width = 1024; c.height = 96;
     const g = c.getContext('2d');
     g.fillStyle = '#000';
-    g.fillRect(0, 0, 64, 512);
-    // A soft-edged strip: bright down the middle, gone by the edges, so the
-    // player reads a worn path rather than a painted lane.
-    const grad = g.createLinearGradient(0, 0, 64, 0);
+    g.fillRect(0, 0, 1024, 96);
+    const grad = g.createLinearGradient(0, 0, 0, 96);
     grad.addColorStop(0, 'rgba(169,143,214,0)');
-    grad.addColorStop(0.5, 'rgba(169,143,214,0.85)');
+    grad.addColorStop(0.5, 'rgba(169,143,214,0.8)');
     grad.addColorStop(1, 'rgba(169,143,214,0)');
     g.fillStyle = grad;
-    g.fillRect(0, 0, 64, 512);
-    // Footfalls, thicker where the path bends round the junk.
-    for (let i = 0; i < 150; i++) {
-      const y = (i / 150) * 512;
-      const wobble = Math.sin(i * 0.31) * 7 + Math.sin(i * 0.11) * 4;
-      g.fillStyle = `rgba(214,198,246,${0.18 + Math.random() * 0.4})`;
+    g.fillRect(0, 0, 1024, 96);
+    // Footfalls, wandering a little the way a path worn in the dark does.
+    for (let i = 0; i < 190; i++) {
+      const x = (i / 190) * 1024;
+      const wobble = Math.sin(i * 0.31) * 9 + Math.sin(i * 0.11) * 5;
+      g.fillStyle = `rgba(222,208,250,${0.22 + Math.random() * 0.45})`;
       g.beginPath();
-      g.ellipse(32 + wobble + (i % 2 ? 6 : -6), y, 4.5, 8, 0, 0, Math.PI * 2);
+      g.ellipse(x, 48 + wobble + (i % 2 ? 9 : -9), 9, 5, 0, 0, Math.PI * 2);
       g.fill();
     }
     const tex = new THREE.CanvasTexture(c);
@@ -743,12 +748,11 @@ export function buildChapter3(ctx) {
     const boards = new THREE.Mesh(
       new THREE.PlaneGeometry(CROSS.w - 1.2, PATH_HALF * 2 + 0.5),
       new THREE.MeshBasicMaterial({
-        map: tex, transparent: true, opacity: 0.85,
+        map: tex, transparent: true, opacity: 0.9,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     );
     boards.rotation.x = -Math.PI / 2;
-    boards.rotation.z = Math.PI / 2;
     boards.position.set(CROSS.x, BAS_Y + 0.025, CROSS.z);
     boards.userData.lensOnly = 'echo';
     scene.add(boards);
@@ -975,7 +979,10 @@ export function buildChapter3(ctx) {
 
     for (let i = 0; i < 5; i++) {
       const number = i + 1;
-      const bx = PANEL_POS.x - 0.56 + i * 0.28;
+      // The panel faces north and is read facing south, so screen-right is
+      // -X: laying the buttons out in increasing X put "1" on the right and
+      // the row read backwards.
+      const bx = PANEL_POS.x + 0.56 - i * 0.28;
 
       const button = new THREE.Mesh(
         new THREE.CylinderGeometry(0.058, 0.058, 0.05, 16),
@@ -1026,6 +1033,14 @@ export function buildChapter3(ctx) {
 
     kit.sign(PANEL_POS.x, PANEL_POS.y + 0.62, PANEL_POS.z - 0.07, 'CALLS', {
       height: 0.2, width: 0.8, rotY: Math.PI,
+    });
+
+    // The panel is the destination at the dark end of a dark corridor, so it
+    // gets the one working bulb down here. Nothing else in the room is lit
+    // well enough to draw the player the length of it.
+    kit.practical(PANEL_POS.x, BAS_Y + 2.7, PANEL_POS.z - 0.9, {
+      intensity: 11, distance: 7, cordLength: 0.3, castShadow: false,
+      flicker: { chance: 0.2, severity: 0.4, seed: 152 },
     });
 
     const paintLamp = () => {

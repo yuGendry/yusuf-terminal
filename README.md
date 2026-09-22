@@ -40,6 +40,7 @@ npm run reachcheck   # proves every interactable can be stood next to and seen
 npm run walkcheck    # floods each level from the spawn; proves you can get there
 npm run leakcheck    # proves a chapter takes its collision with it when it unloads
 npm run signcheck    # proves every sign, chart and gauge faces somewhere you can stand
+npm run menucheck    # proves the whole front end can be driven without a mouse
 npm run controlstest # every control, through real KeyboardEvents
 npm run chasetest    # exercises Mister Tangle's rail AI and catch volume
 npm run cinetest     # menu → drive → title page → opening → play → ending
@@ -53,7 +54,7 @@ correctness*, not frame rate. They wait on the engine's own clock rather than on
 wall-clock time for that reason, and they load with `?nocine=1` so they spend
 their budget on the game rather than on the cutscenes.
 
-Five of them exist because of specific bugs that shipped:
+Six of them exist because of specific bugs that shipped:
 
 - **doorcheck** unlocks and opens every door and every doorless gap in every
   chapter, then fires a grid of rays through it and reports what blocked them.
@@ -79,6 +80,13 @@ Five of them exist because of specific bugs that shipped:
   can stand on. Chapter 2's kiln gauge was mounted a quarter turn the wrong way
   — the readable side faced into the kiln's own steel — and the number the
   puzzle's whole lesson depends on could not be seen from anywhere in the room.
+- **menucheck** drives the front end with real key events. Every screen
+  outside gameplay was click-only, which meant a player could rebind their jump
+  button with a controller in their hands and then be unable to press Play with
+  it. It asserts that exactly one thing is selected on each screen, that the
+  selection moves, that Enter opens it and Escape comes back, that the chapter
+  art is actually drawn rather than an empty canvas, and that the archive lists
+  what has been found and can open it.
 - **leakcheck** loads every chapter twice — once clean, once after every other
   chapter — and fails if the collider count drifts. The physics world is shared
   for the whole session, so a chapter that does not remove its collision leaves
@@ -138,11 +146,16 @@ a number that is right for a mouse never is for a thumbstick.
 
 ## Current state
 
-**Chapters 1, 2 and 3 are playable.** You can start a new game and
-play through the lobby, the theatre, the rigging chase, the workshop, the kiln,
-the conveyor run, the rehearsal floor, the costume basement and the practice
-room — roughly 45 minutes, three puzzles per chapter, three lenses, three
-monsters.
+**Chapters 1 to 4 are playable, end to end.** The lobby, the theatre and the
+rigging chase; the workshop, the kiln and the conveyor run; the rehearsal
+floor, the costume basement, the crossover, the dressing rooms and the practice
+room; the flooded hall, Odile's laboratory, the dye house, the cut stair, the
+Threadworks and the lift. Roughly an hour, 24 puzzles, four lenses, four
+creatures and seven pursuit beats across 9,000 square metres of walkable floor.
+
+Every chapter is selectable from the start. Chapter Select has never been
+locked behind progress: the one thing a new player should not have to do is
+finish an hour of game to find out what is in it.
 
 A new game opens on **the drive out**: forty-eight seconds in a car on a wet
 road in November 1996, arriving at the factory gates. Each chapter then opens
@@ -159,8 +172,8 @@ wood in the workshop, sung in the rehearsal halls, drowned in the basement, a
 theatre organ for the premiere. The chapter change retunes the live oscillators
 rather than cutting between tracks.
 
-Chapters 4 and 5 are not built. Finishing Chapter 3 unlocks Chapter 4 in the
-menu and then says plainly that it does not exist yet.
+Chapter 5, *The Grand Premiere*, is not built. It appears in Chapter Select
+with its card struck through and says plainly that it does not exist yet.
 
 ### The Veilmask
 
@@ -233,6 +246,22 @@ event* — a position and a loudness — and it goes where the sound was, not wh
 you are. Crouch and it cannot hear you. Stop moving and it loses you. Wear the
 mask and you are simply telling it where to come.
 
+West of the costume floor is **the crossover**: forty feet of everything
+nobody would carry upstairs, and the only way to the dressing rooms. The crew
+wore a path down the middle of the boards over eleven years of two shows a
+night, and that worn strip — which only Echo shows — is the only quiet ground
+in the room. Echo is worn on the mask, the mask hums, and the hum is the first
+thing Gloam hears. So you look, take it off, walk what you remember, lose it,
+stop, and look again. The answer is visible the whole time and looking at it is
+what gets you killed.
+
+At the far end, five dressing rooms and **the calls panel** stage management
+used to call the company down for beginners. Five buttons, a call sheet of
+four rooms, and room 3, which is never called and which fails the whole call.
+Run it correctly and "your beginners call" goes out over the one horn still
+wired on that floor, twenty-five metres away at the other dead end — and the
+thing in the crossover goes to answer it. That is the window to get back.
+
 The practice room holds **the Choir**: porcelain dolls that move only when
 unobserved. A doll counts as observed when it is inside the camera frustum,
 inside the player's attention cone, *and* not occluded — frustum alone is not
@@ -240,6 +269,27 @@ enough, because a doll at the edge of a wide FOV is technically on screen while
 nobody is looking at it. Their heads are allowed to turn on screen, which is
 far worse than their feet moving. The gramophone by the door holds them still
 while it plays, for about twenty-five seconds.
+
+### Chapter 4 — Backstage
+
+The water is the level design: every space is two spaces, one flooded and one
+drained, and almost every mechanic is really a question about which of the two
+you are standing in. The **dip tank** in the dye house is that idea small
+enough to hold in one room — the spool you need is at the bottom of it and the
+only tool is the tank's own level. Empty, you can climb in, unclamp the crate
+and shut its lid; full, the crate floats to the rim where you can reach it.
+Neither state alone is enough, and both failures are visible: flood it with the
+lid open and you watch the crate fill and sit down on the bottom.
+
+Setting that spool in the loom brings **the Understudy** down onto the
+Threadworks floor, and it walks its rounds — a fixed loop of the room, at its
+one unvarying pace, not looking for anybody, while you thread four heads at a
+bench in the middle of that loop. Deliberately not a chase: a chase can be
+outrun and is therefore a problem with a solution, while a thing crossing the
+room on its own business, which will walk through you without ever noticing it
+did, is a condition you work around. When the loom takes up and it does start
+hunting, that lands as a change in what it is doing rather than as the first
+time you have seen it.
 
 ### Mister Tangle
 
@@ -267,13 +317,20 @@ attempt and not the next. Step out from under the rail and he has not got you.
   arrangement per chapter on a different instrument.
 - A cinematic system: keyframed camera, captions, letterbox, hold-to-skip, and
   an opening and closing shot for every chapter filmed inside the level itself.
-- Checkpoints, death with restraint (no jump-scare sting; the picture just
-  closes in), and autosave to `localStorage`.
+- Checkpoints, a jumpscare that frames whatever caught you — it works its face
+  out of the creature's own silhouette rather than from a fixed height, because
+  a fixed height is wrong for every creature in the game by a different amount
+  — and autosave to `localStorage`.
+- A front end that can be driven entirely from a controller or the keyboard,
+  chapter cards with art drawn at runtime, and an archive that lets you reread
+  every note, tape and ticket stub you have found.
+- Full DualSense support: analogue movement, per-device prompt glyphs, rumble,
+  and its own sensitivity and inversion settings.
 
 ### Not built yet
 
-Chapters 4 and 5, the Understudy, the Hollow lens (defined but not yet
-unlockable), hiding spots, the endings, and the collectibles archive.
+Chapter 5, hiding spots, and the endings. Everything else described above is
+in and checked by the suite.
 
 ## Architecture
 
