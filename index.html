@@ -1,0 +1,2676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<title>THE LAST TRAIN — Chapter 1</title>
+<!-- optional webfonts; the game looks fine without them (offline-safe fallbacks below) -->
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@300;400;600&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+  :root{
+    --ink:#e8e4dc;
+    --dim:#8b8578;
+    --accent:#c4452e;
+    --accent-soft:#e0704f;
+    --bg:#05060a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:'Inter','Helvetica Neue',system-ui,sans-serif;-webkit-font-smoothing:antialiased;cursor:default}
+  canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+
+  .layer{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .layer.on{pointer-events:auto}
+  /* interactive layers must take clicks; the HUD and cinematic layers must not */
+  #menu,#settings,#pause,#boot{pointer-events:auto}
+  .hidden{display:none !important}
+  .fade{transition:opacity .6s ease}
+  .invis{opacity:0 !important}
+
+  /* ---------------- BOOT ---------------- */
+  #boot{z-index:120;background:#05060a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px}
+  #boot .bar{width:220px;height:2px;background:#1a1b20;overflow:hidden}
+  #boot .bar i{display:block;height:100%;width:30%;background:var(--accent);animation:slide 1.4s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
+  #boot p{font-size:11px;letter-spacing:.35em;color:var(--dim);text-transform:uppercase}
+
+  /* ---------------- MENU ---------------- */
+  #menu{z-index:60;display:flex;flex-direction:column;justify-content:center;
+    padding:0 clamp(28px,7vw,120px);
+    background:linear-gradient(90deg,rgba(3,4,8,.92) 0%,rgba(3,4,8,.72) 38%,rgba(3,4,8,.05) 70%)}
+  #menu .kicker{font-size:11px;letter-spacing:.55em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+  #menu h1{font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:clamp(46px,7.4vw,104px);line-height:.92;
+    letter-spacing:.02em;text-shadow:0 0 44px rgba(196,69,46,.30),0 6px 26px #000;}
+  #menu h1 span{display:block;color:var(--accent-soft)}
+  #menu .sub{margin-top:16px;font-size:12px;letter-spacing:.42em;color:var(--dim);text-transform:uppercase}
+  #menu .rule{width:88px;height:1px;background:linear-gradient(90deg,var(--accent),transparent);margin:26px 0 30px}
+  nav{display:flex;flex-direction:column;gap:2px;max-width:330px}
+  .mbtn{position:relative;background:none;border:0;color:var(--ink);font-family:'Inter','Helvetica Neue',system-ui,sans-serif;
+    font-size:15px;letter-spacing:.24em;text-transform:uppercase;text-align:left;padding:13px 4px 13px 26px;
+    cursor:pointer;transition:color .18s,letter-spacing .25s,background .2s;opacity:.86}
+  .mbtn::before{content:'';position:absolute;left:0;top:50%;width:0;height:1px;background:var(--accent);
+    transform:translateY(-50%);transition:width .25s ease}
+  .mbtn:hover,.mbtn:focus-visible{color:#fff;letter-spacing:.32em;outline:none;background:rgba(255,255,255,.028)}
+  .mbtn:hover::before,.mbtn:focus-visible::before{width:16px}
+  .mbtn[disabled]{opacity:.24;cursor:not-allowed}
+  .mbtn[disabled]:hover{letter-spacing:.24em;color:var(--ink);background:none}
+  .mbtn small{display:block;font-size:9.5px;letter-spacing:.18em;color:var(--dim);margin-top:5px;text-transform:none;font-style:italic}
+  #menu .foot{position:absolute;bottom:26px;left:clamp(28px,7vw,120px);right:28px;display:flex;
+    justify-content:space-between;align-items:flex-end;font-size:10px;letter-spacing:.24em;color:#55514a;text-transform:uppercase}
+
+  /* ---------------- PANEL (settings / pause) ---------------- */
+  .panel{z-index:80;background:rgba(3,4,8,.86);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center}
+  .card{width:min(560px,92vw);max-height:86vh;overflow-y:auto;border:1px solid rgba(232,228,220,.1);
+    background:linear-gradient(180deg,rgba(14,15,20,.97),rgba(7,8,12,.97));padding:34px 38px 30px;
+    box-shadow:0 30px 90px rgba(0,0,0,.75)}
+  .card h2{font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:26px;letter-spacing:.06em;margin-bottom:4px}
+  .card .hint{font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:24px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:13px 0;
+    border-bottom:1px solid rgba(232,228,220,.055)}
+  .row label{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:#cdc8be}
+  .row .val{font-size:11px;color:var(--accent-soft);min-width:52px;text-align:right;letter-spacing:.1em;font-variant-numeric:tabular-nums}
+  .ctl{display:flex;align-items:center;gap:12px;flex:0 0 250px;justify-content:flex-end}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:180px;height:2px;background:#2a2b31;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);cursor:pointer;box-shadow:0 0 12px rgba(196,69,46,.7)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:var(--accent);cursor:pointer}
+  .toggle{width:46px;height:22px;border-radius:12px;background:#26272d;position:relative;cursor:pointer;
+    border:1px solid rgba(255,255,255,.07);transition:background .2s}
+  .toggle i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#6c6a64;transition:.22s}
+  .toggle.on{background:rgba(196,69,46,.32)}
+  .toggle.on i{left:26px;background:var(--accent-soft);box-shadow:0 0 10px rgba(224,112,79,.8)}
+  .card .acts{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+  .abtn{flex:1;min-width:120px;background:rgba(255,255,255,.035);border:1px solid rgba(232,228,220,.14);color:var(--ink);
+    padding:12px 14px;font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;
+    font-family:'Inter','Helvetica Neue',system-ui,sans-serif;transition:.18s}
+  .abtn:hover{background:rgba(196,69,46,.2);border-color:var(--accent)}
+  .abtn.ghost:hover{background:rgba(255,255,255,.09);border-color:rgba(232,228,220,.4)}
+
+  /* ---------------- HUD ---------------- */
+  #hud{z-index:30}
+  #crosshair{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;
+    background:rgba(255,255,255,.55);box-shadow:0 0 6px rgba(0,0,0,.9);transition:.18s;opacity:.5}
+  #crosshair.hot{width:13px;height:13px;margin:-6.5px 0 0 -6.5px;background:transparent;
+    border:1.5px solid var(--accent-soft);opacity:1;box-shadow:0 0 14px rgba(224,112,79,.55)}
+  #prompt{position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);text-align:center;
+    font-size:13px;letter-spacing:.2em;text-transform:uppercase;opacity:0;transition:opacity .2s;
+    text-shadow:0 2px 14px #000;white-space:nowrap}
+  #prompt.show{opacity:1}
+  #prompt b{display:inline-block;border:1px solid var(--accent-soft);color:var(--accent-soft);border-radius:3px;
+    padding:1px 7px;margin-right:9px;font-weight:600;font-size:12px}
+  #objective{position:absolute;left:34px;top:30px;max-width:330px;opacity:0;transform:translateX(-10px);
+    transition:opacity .5s,transform .5s}
+  #objective.show{opacity:1;transform:none}
+  #objective .t{font-size:9.5px;letter-spacing:.42em;color:var(--accent);text-transform:uppercase;margin-bottom:7px}
+  #objective .o{font-size:15px;letter-spacing:.06em;color:#ded9d0;text-shadow:0 2px 10px #000;line-height:1.4}
+  #objective .o::before{content:'— '}
+  #tips{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+  .tip{display:flex;align-items:center;gap:9px;padding:8px 15px;background:rgba(6,7,11,.6);
+    border:1px solid rgba(232,228,220,.11);backdrop-filter:blur(3px);font-size:11px;letter-spacing:.17em;
+    text-transform:uppercase;color:#cfcac0;opacity:0;transform:translateY(12px);transition:.45s}
+  .tip.show{opacity:1;transform:none}
+  .tip.done{opacity:.28;border-color:rgba(232,228,220,.05)}
+  .tip .k{border:1px solid rgba(232,228,220,.4);border-radius:3px;padding:2px 7px;font-size:10px;font-weight:600;
+    color:#fff;background:rgba(255,255,255,.07);letter-spacing:.08em}
+  .tip.done .k{border-color:rgba(232,228,220,.2)}
+  #subs{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);width:min(780px,84vw);text-align:center;
+    font-size:clamp(16px,2vw,21px);line-height:1.55;letter-spacing:.02em;color:#f2ede4;
+    text-shadow:0 3px 18px #000,0 0 40px rgba(0,0,0,.9);opacity:0;transition:opacity .35s}
+  #subs.show{opacity:1}
+  #subs .who{display:block;font-size:10.5px;letter-spacing:.42em;color:var(--accent);text-transform:uppercase;margin-bottom:10px}
+  #clicklook{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 22px;
+    border:1px solid rgba(232,228,220,.22);background:rgba(6,7,11,.62);font-size:12px;letter-spacing:.24em;
+    text-transform:uppercase;color:#cfcac0;opacity:0;transition:opacity .3s;backdrop-filter:blur(3px)}
+  #clicklook.show{opacity:1}
+  #subs .gl{animation:gl .11s steps(2) infinite;color:#ff9c80}
+  @keyframes gl{0%{transform:translate(0,0);opacity:1}50%{transform:translate(1.5px,-1px);opacity:.72}100%{transform:translate(-1px,1px);opacity:1}}
+
+  /* ---------------- CINEMATIC ---------------- */
+  #bars{z-index:40}
+  #bars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .8s cubic-bezier(.6,0,.3,1)}
+  #bars i.t{top:0}#bars i.b{bottom:0}
+  #bars.on i{height:10.5vh}
+  #lids{z-index:45}
+  #lids i{position:absolute;left:-5%;right:-5%;height:56%;background:#000;transition:transform .9s cubic-bezier(.5,0,.2,1)}
+  #lids i.t{top:0;transform:translateY(0);box-shadow:0 22px 46px 22px #000}
+  #lids i.b{bottom:0;transform:translateY(0);box-shadow:0 -22px 46px 22px #000}
+  #lids.open i.t{transform:translateY(-101%)}
+  #lids.open i.b{transform:translateY(101%)}
+  #wake{z-index:50;display:flex;align-items:flex-end;justify-content:center;padding-bottom:16vh}
+  #wake .w{text-align:center;opacity:0;transition:opacity 1.2s}
+  #wake .w.show{opacity:1}
+  #wake .k{display:inline-block;border:1px solid rgba(232,228,220,.55);border-radius:4px;padding:7px 15px;
+    font-size:15px;font-weight:600;letter-spacing:.1em;margin-bottom:12px;animation:pulse 1.5s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.38;box-shadow:0 0 0 rgba(255,255,255,0)}50%{opacity:1;box-shadow:0 0 26px rgba(255,255,255,.18)}}
+  #wake .d{font-size:11.5px;letter-spacing:.44em;text-transform:uppercase;color:#7d7870}
+  #ringpulse{position:fixed;inset:0;z-index:44;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at 50% 62%,rgba(150,170,210,.11),transparent 62%)}
+  #title-card{z-index:90;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity 1.1s}
+  #title-card.show{opacity:1}
+  #title-card .tc{text-align:center}
+  #title-card .c1{font-size:11px;letter-spacing:.62em;color:var(--dim);text-transform:uppercase;margin-bottom:16px}
+  #title-card .c2{font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:clamp(28px,4.6vw,52px);letter-spacing:.04em;color:#ece7de}
+  #title-card .c3{margin-top:22px;font-size:11px;letter-spacing:.4em;color:#59554e;text-transform:uppercase}
+  #vig{position:fixed;inset:0;z-index:20;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.55) 100%)}
+  #dmg{position:fixed;inset:0;z-index:21;pointer-events:none;opacity:0;transition:opacity .5s;
+    background:radial-gradient(ellipse at center,transparent 46%,rgba(90,10,6,.55) 100%)}
+  #black{position:fixed;inset:0;z-index:100;background:#000;pointer-events:none;opacity:1;transition:opacity 1.2s}
+  #err{position:fixed;inset:0;z-index:200;background:#07080c;color:#e8e4dc;display:none;
+    align-items:center;justify-content:center;padding:40px;text-align:center;font-size:14px;line-height:1.7}
+  #err code{display:block;margin-top:14px;color:#e0704f;font-size:12px;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div id="err"><div><b style="font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:22px">Signal lost.</b><br>
+  The game engine failed to load. Check your connection and refresh.<code id="errmsg"></code></div></div>
+
+<div id="boot" class="layer on"><p>loading</p><div class="bar"><i></i></div></div>
+
+<div id="menu" class="layer hidden">
+  <div class="kicker">A first-person horror</div>
+  <h1>THE LAST<span>TRAIN</span></h1>
+  <div class="sub">Chapter One &nbsp;·&nbsp; The Call</div>
+  <div class="rule"></div>
+  <nav>
+    <button class="mbtn" id="btn-new">New Game<small>begin chapter one</small></button>
+    <button class="mbtn" id="btn-cont" disabled>Continue<small>no save found</small></button>
+    <button class="mbtn" id="btn-set">Settings</button>
+    <button class="mbtn" id="btn-quit">Quit</button>
+  </nav>
+  <div class="foot"><span>2:14 a.m. — the platform is still waiting</span><span id="fps-tag"></span></div>
+</div>
+
+<div id="settings" class="layer panel hidden">
+  <div class="card">
+    <h2>Settings</h2><div class="hint">preferences are saved to this device</div>
+    <div class="row"><label>Mouse sensitivity</label><div class="ctl"><input type="range" id="s-sens" min="20" max="300" step="5"><span class="val" id="v-sens"></span></div></div>
+    <div class="row"><label>Field of view</label><div class="ctl"><input type="range" id="s-fov" min="60" max="100" step="1"><span class="val" id="v-fov"></span></div></div>
+    <div class="row"><label>Brightness</label><div class="ctl"><input type="range" id="s-bri" min="50" max="180" step="1"><span class="val" id="v-bri"></span></div></div>
+    <div class="row"><label>Master volume</label><div class="ctl"><input type="range" id="s-vol" min="0" max="100" step="1"><span class="val" id="v-vol"></span></div></div>
+    <div class="row"><label>Head bob</label><div class="ctl"><input type="range" id="s-bob" min="0" max="150" step="5"><span class="val" id="v-bob"></span></div></div>
+    <div class="row"><label>Invert look Y</label><div class="ctl"><div class="toggle" id="t-inv"><i></i></div></div></div>
+    <div class="row"><label>Film grain</label><div class="ctl"><div class="toggle" id="t-grain"><i></i></div></div></div>
+    <div class="row"><label>Bloom &amp; glow</label><div class="ctl"><div class="toggle" id="t-bloom"><i></i></div></div></div>
+    <div class="row"><label>Subtitles</label><div class="ctl"><div class="toggle" id="t-subs"><i></i></div></div></div>
+    <div class="acts">
+      <button class="abtn ghost" id="set-reset">Reset</button>
+      <button class="abtn" id="set-back">Back</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause" class="layer panel hidden">
+  <div class="card">
+    <h2>Paused</h2><div class="hint">chapter one · the call</div>
+    <div class="row"><label>Objective</label><div class="ctl"><span class="val" id="p-obj" style="min-width:auto;text-align:right;color:#cdc8be;letter-spacing:.04em;font-size:12px"></span></div></div>
+    <div class="acts">
+      <button class="abtn" id="p-resume">Resume</button>
+      <button class="abtn ghost" id="p-set">Settings</button>
+      <button class="abtn ghost" id="p-quit">Quit to menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="layer hidden">
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="objective"><div class="t">Objective</div><div class="o" id="obj-text"></div></div>
+  <div id="tips"></div>
+  <div id="subs"></div>
+  <div id="clicklook"><span>Click to look around</span></div>
+</div>
+
+<div id="bars" class="layer"><i class="t"></i><i class="b"></i></div>
+<div id="lids" class="layer hidden"><i class="t"></i><i class="b"></i></div>
+<div id="wake" class="layer hidden"><div class="w" id="wake-inner">
+  <div class="k">E</div><div class="d">to wake up</div>
+</div></div>
+<div id="ringpulse"></div>
+<div id="title-card" class="layer hidden"><div class="tc">
+  <div class="c1" id="tc1">Chapter One</div>
+  <div class="c2" id="tc2">The Call</div>
+  <div class="c3" id="tc3"></div>
+</div></div>
+<div id="vig"></div>
+<div id="dmg"></div>
+<div id="black"></div>
+
+<!-- three.js r161 + postprocessing, bundled locally so the game runs offline
+     (open index.html directly — no server, no downloads needed) -->
+<script src="lib/three.bundle.js"></script>
+
+<script>
+const { THREE, EffectComposer, RenderPass, UnrealBloomPass, ShaderPass } = window;
+if (!THREE) {
+  document.getElementById('err').style.display = 'flex';
+  document.getElementById('errmsg').textContent = 'lib/three.bundle.js did not load — keep it next to index.html.';
+  throw new Error('three.js bundle missing');
+}
+
+/* =====================================================================
+   THE LAST TRAIN — Chapter One: The Call
+   Single-file first-person horror. All geometry, textures and audio are
+   generated at runtime; nothing is loaded from disk.
+   ===================================================================== */
+
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp  = (a, b, t) => a + (b - a) * t;
+const smooth = (t) => t * t * (3 - 2 * t);
+const rand  = (a, b) => a + Math.random() * (b - a);
+const wait  = (ms) => new Promise(r => setTimeout(r, ms));
+
+window.addEventListener('error', (e) => {
+  $('#err').style.display = 'flex';
+  $('#errmsg').textContent = (e.message || '') + '';
+});
+
+/* ------------------------------------------------------------------ */
+/*  SETTINGS                                                           */
+/* ------------------------------------------------------------------ */
+const DEFAULTS = { sens: 120, fov: 78, bri: 100, vol: 80, bob: 100, inv: false, grain: true, bloom: true, subs: true };
+const S = Object.assign({}, DEFAULTS, (() => {
+  try { return JSON.parse(localStorage.getItem('lasttrain.settings') || '{}'); } catch { return {}; }
+})());
+const saveSettings = () => { try { localStorage.setItem('lasttrain.settings', JSON.stringify(S)); } catch {} };
+
+/* ------------------------------------------------------------------ */
+/*  AUDIO — everything synthesized with the WebAudio API               */
+/* ------------------------------------------------------------------ */
+const Audio_ = {
+  ctx: null, master: null, ready: false,
+  buses: {},
+
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = S.vol / 100;
+    const comp = this.ctx.createDynamicsCompressor();
+    comp.threshold.value = -12; comp.ratio.value = 4; comp.attack.value = .004; comp.release.value = .25;
+    this.master.connect(comp).connect(this.ctx.destination);
+    this.ready = true;
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  setVolume(v) { if (this.master) this.master.gain.setTargetAtTime(v / 100, this.ctx.currentTime, .05); },
+  get t() { return this.ctx ? this.ctx.currentTime : 0; },
+
+  noiseBuffer(sec = 2) {
+    const n = Math.floor(this.ctx.sampleRate * sec);
+    const b = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  },
+  // Brown noise — deep, rumbly; good for rain bed / train / room tone
+  brownBuffer(sec = 4) {
+    const n = Math.floor(this.ctx.sampleRate * sec);
+    const b = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const d = b.getChannelData(0); let last = 0;
+    for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; last = (last + .02 * w) / 1.02; d[i] = last * 3.5; }
+    return b;
+  },
+
+  /* A looping noise bed through a filter. Returns { gain, src, filter } */
+  bed({ type = 'brown', freq = 900, q = .6, gain = .1, filter = 'lowpass', rate = 1 } = {}) {
+    if (!this.ready) return null;
+    const src = this.ctx.createBufferSource();
+    src.buffer = type === 'brown' ? this.brownBuffer(5) : this.noiseBuffer(3);
+    src.loop = true; src.playbackRate.value = rate;
+    const f = this.ctx.createBiquadFilter();
+    f.type = filter; f.frequency.value = freq; f.Q.value = q;
+    const g = this.ctx.createGain(); g.gain.value = 0;
+    src.connect(f).connect(g).connect(this.master);
+    src.start();
+    g.gain.setTargetAtTime(gain, this.t, 1.2);
+    return { src, filter: f, gain: g,
+      to(v, tau = 1) { g.gain.setTargetAtTime(v, Audio_.t, tau); },
+      stop(tau = .6) { g.gain.setTargetAtTime(0, Audio_.t, tau); setTimeout(() => { try { src.stop(); } catch {} }, tau * 4000 + 200); } };
+  },
+
+  tone({ freq = 440, type = 'sine', dur = .3, gain = .2, attack = .005, detune = 0, dest = null, slideTo = null }) {
+    if (!this.ready) return;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq; o.detune.value = detune;
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, this.t + dur);
+    g.gain.setValueAtTime(0.0001, this.t);
+    g.gain.exponentialRampToValueAtTime(Math.max(gain, .0002), this.t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, this.t + dur);
+    o.connect(g).connect(dest || this.master);
+    o.start(); o.stop(this.t + dur + .05);
+    return { o, g };
+  },
+
+  /* Short filtered-noise burst — footsteps, cloth, clicks */
+  burst({ dur = .12, freq = 1400, q = 1, gain = .2, type = 'bandpass', rate = 1 }) {
+    if (!this.ready) return;
+    const s = this.ctx.createBufferSource(); s.buffer = this.noiseBuffer(.4); s.playbackRate.value = rate;
+    const f = this.ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(gain, this.t);
+    g.gain.exponentialRampToValueAtTime(.0001, this.t + dur);
+    s.connect(f).connect(g).connect(this.master);
+    s.start(); s.stop(this.t + dur + .05);
+  },
+
+  footstep(running = false) {
+    const r = running ? 1.25 : 1;
+    this.burst({ dur: running ? .1 : .14, freq: rand(260, 420) * r, q: .9, gain: running ? .16 : .085, type: 'lowpass' });
+    this.burst({ dur: .05, freq: rand(2600, 4200), q: 1.4, gain: running ? .04 : .022 });
+  },
+
+  thud(g = .3) {
+    this.tone({ freq: 90, slideTo: 38, type: 'sine', dur: .34, gain: g });
+    this.burst({ dur: .2, freq: 220, q: .6, gain: g * .5, type: 'lowpass' });
+  },
+
+  click(f = 1800, g = .1) { this.burst({ dur: .035, freq: f, q: 3, gain: g }); },
+
+  heartbeat(g = .35) {
+    this.tone({ freq: 62, slideTo: 34, type: 'sine', dur: .24, gain: g });
+    setTimeout(() => this.tone({ freq: 55, slideTo: 30, type: 'sine', dur: .3, gain: g * .72 }), 210);
+  },
+
+  /* Old-school two-tone phone ring, plus the buzz of a phone on wood */
+  ring() {
+    if (!this.ready) return null;
+    const out = this.ctx.createGain(); out.gain.value = .0001; out.connect(this.master);
+    const warm = this.ctx.createBiquadFilter(); warm.type = 'bandpass'; warm.frequency.value = 1100; warm.Q.value = .8;
+    warm.connect(out);
+    let stopped = false, timer = null;
+    const burstOnce = () => {
+      if (stopped) return;
+      const t0 = this.t;
+      for (let i = 0; i < 2; i++) {      // brrring ... brrring
+        const s = t0 + i * .42;
+        [1400, 1100].forEach((fr, k) => {
+          const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+          o.type = 'triangle'; o.frequency.value = fr;
+          const lfo = this.ctx.createOscillator(), lg = this.ctx.createGain();
+          lfo.frequency.value = 22; lg.gain.value = 14;
+          lfo.connect(lg).connect(o.frequency);
+          g.gain.setValueAtTime(.0001, s);
+          g.gain.exponentialRampToValueAtTime(k ? .16 : .22, s + .02);
+          g.gain.setValueAtTime(k ? .16 : .22, s + .3);
+          g.gain.exponentialRampToValueAtTime(.0001, s + .36);
+          o.connect(g).connect(warm);
+          o.start(s); o.stop(s + .4); lfo.start(s); lfo.stop(s + .4);
+        });
+        // buzz against the nightstand
+        const b = this.ctx.createBufferSource(); b.buffer = this.noiseBuffer(.5);
+        const bf = this.ctx.createBiquadFilter(); bf.type = 'lowpass'; bf.frequency.value = 180;
+        const bg = this.ctx.createGain(); bg.gain.setValueAtTime(.001, s);
+        bg.gain.linearRampToValueAtTime(.16, s + .03);
+        bg.gain.exponentialRampToValueAtTime(.0005, s + .34);
+        b.connect(bf).connect(bg).connect(out); b.start(s); b.stop(s + .4);
+      }
+      timer = setTimeout(burstOnce, 2600);
+    };
+    burstOnce();
+    return {
+      node: out,
+      to(v, tau = .4) { out.gain.setTargetAtTime(Math.max(v, .0001), Audio_.t, tau); },
+      stop() { stopped = true; clearTimeout(timer); out.gain.setTargetAtTime(.0001, Audio_.t, .08); }
+    };
+  },
+
+  /* Distant train: rumble + rail clatter + a mournful horn */
+  trainHorn(delay = 0) {
+    if (!this.ready) return;
+    const t0 = this.t + delay;
+    [148, 186, 222].forEach((f, i) => {
+      const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = rand(-9, 9);
+      const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; lp.Q.value = .4;
+      g.gain.setValueAtTime(.0001, t0);
+      g.gain.exponentialRampToValueAtTime(.055 / (i + 1), t0 + .5);
+      g.gain.setValueAtTime(.055 / (i + 1), t0 + 1.5);
+      g.gain.exponentialRampToValueAtTime(.0001, t0 + 2.9);
+      o.connect(lp).connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 3);
+    });
+  },
+
+  /* Digital corruption sweep used under the phone call */
+  glitch(dur = .3, g = .16) {
+    if (!this.ready) return;
+    const s = this.ctx.createBufferSource(); s.buffer = this.noiseBuffer(1);
+    s.playbackRate.value = rand(.4, 2.2);
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass';
+    f.frequency.setValueAtTime(rand(400, 2600), this.t);
+    f.frequency.linearRampToValueAtTime(rand(200, 5200), this.t + dur);
+    f.Q.value = rand(3, 14);
+    const gn = this.ctx.createGain();
+    gn.gain.setValueAtTime(g, this.t);
+    gn.gain.exponentialRampToValueAtTime(.0001, this.t + dur);
+    s.connect(f).connect(gn).connect(this.master);
+    s.start(); s.stop(this.t + dur + .05);
+  },
+
+  /* A breath / stretch groan for the wake-up */
+  breath(dur = 1.1, up = true) {
+    if (!this.ready) return;
+    const s = this.ctx.createBufferSource(); s.buffer = this.noiseBuffer(2);
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
+    f.frequency.setValueAtTime(up ? 380 : 900, this.t);
+    f.frequency.exponentialRampToValueAtTime(up ? 900 : 300, this.t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(.0001, this.t);
+    g.gain.linearRampToValueAtTime(.09, this.t + dur * .35);
+    g.gain.exponentialRampToValueAtTime(.0001, this.t + dur);
+    s.connect(f).connect(g).connect(this.master);
+    s.start(); s.stop(this.t + dur + .1);
+  },
+
+  /* Low sustained dread drone; returns a handle you can stop */
+  drone(freq = 48, gain = .07) {
+    if (!this.ready) return null;
+    const g = this.ctx.createGain(); g.gain.value = .0001; g.connect(this.master);
+    const oscs = [freq, freq * 1.005, freq * 1.5, freq * 2.02].map((f, i) => {
+      const o = this.ctx.createOscillator();
+      o.type = i > 1 ? 'sine' : 'sawtooth'; o.frequency.value = f;
+      const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const og = this.ctx.createGain(); og.gain.value = 1 / (i + 1.6);
+      o.connect(lp).connect(og).connect(g); o.start();
+      return o;
+    });
+    g.gain.setTargetAtTime(gain, this.t, 2.4);
+    return { to(v, tau = 2) { g.gain.setTargetAtTime(Math.max(v, .0001), Audio_.t, tau); },
+             stop(tau = 1.5) { g.gain.setTargetAtTime(.0001, Audio_.t, tau); setTimeout(() => oscs.forEach(o => { try { o.stop(); } catch {} }), tau * 4000 + 400); } };
+  },
+
+  /* Doppler-ish train pass used on the menu */
+  trainPass() {
+    if (!this.ready) return;
+    const s = this.ctx.createBufferSource(); s.buffer = this.brownBuffer(6); s.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220;
+    const g = this.ctx.createGain(); g.gain.value = .0001;
+    s.connect(f).connect(g).connect(this.master); s.start();
+    const t0 = this.t;
+    g.gain.linearRampToValueAtTime(.16, t0 + 3.2);
+    g.gain.linearRampToValueAtTime(.0001, t0 + 8.5);
+    f.frequency.linearRampToValueAtTime(900, t0 + 3.4);
+    f.frequency.linearRampToValueAtTime(140, t0 + 8.5);
+    // rail clatter
+    let n = 0; const clatter = setInterval(() => {
+      if (++n > 34) return clearInterval(clatter);
+      const amp = .06 * Math.sin(Math.min(1, n / 18) * Math.PI);
+      this.burst({ dur: .07, freq: rand(700, 2400), q: 2.2, gain: Math.max(.004, amp) });
+    }, 190);
+    setTimeout(() => { try { s.stop(); } catch {} }, 9000);
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/*  RENDERER + POST                                                    */
+/* ------------------------------------------------------------------ */
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.85));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;   // per-scene: the flat runs hotter (see toMenu / startNewGame)
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(S.fov, innerWidth / innerHeight, .05, 400);
+let scene = new THREE.Scene();
+
+/* Final grade: vignette, grain, chromatic aberration, glitch, fade */
+const GradeShader = {
+  uniforms: {
+    tDiffuse:  { value: null },
+    uTime:     { value: 0 },
+    uGrain:    { value: 0.055 },
+    uVignette: { value: 1.05 },
+    uAberr:    { value: 0.0012 },
+    uGlitch:   { value: 0.0 },
+    uFade:     { value: 0.0 },   // 1 = fully black (screen fades use the CSS overlay)
+    uBright:   { value: 1.0 },
+    uDesat:    { value: 0.0 },
+    uPulse:    { value: 0.0 }
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime,uGrain,uVignette,uAberr,uGlitch,uFade,uBright,uDesat,uPulse;
+    varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+    void main(){
+      vec2 uv = vUv;
+      // horizontal tearing while glitching
+      if (uGlitch > 0.001) {
+        float band = floor(uv.y * 34.0);
+        float j = hash(vec2(band, floor(uTime*22.0)));
+        if (j > 1.0 - uGlitch*0.75) uv.x += (hash(vec2(band, uTime))-0.5) * uGlitch * 0.16;
+        uv.y += (hash(vec2(floor(uTime*13.0),1.0))-0.5) * uGlitch * 0.012;
+      }
+      float ab = uAberr + uGlitch * 0.02;
+      vec2 dir = uv - 0.5;
+      float r = texture2D(tDiffuse, uv - dir*ab).r;
+      float g = texture2D(tDiffuse, uv).g;
+      float b = texture2D(tDiffuse, uv + dir*ab).b;
+      vec3 col = vec3(r,g,b);
+      // slight filmic lift in the shadows, cold tint
+      col = pow(col, vec3(0.98));
+      col.b *= 1.035; col.r *= 0.995;
+      float lum = dot(col, vec3(0.299,0.587,0.114));
+      col = mix(col, vec3(lum), uDesat);
+      col *= uBright;
+      col += uPulse * vec3(0.16,0.19,0.27) * (0.5 + 0.5*sin(uTime*3.0));
+      // grain
+      float n = hash(uv * vec2(1920.0,1080.0) + fract(uTime)*137.0) - 0.5;
+      col += n * uGrain * (1.25 - lum*0.8);
+      // scanline whisper
+      col *= 1.0 - 0.022 * sin(uv.y * 1400.0);
+      // vignette
+      float d = length((uv - 0.5) * vec2(1.06,1.0));
+      col *= smoothstep(0.92, 0.28, d * uVignette);
+      col *= (1.0 - uFade);
+      gl_FragColor = vec4(col, 1.0);
+    }`
+};
+
+const composer   = new EffectComposer(renderer);
+let renderPass   = new RenderPass(scene, camera);
+const bloomPass  = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.48, 0.5, 0.92);
+const gradePass  = new ShaderPass(GradeShader);
+gradePass.renderToScreen = true;
+composer.addPass(renderPass);
+composer.addPass(bloomPass);
+composer.addPass(gradePass);
+const GU = gradePass.uniforms;
+
+function applyVisualSettings() {
+  camera.fov = S.fov; camera.updateProjectionMatrix();
+  GU.uGrain.value = S.grain ? .055 : 0;
+  bloomPass.enabled = !!S.bloom;
+  GU.uBright.value = S.bri / 100;
+}
+applyVisualSettings();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  bloomPass.setSize(innerWidth, innerHeight);
+});
+
+/* ------------------------------------------------------------------ */
+/*  PROCEDURAL TEXTURES                                                */
+/* ------------------------------------------------------------------ */
+const texCache = new Map();
+function canvasTex(key, size, draw, { repeat = [1, 1], aniso = 8 } = {}) {
+  if (texCache.has(key)) return texCache.get(key);
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d');
+  draw(x, size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat[0], repeat[1]);
+  t.anisotropy = Math.min(aniso, renderer.capabilities.getMaxAnisotropy());
+  t.colorSpace = THREE.SRGBColorSpace;
+  texCache.set(key, t);
+  return t;
+}
+function grainOver(x, size, amount, alpha = .05) {
+  const img = x.getImageData(0, 0, size, size), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - .5) * amount;
+    d[i] += n; d[i + 1] += n; d[i + 2] += n;
+  }
+  x.putImageData(img, 0, 0);
+}
+function blotches(x, size, n, colors, rMin, rMax, alpha) {
+  for (let i = 0; i < n; i++) {
+    const r = rand(rMin, rMax), cx = Math.random() * size, cy = Math.random() * size;
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    const c = colors[(Math.random() * colors.length) | 0];
+    g.addColorStop(0, `rgba(${c},${alpha})`); g.addColorStop(1, `rgba(${c},0)`);
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+  }
+}
+
+const TEX = {
+  wallpaper: (rep = [3, 2]) => canvasTex('wp' + rep, 512, (x, s) => {
+    x.fillStyle = '#6a6154'; x.fillRect(0, 0, s, s);
+    // faint vertical damask stripes
+    for (let i = 0; i < s; i += 26) {
+      x.fillStyle = i % 52 === 0 ? 'rgba(255,240,215,.028)' : 'rgba(0,0,0,.05)';
+      x.fillRect(i, 0, 13, s);
+    }
+    blotches(x, s, 26, ['96,86,70', '58,50,42', '120,108,86'], 30, 130, .26);
+    // water damage near one edge
+    const g = x.createLinearGradient(0, s, 0, s * .55);
+    g.addColorStop(0, 'rgba(38,30,20,.5)'); g.addColorStop(1, 'rgba(38,30,20,0)');
+    x.fillStyle = g; x.fillRect(0, 0, s, s);
+    grainOver(x, s, 26);
+  }, { repeat: rep }),
+
+  plaster: (rep = [3, 2], tint = '#57534d') => canvasTex('pl' + rep + tint, 512, (x, s) => {
+    x.fillStyle = tint; x.fillRect(0, 0, s, s);
+    blotches(x, s, 40, ['255,255,255', '0,0,0', '120,110,100'], 20, 160, .05);
+    for (let i = 0; i < 70; i++) { // hairline cracks
+      x.strokeStyle = 'rgba(0,0,0,.10)'; x.lineWidth = rand(.4, 1.2); x.beginPath();
+      let px = Math.random() * s, py = Math.random() * s; x.moveTo(px, py);
+      for (let j = 0; j < 5; j++) { px += rand(-26, 26); py += rand(-26, 26); x.lineTo(px, py); }
+      x.stroke();
+    }
+    grainOver(x, s, 20);
+  }, { repeat: rep }),
+
+  wood: (rep = [4, 4], dark = false) => canvasTex('wd' + rep + dark, 512, (x, s) => {
+    const base = dark ? ['#4c3a2a', '#57432e'] : ['#7b5c3e', '#8c6a49'];
+    x.fillStyle = base[0]; x.fillRect(0, 0, s, s);
+    const plank = s / 6;
+    for (let p = 0; p < 6; p++) {
+      const y = p * plank;
+      x.fillStyle = p % 2 ? base[1] : base[0];
+      x.fillRect(0, y, s, plank - 1.5);
+      // grain lines
+      for (let i = 0; i < 26; i++) {
+        x.strokeStyle = `rgba(0,0,0,${rand(.04, .16)})`; x.lineWidth = rand(.5, 2);
+        x.beginPath(); const gy = y + rand(2, plank - 3); x.moveTo(0, gy);
+        for (let gx = 0; gx <= s; gx += 32) x.lineTo(gx, gy + Math.sin(gx * .05 + p) * rand(.5, 2.4));
+        x.stroke();
+      }
+      x.fillStyle = 'rgba(0,0,0,.42)'; x.fillRect(0, y + plank - 2, s, 2); // seam
+    }
+    blotches(x, s, 18, ['48,36,24', '140,112,78'], 30, 120, .16);
+    grainOver(x, s, 16);
+  }, { repeat: rep }),
+
+  tile: (rep = [4, 4]) => canvasTex('tl' + rep, 512, (x, s) => {
+    x.fillStyle = '#41464f'; x.fillRect(0, 0, s, s);
+    const n = 4, t = s / n;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const shade = 82 + rand(-10, 10);
+      x.fillStyle = `rgb(${shade},${shade + 2},${shade + 5})`;
+      x.fillRect(i * t + 2, j * t + 2, t - 4, t - 4);
+      x.fillStyle = 'rgba(255,255,255,.022)'; x.fillRect(i * t + 2, j * t + 2, t - 4, 3);
+    }
+    blotches(x, s, 22, ['30,34,40', '150,162,175'], 14, 60, .12);
+    grainOver(x, s, 14);
+  }, { repeat: rep }),
+
+  concrete: (rep = [6, 6]) => canvasTex('cc' + rep, 512, (x, s) => {
+    x.fillStyle = '#4a4e55'; x.fillRect(0, 0, s, s);
+    blotches(x, s, 60, ['22,24,28', '110,116,124', '74,78,84'], 18, 150, .18);
+    for (let i = 0; i < 900; i++) {
+      x.fillStyle = `rgba(${rand(0, 255) | 0},${rand(0, 255) | 0},${rand(0, 255) | 0},.02)`;
+      x.fillRect(Math.random() * s, Math.random() * s, rand(1, 3), rand(1, 3));
+    }
+    grainOver(x, s, 24);
+  }, { repeat: rep }),
+
+  fabric: (rep = [2, 2], col = '#3a2f3b') => canvasTex('fb' + rep + col, 256, (x, s) => {
+    x.fillStyle = col; x.fillRect(0, 0, s, s);
+    for (let i = 0; i < s; i += 3) {
+      x.fillStyle = 'rgba(255,255,255,.022)'; x.fillRect(i, 0, 1, s);
+      x.fillStyle = 'rgba(0,0,0,.045)'; x.fillRect(0, i, s, 1);
+    }
+    blotches(x, s, 16, ['0,0,0', '255,255,255'], 16, 70, .05);
+    grainOver(x, s, 14);
+  }, { repeat: rep }),
+
+  asphalt: (rep = [10, 10]) => canvasTex('as' + rep, 512, (x, s) => {
+    x.fillStyle = '#26282e'; x.fillRect(0, 0, s, s);
+    for (let i = 0; i < 4000; i++) {
+      const v = rand(34, 92) | 0;
+      x.fillStyle = `rgba(${v},${v + 1},${v + 4},${rand(.1, .5)})`;
+      x.fillRect(Math.random() * s, Math.random() * s, rand(1, 4), rand(1, 4));
+    }
+    blotches(x, s, 24, ['0,0,0', '60,64,72'], 40, 170, .18);
+  }, { repeat: rep }),
+
+  brick: (rep = [5, 3]) => canvasTex('bk' + rep, 512, (x, s) => {
+    x.fillStyle = '#332e2b'; x.fillRect(0, 0, s, s);
+    const bh = s / 10, bw = s / 4;
+    for (let r = 0; r < 10; r++) for (let c = -1; c < 5; c++) {
+      const off = (r % 2) * bw / 2;
+      const v = rand(.7, 1.15);
+      x.fillStyle = `rgb(${(96 * v) | 0},${(64 * v) | 0},${(54 * v) | 0})`;
+      x.fillRect(c * bw + off + 2, r * bh + 2, bw - 4, bh - 4);
+    }
+    blotches(x, s, 30, ['0,0,0', '90,80,70'], 24, 120, .2);
+    grainOver(x, s, 18);
+  }, { repeat: rep })
+};
+
+/* Small helper: a canvas-drawn emissive screen (phone display, TV) */
+function screenTex(key, draw, size = 256) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'); draw(x, size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return { tex: t, ctx: x, canvas: c, size };
+}
+
+/* ------------------------------------------------------------------ */
+/*  BUILD HELPERS                                                      */
+/* ------------------------------------------------------------------ */
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+let colliders = [];   // THREE.Box3 list for the active level
+
+function mat(opts) { return new THREE.MeshStandardMaterial(Object.assign({ roughness: .92, metalness: .02 }, opts)); }
+
+function box(parent, { x = 0, y = 0, z = 0, w = 1, h = 1, d = 1, material, rot = 0, rx = 0, solid = true, shadow = true, receive = true, name = '' }) {
+  const m = new THREE.Mesh(BOX, material);
+  m.scale.set(w, h, d); m.position.set(x, y, z);
+  m.rotation.y = rot; m.rotation.x = rx;
+  m.castShadow = shadow; m.receiveShadow = receive;
+  if (name) m.name = name;
+  parent.add(m);
+  if (solid) addCollider(m, w, h, d, x, y, z, rot);
+  return m;
+}
+function addCollider(mesh, w, h, d, x, y, z, rot) {
+  // Axis-aligned box that wraps the (possibly rotated) footprint
+  const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot));
+  const ew = w * c + d * s, ed = d * c + w * s;
+  const b = new THREE.Box3(
+    new THREE.Vector3(x - ew / 2, y - h / 2, z - ed / 2),
+    new THREE.Vector3(x + ew / 2, y + h / 2, z + ed / 2));
+  colliders.push(b);
+  return b;
+}
+function plane(parent, { x = 0, y = 0, z = 0, w = 1, d = 1, material, rx = -Math.PI / 2, ry = 0, rz = 0, receive = true }) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), material);
+  m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
+  m.receiveShadow = receive; parent.add(m); return m;
+}
+
+/* ------------------------------------------------------------------ */
+/*  RAIN                                                               */
+/* ------------------------------------------------------------------ */
+function makeRain(count = 2600, area = 34, height = 18) {
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3), spd = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = rand(-area, area);
+    pos[i * 3 + 1] = rand(0, height);
+    pos[i * 3 + 2] = rand(-area, area);
+    spd[i] = rand(9, 19);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({
+    color: 0xb6c9e0, size: .052, transparent: true, opacity: .5,
+    depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+  });
+  const p = new THREE.Points(g, m);
+  p.frustumCulled = false;
+  p.userData.tick = (dt, center) => {
+    const a = g.attributes.position.array;
+    for (let i = 0; i < count; i++) {
+      a[i * 3 + 1] -= spd[i] * dt;
+      a[i * 3] -= dt * 1.6;
+      if (a[i * 3 + 1] < 0) {
+        a[i * 3 + 1] = height;
+        a[i * 3]     = (center ? center.x : 0) + rand(-area, area);
+        a[i * 3 + 2] = (center ? center.z : 0) + rand(-area, area);
+      }
+    }
+    g.attributes.position.needsUpdate = true;
+  };
+  return p;
+}
+
+/* ------------------------------------------------------------------ */
+/*  MENU SCENE — the station at 2:14 a.m.                              */
+/* ------------------------------------------------------------------ */
+function buildMenuScene() {
+  const sc = new THREE.Scene();
+  sc.background = canvasTex('nightsky', 256, (x, sz) => {
+    const g = x.createLinearGradient(0, 0, 0, sz);
+    g.addColorStop(0, '#05070d'); g.addColorStop(.55, '#0d141f'); g.addColorStop(.8, '#1d2130'); g.addColorStop(1, '#2a2519');
+    x.fillStyle = g; x.fillRect(0, 0, sz, sz);
+    for (let i = 0; i < 260; i++) {          // low cloud break + a few stars
+      x.fillStyle = `rgba(255,255,255,${rand(.02, .14)})`;
+      x.fillRect(Math.random() * sz, Math.random() * sz * .5, 1, 1);
+    }
+  }, { repeat: [1, 1] });
+  sc.fog = new THREE.FogExp2(0x131a26, .019);
+
+  sc.add(new THREE.HemisphereLight(0x5a739e, 0x191b22, 1.05));
+  const moon = new THREE.DirectionalLight(0x9db6e2, .95);
+  moon.position.set(-14, 20, 6); sc.add(moon);
+  // soft key on the flank of the train so it reads against the night
+  const key = new THREE.SpotLight(0xa8c2e8, 26, 60, .9, .8, 1.1);
+  key.position.set(16, 14, 16); key.target.position.set(-8, 1.2, -2.6); sc.add(key, key.target);
+  const fill = new THREE.PointLight(0x6f86b8, 9, 42, 1.6); fill.position.set(10, 4, 8); sc.add(fill);
+
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(220, 220),
+    mat({ map: TEX.asphalt([26, 26]), roughness: .74, color: 0x6a6f78 }));
+  gnd.rotation.x = -Math.PI / 2; gnd.position.y = -1.2; gnd.receiveShadow = true; sc.add(gnd);
+
+  // ---- platform slab
+  const plat = new THREE.Mesh(new THREE.BoxGeometry(70, 1.2, 9),
+    mat({ map: TEX.concrete([14, 3]), color: 0xd6dae0, roughness: .92 }));
+  plat.position.set(0, -.6, 5.2); plat.receiveShadow = true; sc.add(plat);
+  // yellow safety line
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(70, .32),
+    new THREE.MeshStandardMaterial({ color: 0xb59a2a, roughness: .8, emissive: 0x2a2208, emissiveIntensity: .5 }));
+  line.rotation.x = -Math.PI / 2; line.position.set(0, .01, 1.3); sc.add(line);
+
+  // ---- rails
+  const railMat = mat({ color: 0x8d9099, roughness: .38, metalness: .85 });
+  [-1.4, 1.4].forEach(off => {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(160, .16, .12), railMat);
+    r.position.set(0, -1.05, -2.6 + off); sc.add(r);
+  });
+  const sleeperMat = mat({ map: TEX.wood([1, 1], true), color: 0x8d7963, roughness: 1 });
+  for (let i = -30; i < 30; i++) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(.4, .14, 3.4), sleeperMat);
+    s.position.set(i * 2.4, -1.14, -2.6); s.receiveShadow = true; sc.add(s);
+  }
+
+  // ---- the train (a locomotive nose + carriages, lit windows)
+  const train = new THREE.Group(); sc.add(train);
+  const bodyMat = mat({ color: 0x39465a, roughness: .5, metalness: .55 });
+  const trimMat = mat({ color: 0x8e2a1c, roughness: .55, metalness: .35 });
+  const winMat  = new THREE.MeshStandardMaterial({ color: 0x241f18, emissive: 0xffd49a, emissiveIntensity: 2.6, roughness: .25 });
+
+  function carriage(px, isLoco) {
+    const g = new THREE.Group(); g.position.x = px;
+    const L = isLoco ? 9 : 13;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(L, 3.2, 3.1), bodyMat);
+    body.position.y = .95; body.castShadow = true; g.add(body);
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, L, 16, 1, false, 0, Math.PI), bodyMat);
+    roof.rotation.z = Math.PI / 2; roof.position.y = 2.55; g.add(roof);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(L + .02, .34, 3.16), trimMat);
+    stripe.position.y = .1; g.add(stripe);
+    const wn = isLoco ? 3 : 6;
+    for (let i = 0; i < wn; i++) {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.0, 3.18), winMat);
+      w.position.set(-L / 2 + 1.6 + i * (L - 3) / (wn - 1), 1.45, 0);
+      w.userData.flick = Math.random() < .3;
+      g.add(w);
+      const gl = new THREE.PointLight(0xffc178, 2.6, 9, 2);
+      gl.position.set(w.position.x, 1.5, 2.3); g.add(gl);
+    }
+    // bogies + wheels
+    [-L / 2 + 2, L / 2 - 2].forEach(bx => {
+      for (let s = -1; s <= 1; s += 2) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .22, 18),
+          mat({ color: 0x14161a, roughness: .5, metalness: .7 }));
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.set(bx, -.75, s * 1.45); g.add(wheel);
+      }
+    });
+    if (isLoco) {
+      const cabMat = mat({ color: 0x43506a, roughness: .45, metalness: .55 });
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.6, 2.9), cabMat);
+      nose.position.set(L / 2 + .9, 1.25, 0); nose.castShadow = true; g.add(nose);
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(1.0, .9, 2.95), cabMat);
+      brow.position.set(L / 2 + 1.5, 2.1, 0); brow.rotation.z = -.42; g.add(brow);
+      // raked windscreen
+      const wsMat = new THREE.MeshStandardMaterial({ color: 0x0d1118, emissive: 0x2a3a52,
+        emissiveIntensity: .8, roughness: .15, metalness: .6 });
+      const ws = new THREE.Mesh(new THREE.BoxGeometry(.12, .95, 2.3), wsMat);
+      ws.position.set(L / 2 + 1.72, 1.95, 0); ws.rotation.z = -.42; g.add(ws);
+      // buffers
+      for (let sB = -1; sB <= 1; sB += 2) {
+        const buf = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, .4, 10),
+          mat({ color: 0x1a1d22, roughness: .5, metalness: .7 }));
+        buf.rotation.z = Math.PI / 2; buf.position.set(L / 2 + 1.95, .1, sB * .9); g.add(buf);
+      }
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff3d0, emissive: 0xfff0cc, emissiveIntensity: 8 });
+      const glowTex = canvasTex('glow', 128, (gx, gs) => {
+        const rg = gx.createRadialGradient(gs / 2, gs / 2, 0, gs / 2, gs / 2, gs / 2);
+        rg.addColorStop(0, 'rgba(255,240,210,1)'); rg.addColorStop(.28, 'rgba(255,215,150,.55)');
+        rg.addColorStop(1, 'rgba(255,190,110,0)');
+        gx.fillStyle = rg; gx.fillRect(0, 0, gs, gs);
+      });
+      for (let s = -1; s <= 1; s += 2) {
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(.2, 14, 14), lampMat);
+        lamp.position.set(L / 2 + 1.92, .8, s * .72); g.add(lamp);
+        const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffe2b0,
+          transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending }));
+        flare.scale.set(1.5, 1.5, 1); flare.position.set(L / 2 + 1.95, .8, s * .72); g.add(flare);
+      }
+      // destination board above the cab
+      const dest = new THREE.Mesh(new THREE.BoxGeometry(.06, .34, 1.9),
+        new THREE.MeshStandardMaterial({ color: 0x120e08, emissive: 0xffa53c, emissiveIntensity: 1.5 }));
+      dest.position.set(L / 2 + .55, 2.5, 0); g.add(dest);
+      const beam = new THREE.SpotLight(0xffe7bd, 12, 44, .42, .55, 1.4);
+      beam.position.set(L / 2 + 2, .9, 0);
+      beam.target.position.set(L / 2 + 30, -.4, 0);
+      g.add(beam, beam.target);
+      g.userData.beam = beam;
+    }
+    return g;
+  }
+  const loco = carriage(2, true);
+  train.add(loco, carriage(-11, false), carriage(-25.5, false), carriage(-40, false));
+  train.position.set(-3, -.35, -2.6);
+  train.userData.loco = loco;
+
+  // ---- platform canopy + lamps
+  const canopyMat = mat({ color: 0x2b2e34, roughness: .85, metalness: .2 });
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(48, .3, 8), canopyMat);
+  canopy.position.set(0, 4.3, 6.2); canopy.castShadow = true; sc.add(canopy);
+  const canopyWash = new THREE.SpotLight(0xffbe86, 60, 40, 1.15, .95, 1.2);
+  canopyWash.position.set(4, 4.2, 6.2); canopyWash.target.position.set(4, 0, 5);
+  sc.add(canopyWash, canopyWash.target);
+
+  const lamps = [];
+  for (let i = -3; i <= 4; i++) {
+    const px = i * 7.5;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.11, .14, 5.6, 10), canopyMat);
+    post.position.set(px, 1.6, 9.2); post.castShadow = true; sc.add(post);
+    const shade = new THREE.Mesh(new THREE.ConeGeometry(.62, .5, 14, 1, true),
+      mat({ color: 0x1b1d21, roughness: .7, side: THREE.DoubleSide }));
+    shade.position.set(px, 4.15, 6.4); sc.add(shade);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(.17, 10, 10),
+      new THREE.MeshStandardMaterial({ color: 0xfff1cf, emissive: 0xffdca5, emissiveIntensity: 3.4 }));
+    bulb.position.set(px, 3.95, 6.4); sc.add(bulb);
+    const l = new THREE.PointLight(0xffc98a, 26, 26, 1.5);
+    l.position.set(px, 3.85, 6.4);
+    if (Math.abs(i) < 2) { l.castShadow = true; l.shadow.mapSize.set(512, 512); l.shadow.bias = -.004; }
+    sc.add(l);
+    lamps.push({ light: l, bulb, base: 26, phase: Math.random() * 10, bad: Math.random() < .35 });
+  }
+
+  // ---- puddles, because it has not stopped raining since Tuesday
+  const puddleMat = new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: .06, metalness: .55 });
+  for (let i = 0; i < 9; i++) {
+    const pd = new THREE.Mesh(new THREE.CircleGeometry(rand(.5, 1.7), 20), puddleMat);
+    pd.rotation.x = -Math.PI / 2;
+    pd.position.set(rand(-24, 26), .012, rand(1.8, 9.2));
+    pd.scale.set(1, rand(.5, 1), 1);
+    sc.add(pd);
+  }
+
+  // ---- benches, a suitcase nobody claimed, departure board
+  const woodM = mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 });
+  for (const bx of [-13, 6, 17]) {
+    const b = new THREE.Group(); b.position.set(bx, 0, 7.6); sc.add(b);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(2.6, .12, .6), woodM);
+    seat.position.y = .48; seat.castShadow = true; b.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(2.6, .7, .1), woodM);
+    back.position.set(0, .85, -.28); b.add(back);
+    for (let s = -1; s <= 1; s += 2) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(.12, .48, .55), mat({ color: 0x24262b, metalness: .6, roughness: .5 }));
+      leg.position.set(s * 1.1, .24, 0); b.add(leg);
+    }
+  }
+  const casem = mat({ map: TEX.fabric([1, 1], '#3a2b22'), color: 0x8b6b52, roughness: .9 });
+  const suitcase = new THREE.Mesh(new THREE.BoxGeometry(.75, .5, .28), casem);
+  suitcase.position.set(6.9, .25, 8.4); suitcase.rotation.y = .3; suitcase.castShadow = true; sc.add(suitcase);
+
+  const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.5, .2), mat({ color: 0x15171b, roughness: .7 }));
+  boardFrame.position.set(-6, 3.0, 9.0); sc.add(boardFrame);
+  const board = screenTex('board', (x, s) => {
+    x.fillStyle = '#04070a'; x.fillRect(0, 0, s, s);
+    x.font = 'bold 21px monospace'; x.fillStyle = '#ffb648';
+    x.fillText('DEPARTURES', 16, 34);
+    x.font = '17px monospace';
+    const rows = [['02:14', 'CENTRAL', 'ON TIME'], ['02:48', 'HOLLOWAY', 'DELAYED'],
+                  ['03:20', '— — — —', 'CANCELLED'], ['04:05', 'ASHGROVE', 'ON TIME']];
+    rows.forEach((r, i) => {
+      const y = 74 + i * 30;
+      x.fillStyle = '#e8c07a'; x.fillText(r[0], 16, y);
+      x.fillStyle = '#cfd6dd'; x.fillText(r[1], 92, y);
+      x.fillStyle = r[2] === 'ON TIME' ? '#79d38a' : '#d8624a'; x.fillText(r[2], 230, y);
+    });
+    x.fillStyle = 'rgba(255,255,255,.04)';
+    for (let i = 0; i < s; i += 3) x.fillRect(0, i, s, 1);
+  });
+  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.3, 1.3),
+    new THREE.MeshBasicMaterial({ map: board.tex }));
+  boardMesh.position.set(-6, 3.0, 9.11); boardMesh.rotation.y = Math.PI; sc.add(boardMesh);
+  const boardGlow = new THREE.PointLight(0xffb85c, 2.2, 7, 2); boardGlow.position.set(-6, 3, 8.5); sc.add(boardGlow);
+
+  // ---- distant city silhouette
+  const cityMat = mat({ color: 0x141a26, roughness: 1 });
+  const winLitMat = new THREE.MeshStandardMaterial({ color: 0x0b0e15, emissive: 0xffc98a, emissiveIntensity: .8 });
+  for (let i = 0; i < 26; i++) {
+    const h = rand(9, 34), w = rand(4, 9);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), cityMat);
+    b.position.set(rand(-70, 70), h / 2 - 2, rand(-58, -26)); sc.add(b);
+    b.userData.lit = true;
+    for (let k = 0; k < 7; k++) {
+      if (Math.random() < .45) continue;
+      const wl = new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .05), winLitMat);
+      wl.position.set(b.position.x + rand(-w / 2 + .6, w / 2 - .6), rand(1, h - 2), b.position.z + w / 2 + .03);
+      sc.add(wl);
+    }
+  }
+
+  const rain = makeRain(3000, 40, 22); rain.position.y = 0; sc.add(rain);
+
+  const cam = { t: 0 };
+  sc.userData.tick = (dt, time) => {
+    rain.userData.tick(dt, { x: 0, z: 4 });
+    cam.t += dt;
+    // slow dolly down the platform, the locomotive filling frame right
+    const a = cam.t * .05;
+    camera.position.set(9.6 + Math.sin(a) * 1.1, 1.74 + Math.sin(cam.t * .28) * .05, 8.3 + Math.cos(a * .8) * .7);
+    camera.lookAt(-4.5 + Math.sin(a * .6) * 1.5, 1.2, -1.4);
+    // lamp flicker
+    lamps.forEach(l => {
+      const f = l.bad
+        ? (Math.sin(time * 19 + l.phase) * .5 + .5) * (Math.random() < .06 ? .15 : 1)
+        : .88 + Math.sin(time * 2.1 + l.phase) * .12;
+      l.light.intensity = l.base * (l.bad ? .35 + f * .8 : f);
+      l.bulb.material.emissiveIntensity = 1.6 + f * 2.4;
+    });
+    // train idles forward, then stops
+    train.position.x = -3 + Math.sin(time * .12) * .05;
+    if (loco.userData.beam) loco.userData.beam.intensity = 10 + Math.sin(time * 7.3) * 1.6;
+  };
+  sc.userData.lamps = lamps;
+  return sc;
+}
+
+/* ------------------------------------------------------------------ */
+/*  APARTMENT — 4B, third floor, raining                               */
+/*  footprint: x[-6,11]  z[-7,1]   partition wall at x=0               */
+/* ------------------------------------------------------------------ */
+const CEIL = 2.8;
+const WORLD = {
+  scene: null, interactables: [], lights: {}, anim: [], phone: null, door: null,
+  rain: null, tv: null, lamp: null, arms: null
+};
+
+/* Free the GPU resources of a level we are about to throw away. Geometry
+   from the shared BOX and textures held in texCache are reused, so they stay. */
+function disposeScene(sc) {
+  if (!sc) return;
+  const keep = new Set(texCache.values());
+  sc.traverse(o => {
+    if (o.geometry && o.geometry !== BOX) o.geometry.dispose();
+    const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const m of mats) {
+      for (const k of ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'alphaMap']) {
+        const t = m[k];
+        if (t && t.isTexture && !keep.has(t)) t.dispose();
+      }
+      m.dispose();
+    }
+  });
+  sc.clear();
+}
+
+function buildApartment() {
+  disposeScene(WORLD.scene);
+  colliders = [];
+  const sc = new THREE.Scene();
+  sc.background = canvasTex('indoorsky', 256, (x, sz) => {
+    const g = x.createLinearGradient(0, 0, 0, sz);
+    g.addColorStop(0, '#020306'); g.addColorStop(.6, '#080d16'); g.addColorStop(1, '#161c28');
+    x.fillStyle = g; x.fillRect(0, 0, sz, sz);
+  }, { repeat: [1, 1] });
+  sc.fog = new THREE.FogExp2(0x070b12, .03);
+  const root = new THREE.Group(); sc.add(root);
+
+  const MW = {
+    wallBed:  mat({ map: TEX.wallpaper([2.4, 1.1]), color: 0xd9d1c4 }),
+    wallLiv:  mat({ map: TEX.plaster([3.2, 1.1]), color: 0xdcd8d1 }),
+    floorBed: mat({ map: TEX.wood([3.4, 4.4]), color: 0xdccbb4, roughness: .78 }),
+    floorLiv: mat({ map: TEX.wood([5, 4]), color: 0xd3c4ad, roughness: .74 }),
+    floorKit: mat({ map: TEX.tile([3, 2]), color: 0xdde1e7, roughness: .55 }),
+    ceil:     mat({ map: TEX.plaster([4, 3], '#4a4845'), color: 0xb4b0ab }),
+    trim:     mat({ color: 0x4e4740, roughness: .75 }),
+    wood:     mat({ map: TEX.wood([1, 1], true), color: 0xc9a67c }),
+    woodDk:   mat({ map: TEX.wood([1, 1], true), color: 0x9b7c5c }),
+    metal:    mat({ color: 0x3a3e44, roughness: .38, metalness: .8 }),
+    chrome:   mat({ color: 0x9aa1aa, roughness: .22, metalness: .95 }),
+    cloth:    mat({ map: TEX.fabric([1.4, 1.4], '#4d5566'), color: 0xc2c9d6, roughness: 1 }),
+    sheet:    mat({ map: TEX.fabric([1.6, 1.6], '#6d6d78'), color: 0xdedbd2, roughness: 1 }),
+    dark:     mat({ color: 0x2a2d33, roughness: .7 }),
+    // plain transparent glass: 'transmission' would force an extra full-scene
+    // render pass every frame for no visible gain at this opacity
+    glassM:   new THREE.MeshStandardMaterial({ color: 0x6f8296, roughness: .18, metalness: .1,
+                transparent: true, opacity: .07, side: THREE.DoubleSide, depthWrite: false })
+  };
+
+  /* ---------- floors + ceiling ---------- */
+  plane(root, { x: -3, z: -3, w: 6, d: 8, material: MW.floorBed });                 // bedroom
+  plane(root, { x: 5.5, z: -3.6, w: 11, d: 6.8, material: MW.floorLiv });           // living
+  plane(root, { x: 5.5, z: .3, w: 11, d: 1.4, material: MW.floorKit });             // kitchen strip
+  plane(root, { x: 2.5, y: CEIL, w: 17.4, d: 8.4, material: MW.ceil, rx: Math.PI / 2 });
+
+  /* ---------- outer shell ---------- */
+  const T = .22;                                     // wall thickness
+  const W = (x, z, w, d, m) => box(root, { x, y: CEIL / 2, z, w, h: CEIL, d, material: m });
+
+  // north wall z = -7  (bedroom part + living part, living part has a window gap)
+  W(-3, -7, 6 + T, T, MW.wallBed);
+  W(2.4, -7, 4.8, T, MW.wallLiv);
+  W(9.6, -7, 3.0, T, MW.wallLiv);
+  // living-room window fills the remaining gap (x 4.8..8.1)
+  box(root, { x: 6.45, y: .45, z: -7, w: 3.3, h: .9, d: T, material: MW.wallLiv });
+  box(root, { x: 6.45, y: 2.55, z: -7, w: 3.3, h: .5, d: T, material: MW.wallLiv });
+  // south wall z = 1
+  W(2.5, 1, 17.4, T, MW.wallLiv);
+  // west wall x = -6 with bedroom window (gap z -5.4..-3.4)
+  W(-6, -6.2, T, 1.8, MW.wallBed);
+  W(-6, -1.4, T, 4.8, MW.wallBed);
+  box(root, { x: -6, y: .5, z: -4.4, w: T, h: 1.0, d: 2.0, material: MW.wallBed });
+  box(root, { x: -6, y: 2.6, z: -4.4, w: T, h: .4, d: 2.0, material: MW.wallBed });
+  // east wall x = 11 with the front door gap (z -3.7 .. -2.3)
+  W(11, -5.35, T, 3.3 + T, MW.wallLiv);
+  W(11, -.65, T, 3.3 + T, MW.wallLiv);
+  box(root, { x: 11, y: 2.5, z: -3, w: T, h: .6, d: 1.4, material: MW.wallLiv });
+  // partition x = 0 with bedroom doorway (z -4.3 .. -2.9)
+  W(0, -5.65, T, 2.7, MW.wallBed);
+  W(0, -.95, T, 3.9, MW.wallBed);
+  box(root, { x: 0, y: 2.45, z: -3.6, w: T, h: .7, d: 1.4, material: MW.wallBed });
+
+  // skirting boards
+  const skirt = (x, z, w, d) => box(root, { x, y: .07, z, w, h: .14, d, material: MW.trim, solid: false });
+  skirt(-3, -6.85, 6, .06); skirt(2.5, .85, 17, .06); skirt(-5.85, -3, .06, 8);
+
+  /* ---------- windows: glass, frames, and the world outside ---------- */
+  function window_(x, y, z, w, h, vertical) {
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), MW.glassM);
+    g.position.set(x, y, z); if (vertical) g.rotation.y = Math.PI / 2;
+    root.add(g);
+    const fm = MW.trim;
+    const bars = new THREE.Group(); bars.position.set(x, y, z);
+    if (vertical) bars.rotation.y = Math.PI / 2;
+    [[0, h / 2, w, .07], [0, -h / 2, w, .07], [-w / 2, 0, .07, h], [w / 2, 0, .07, h], [0, 0, .06, h], [0, 0, w, .06]]
+      .forEach(([bx, by, bw, bh]) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, .14), fm);
+        b.position.set(bx, by, 0); bars.add(b);
+      });
+    root.add(bars);
+    // sill
+    box(root, { x: x + (vertical ? .12 : 0), y: y - h / 2 - .04, z: z + (vertical ? 0 : .12),
+      w: vertical ? .3 : w + .2, h: .07, d: vertical ? h * 0 + w + .2 : .3, material: MW.trim, solid: false });
+    return g;
+  }
+  window_(-5.98, 1.55, -4.4, 1.9, 1.5, true);     // bedroom
+  window_(6.45, 1.75, -6.98, 3.2, 1.5, false);    // living room
+
+  // outside: city blocks, rain and a cold wash of light
+  const out = new THREE.Group(); sc.add(out);
+  const bmat = mat({ color: 0x1b2130, roughness: 1 });
+  const litMat = new THREE.MeshStandardMaterial({ color: 0x0a0d14, emissive: 0xffc07a, emissiveIntensity: .45 });
+  const litMat2 = new THREE.MeshStandardMaterial({ color: 0x0a0d14, emissive: 0x7fd0ff, emissiveIntensity: .4 });
+  for (let i = 0; i < 22; i++) {
+    const h = rand(10, 30), w = rand(4, 8);
+    const side = Math.random() < .5;
+    const bx = side ? rand(-34, -12) : rand(2, 24);
+    const bz = side ? rand(-16, 6) : rand(-30, -14);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), bmat);
+    b.position.set(bx, h / 2 - 8, bz); out.add(b);
+    for (let k = 0; k < 9; k++) {
+      if (Math.random() < .55) continue;
+      const wl = new THREE.Mesh(new THREE.BoxGeometry(.45, .6, .06), Math.random() < .25 ? litMat2 : litMat);
+      const f = side ? 1 : 1;
+      wl.position.set(bx + rand(-w / 2 + .5, w / 2 - .5), rand(-6, h - 10), bz + (w / 2 + .05) * f);
+      out.add(wl);
+    }
+  }
+  // a street lamp pool below the bedroom window + neon sign
+  const neon = new THREE.Mesh(new THREE.BoxGeometry(.2, 2.6, .08),
+    new THREE.MeshStandardMaterial({ color: 0x220008, emissive: 0xff2d55, emissiveIntensity: 2.6 }));
+  neon.position.set(-12.5, 1.2, -5.5); out.add(neon);
+  const neonLight = new THREE.PointLight(0xff3a63, 60, 30, 1.8); neonLight.position.set(-11.5, 1.4, -5); out.add(neonLight);
+
+  const rain = makeRain(1800, 26, 20); rain.position.set(0, -6, -4); out.add(rain);
+  WORLD.rain = rain;
+
+  /* ---------- lighting ---------- */
+  sc.add(new THREE.HemisphereLight(0x3c5378, 0x17181f, 2.3));
+  // practical fills so the flat is navigable without ever feeling lit
+  const bedFill = new THREE.PointLight(0x5d7cb4, 20, 13, 1.6); bedFill.position.set(-3.6, 2.35, -4.2); sc.add(bedFill);
+  const livFill = new THREE.PointLight(0x55709e, 22, 16, 1.6); livFill.position.set(7.4, 2.4, -4.6); sc.add(livFill);
+  const moon = new THREE.DirectionalLight(0x9db7e0, 3.2);
+  moon.position.set(-16, 9, -9); moon.target.position.set(-2, .6, -3.6);
+  moon.castShadow = true;
+  moon.shadow.mapSize.set(1024, 1024);
+  moon.shadow.camera.left = -12; moon.shadow.camera.right = 12;
+  moon.shadow.camera.top = 10; moon.shadow.camera.bottom = -10;
+  moon.shadow.camera.near = .5; moon.shadow.camera.far = 46; moon.shadow.bias = -.0016;
+  sc.add(moon, moon.target);
+  WORLD.lights.moon = moon;
+
+  const cityWash = new THREE.PointLight(0x7d9ed4, 26, 18, 1.7);
+  cityWash.position.set(6.4, 1.9, -5.6); sc.add(cityWash);
+  const doorWash = new THREE.PointLight(0x6a86b6, 16, 10, 1.7);
+  doorWash.position.set(9.8, 1.8, -2.6); sc.add(doorWash);
+
+  /* ---------- BEDROOM ---------- */
+  // bed: frame, mattress, duvet thrown back, pillow
+  const bed = new THREE.Group(); root.add(bed);
+  box(bed, { x: -4.3, y: .2, z: -5.3, w: 1.55, h: .4, d: 2.15, material: MW.woodDk });
+  box(bed, { x: -4.3, y: .52, z: -5.3, w: 1.5, h: .26, d: 2.1, material: MW.sheet, solid: false });
+  box(bed, { x: -4.3, y: 1.0, z: -6.42, w: 1.62, h: 1.2, d: .12, material: MW.woodDk });   // headboard
+  const duvet = box(bed, { x: -4.25, y: .68, z: -4.85, w: 1.44, h: .14, d: 1.25, material: MW.cloth, solid: false });
+  duvet.rotation.z = .02;
+  const pillow = box(bed, { x: -4.35, y: .72, z: -6.1, w: .95, h: .17, d: .42, material: MW.sheet, solid: false });
+  pillow.rotation.x = -.05;
+
+  // nightstand + lamp + THE PHONE
+  const ns = new THREE.Group(); root.add(ns);
+  box(ns, { x: -2.85, y: .28, z: -6.1, w: .58, h: .56, d: .5, material: MW.wood });
+  box(ns, { x: -2.85, y: .42, z: -5.86, w: .48, h: .16, d: .04, material: MW.trim, solid: false });
+
+  const lampBulbMat = new THREE.MeshStandardMaterial({ color: 0xfff0d2, emissive: 0xffd9a0, emissiveIntensity: 2.2 });
+  const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(.19, .26, .26, 18, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xd8c9a6, roughness: .9, side: THREE.DoubleSide,
+      emissive: 0x3a2d18, emissiveIntensity: 1 }));
+  lampShade.position.set(-3.0, .86, -6.15); root.add(lampShade);
+  const lampStem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .05, .3, 10), MW.chrome);
+  lampStem.position.set(-3.0, .68, -6.15); root.add(lampStem);
+  const lampBulb = new THREE.Mesh(new THREE.SphereGeometry(.07, 10, 10), lampBulbMat);
+  lampBulb.position.set(-3.0, .85, -6.15); root.add(lampBulb);
+  const lampLight = new THREE.PointLight(0xffb870, 0, 9, 1.8);
+  lampLight.position.set(-3.0, .88, -6.15);
+  lampLight.castShadow = true; lampLight.shadow.mapSize.set(768, 768); lampLight.shadow.bias = -.005;
+  root.add(lampLight);
+  WORLD.lamp = { light: lampLight, bulb: lampBulb, shade: lampShade, on: false, target: 0 };
+
+  // phone
+  const phone = new THREE.Group();
+  phone.position.set(-2.78, .59, -6.02);
+  phone.rotation.set(-Math.PI / 2, 0, .28);
+  const phoneBody = new THREE.Mesh(new THREE.BoxGeometry(.075, .152, .012),
+    mat({ color: 0x0b0c10, roughness: .35, metalness: .5 }));
+  phone.add(phoneBody);
+  const pScreen = screenTex('phone', (x, s) => drawPhoneScreen(x, s, 'INCOMING'), 256);
+  const screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(.068, .142),
+    new THREE.MeshBasicMaterial({ map: pScreen.tex, toneMapped: false }));
+  screenMesh.position.z = .0075; phone.add(screenMesh);
+  const phoneGlow = new THREE.PointLight(0x8fd0ff, 0, 4, 1.8);
+  phoneGlow.position.set(-2.78, .75, -6.02); root.add(phoneGlow);
+  root.add(phone);
+  WORLD.phone = { group: phone, glow: phoneGlow, screen: pScreen, mesh: screenMesh, home: phone.position.clone(), ringing: false };
+
+  // wardrobe
+  const wd = new THREE.Group(); root.add(wd);
+  box(wd, { x: -5.45, y: 1.05, z: -1.5, w: .9, h: 2.1, d: 1.5, material: MW.woodDk });
+  for (let i = 0; i < 2; i++) {
+    box(wd, { x: -5.0, y: 1.05, z: -1.88 + i * .76, w: .03, h: 1.95, d: .68, material: MW.wood, solid: false });
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(.035, 10, 10), MW.chrome);
+    knob.position.set(-4.97, 1.05, -1.62 + i * .3); wd.add(knob);
+  }
+  // desk under the window + chair
+  box(root, { x: -5.3, y: .74, z: -4.4, w: 1.2, h: .06, d: 1.5, material: MW.wood });
+  box(root, { x: -5.8, y: .37, z: -4.4, w: .06, h: .74, d: 1.4, material: MW.woodDk });
+  box(root, { x: -4.8, y: .37, z: -4.4, w: .06, h: .74, d: 1.4, material: MW.woodDk });
+  const chair = new THREE.Group(); root.add(chair);
+  box(chair, { x: -4.35, y: .45, z: -4.3, w: .48, h: .06, d: .48, material: MW.woodDk, rot: .5 });
+  box(chair, { x: -4.14, y: .72, z: -4.3, w: .06, h: .56, d: .46, material: MW.woodDk, rot: .5 });
+  [[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].forEach(([ox, oz]) =>
+    box(chair, { x: -4.35 + ox, y: .22, z: -4.3 + oz, w: .05, h: .44, d: .05, material: MW.woodDk, solid: false }));
+
+  // rug
+  const rug = plane(root, { x: -3, y: .012, z: -3.4, w: 2.6, d: 2.0,
+    material: mat({ map: TEX.fabric([2, 2], '#6c4242'), color: 0xc8a4a4, roughness: 1 }) });
+
+  // clock on the wall — reads 2:14
+  const clock = screenTex('clock', (x, s) => {
+    x.fillStyle = '#0a0b0e'; x.fillRect(0, 0, s, s);
+    x.strokeStyle = '#2a2d33'; x.lineWidth = 8; x.beginPath(); x.arc(s / 2, s / 2, s / 2 - 12, 0, 7); x.stroke();
+    x.fillStyle = '#d9d3c7';
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      x.fillRect(s / 2 + Math.sin(a) * (s / 2 - 34) - 3, s / 2 - Math.cos(a) * (s / 2 - 34) - 3, 6, 6);
+    }
+    const hand = (ang, len, wdt, col) => {
+      x.strokeStyle = col; x.lineWidth = wdt; x.lineCap = 'round'; x.beginPath();
+      x.moveTo(s / 2, s / 2);
+      x.lineTo(s / 2 + Math.sin(ang) * len, s / 2 - Math.cos(ang) * len); x.stroke();
+    };
+    hand((2 + 14 / 60) / 12 * Math.PI * 2, 56, 10, '#cfc9bd');
+    hand(14 / 60 * Math.PI * 2, 82, 6, '#cfc9bd');
+    hand(0, 86, 2, '#c4452e');
+  });
+  const clockMesh = new THREE.Mesh(new THREE.CircleGeometry(.19, 28),
+    new THREE.MeshStandardMaterial({ map: clock.tex, roughness: .6 }));
+  clockMesh.position.set(-.13, 2.0, -5.0); clockMesh.rotation.y = -Math.PI / 2; root.add(clockMesh);
+
+  // door frame trims
+  const frame = (x, z, vert) => {
+    const m = MW.trim;
+    if (vert) {
+      box(root, { x, y: 1.05, z: z - .78, w: .28, h: 2.1, d: .08, material: m, solid: false });
+      box(root, { x, y: 1.05, z: z + .78, w: .28, h: 2.1, d: .08, material: m, solid: false });
+      box(root, { x, y: 2.13, z, w: .28, h: .1, d: 1.6, material: m, solid: false });
+    }
+  };
+  frame(0, -3.6, true); frame(11, -3, true);
+
+  /* ---------- LIVING ROOM ---------- */
+  // sofa
+  const sofa = new THREE.Group(); root.add(sofa);
+  const sofaM = mat({ map: TEX.fabric([2, 1], '#4a505c'), color: 0xbcc3d0, roughness: 1 });
+  box(sofa, { x: 4.6, y: .26, z: -2.0, w: 2.3, h: .52, d: .95, material: sofaM });
+  box(sofa, { x: 4.6, y: .62, z: -2.38, w: 2.3, h: .62, d: .22, material: sofaM });
+  box(sofa, { x: 3.52, y: .55, z: -2.0, w: .2, h: .58, d: .95, material: sofaM });
+  box(sofa, { x: 5.68, y: .55, z: -2.0, w: .2, h: .58, d: .95, material: sofaM });
+  const cush = box(sofa, { x: 4.1, y: .59, z: -1.9, w: .8, h: .14, d: .8, material: MW.cloth, solid: false });
+  cush.rotation.y = .1;
+  // throw blanket
+  const throwB = box(sofa, { x: 5.3, y: .6, z: -1.85, w: .7, h: .1, d: .8,
+    material: mat({ map: TEX.fabric([1, 1], '#7c4a54'), color: 0xd0a0a9, roughness: 1 }), solid: false });
+  throwB.rotation.z = .07;
+
+  // coffee table + mug + newspaper
+  box(root, { x: 4.6, y: .42, z: -.75, w: 1.5, h: .06, d: .62, material: MW.woodDk });
+  [[-.65, -.25], [.65, -.25], [-.65, .25], [.65, .25]].forEach(([ox, oz]) =>
+    box(root, { x: 4.6 + ox, y: .2, z: -.75 + oz, w: .07, h: .42, d: .07, material: MW.woodDk, solid: false }));
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(.045, .038, .1, 14),
+    mat({ color: 0xcfc7b8, roughness: .5 }));
+  mug.position.set(4.25, .5, -.72); mug.castShadow = true; root.add(mug);
+
+  // TV on a stand — it is on, showing static
+  box(root, { x: 8.6, y: .26, z: -1.4, w: .5, h: .52, d: 1.6, material: MW.woodDk });
+  const tvFrame = box(root, { x: 8.55, y: 1.05, z: -1.4, w: .09, h: .72, d: 1.28, material: MW.dark, solid: false });
+  const tvS = screenTex('tv', (x, s) => { x.fillStyle = '#080a0d'; x.fillRect(0, 0, s, s); }, 128);
+  const tvMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .66),
+    new THREE.MeshBasicMaterial({ map: tvS.tex, toneMapped: false }));
+  tvMesh.position.set(8.48, 1.05, -1.4); tvMesh.rotation.y = -Math.PI / 2; root.add(tvMesh);
+  const tvLight = new THREE.PointLight(0x7fa8d8, 14, 9, 1.8);
+  tvLight.position.set(8.0, 1.1, -1.4); root.add(tvLight);
+  WORLD.tv = { screen: tvS, light: tvLight, mesh: tvMesh };
+
+  // bookshelf
+  const shelf = new THREE.Group(); root.add(shelf);
+  box(shelf, { x: 2.0, y: 1.0, z: -6.4, w: 1.6, h: 2.0, d: .35, material: MW.woodDk });
+  for (let r = 0; r < 4; r++) {
+    const sy = .42 + r * .45;
+    box(shelf, { x: 2.0, y: sy, z: -6.4, w: 1.5, h: .03, d: .32, material: MW.wood, solid: false });
+    let bx = 1.34;
+    while (bx < 2.6) {
+      const bw = rand(.05, .1), bh = rand(.22, .33);
+      const bk = new THREE.Mesh(BOX, mat({ color: new THREE.Color().setHSL(rand(.03, .12), rand(.15, .4), rand(.12, .28)), roughness: .95 }));
+      bk.scale.set(bw, bh, .24); bk.position.set(bx + bw / 2, sy + bh / 2 + .02, -6.38);
+      if (Math.random() < .12) { bk.rotation.z = rand(.2, .5); bk.position.y -= .03; }
+      bk.castShadow = true; shelf.add(bk);
+      bx += bw + .012;
+    }
+  }
+
+  // kitchen run along the south wall
+  const counter = mat({ color: 0x6b717c, roughness: .6, metalness: .1 });
+  box(root, { x: 7.6, y: .45, z: .55, w: 4.4, h: .9, d: .66, material: mat({ map: TEX.wood([2, 1], true), color: 0xb2977a }) });
+  box(root, { x: 7.6, y: .92, z: .55, w: 4.5, h: .05, d: .7, material: counter, solid: false });
+  // sink
+  const sink = new THREE.Mesh(new THREE.BoxGeometry(.6, .12, .44), mat({ color: 0x8e949c, roughness: .3, metalness: .85 }));
+  sink.position.set(6.6, .9, .55); root.add(sink);
+  const tap = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .34, 10), MW.chrome);
+  tap.position.set(6.6, 1.1, .78); root.add(tap);
+  const tapArm = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .22, 10), MW.chrome);
+  tapArm.rotation.x = Math.PI / 2; tapArm.position.set(6.6, 1.26, .68); root.add(tapArm);
+  // upper cabinets + under-cabinet light
+  box(root, { x: 8.2, y: 1.95, z: .68, w: 2.6, h: .7, d: .38, material: MW.woodDk, solid: false });
+  const kitchenLight = new THREE.PointLight(0xfff0cf, 9, 5, 1.8);
+  kitchenLight.position.set(8.2, 1.55, .35); root.add(kitchenLight);
+  // fridge
+  const fridge = new THREE.Group(); root.add(fridge);
+  box(fridge, { x: 10.3, y: .87, z: .5, w: .72, h: 1.74, d: .7, material: mat({ color: 0xb9bcc0, roughness: .35, metalness: .6 }) });
+  box(fridge, { x: 10.3, y: 1.3, z: .16, w: .66, h: .03, d: .02, material: MW.dark, solid: false });
+  const magnet = new THREE.Mesh(new THREE.PlaneGeometry(.16, .22),
+    new THREE.MeshStandardMaterial({ color: 0xdcd6c6, roughness: .9 }));
+  magnet.position.set(10.15, 1.05, .155); magnet.rotation.y = 0; root.add(magnet);
+
+  // dining table + chairs
+  box(root, { x: 3.0, y: .72, z: -5.0, w: 1.5, h: .07, d: .9, material: MW.wood });
+  [[-.65, -.35], [.65, -.35], [-.65, .35], [.65, .35]].forEach(([ox, oz]) =>
+    box(root, { x: 3.0 + ox, y: .36, z: -5.0 + oz, w: .08, h: .72, d: .08, material: MW.woodDk, solid: false }));
+  for (const [cx, cz, cr] of [[3.0, -5.9, 0], [3.0, -4.1, Math.PI]]) {
+    const g = new THREE.Group(); root.add(g);
+    box(g, { x: cx, y: .44, z: cz, w: .44, h: .06, d: .44, material: MW.woodDk, rot: cr });
+    box(g, { x: cx, y: .7, z: cz + (cr ? .2 : -.2), w: .44, h: .52, d: .05, material: MW.woodDk, rot: cr, solid: false });
+  }
+
+  // hall clutter near the door: shoe rack, coat hooks, a key bowl
+  box(root, { x: 10.45, y: .12, z: -4.9, w: .5, h: .24, d: 1.0, material: MW.woodDk });
+  for (let i = 0; i < 2; i++) {
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(.12, .1, .28), mat({ color: 0x18181c, roughness: .9 }));
+    sh.position.set(10.45, .3, -5.2 + i * .34); sh.rotation.y = rand(-.2, .2); sh.castShadow = true; root.add(sh);
+  }
+  const coat = new THREE.Mesh(new THREE.BoxGeometry(.1, .95, .42),
+    mat({ map: TEX.fabric([1, 1], '#3d4250'), color: 0xb5bcc9, roughness: 1 }));
+  coat.position.set(10.75, 1.45, -1.7); coat.castShadow = true; root.add(coat);
+  box(root, { x: 10.85, y: 1.95, z: -1.7, w: .06, h: .06, d: .5, material: MW.metal, solid: false });
+
+  /* ---------- FRONT DOOR ---------- */
+  const doorPivot = new THREE.Group();
+  doorPivot.position.set(10.94, 0, -2.28);     // hinge side
+  root.add(doorPivot);
+  const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(.08, 2.1, 1.38),
+    mat({ map: TEX.wood([1, 2], true), color: 0xc09873, roughness: .8 }));
+  doorMesh.position.set(0, 1.05, -.69); doorMesh.castShadow = true; doorPivot.add(doorMesh);
+  // panels + handle
+  for (let i = 0; i < 2; i++) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(.02, .72, .9), mat({ color: 0x8a6a49, roughness: .85 }));
+    p.position.set(-.05, .62 + i * .84, -.69); doorPivot.add(p);
+  }
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .14, 10), MW.chrome);
+  handle.rotation.z = Math.PI / 2; handle.position.set(-.08, 1.02, -1.24); doorPivot.add(handle);
+  const knobPlate = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, .03, 12), MW.chrome);
+  knobPlate.rotation.z = Math.PI / 2; knobPlate.position.set(-.05, 1.02, -1.24); doorPivot.add(knobPlate);
+  const doorCol = addCollider(null, .2, 2.1, 1.4, 11, 1.05, -3.0, 0);
+  // cold light leaking under the door
+  const leak = new THREE.PointLight(0x6f86ad, 0, 3.2, 1.8);
+  leak.position.set(10.7, .1, -3.0); root.add(leak);
+  WORLD.door = { pivot: doorPivot, collider: doorCol, open: false, leak, angle: 0 };
+
+  /* ---------- ceiling lamp (off) + dust ---------- */
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(.008, .008, .5, 6), MW.dark);
+  cord.position.set(5.5, 2.55, -3.2); root.add(cord);
+  const shade2 = new THREE.Mesh(new THREE.ConeGeometry(.3, .28, 16, 1, true),
+    mat({ color: 0x24262b, roughness: .8, side: THREE.DoubleSide }));
+  shade2.position.set(5.5, 2.24, -3.2); root.add(shade2);
+
+  // floating dust motes
+  const dustG = new THREE.BufferGeometry();
+  const DN = 420, dp = new Float32Array(DN * 3);
+  for (let i = 0; i < DN; i++) {
+    dp[i * 3] = rand(-6, 11); dp[i * 3 + 1] = rand(.2, 2.6); dp[i * 3 + 2] = rand(-7, 1);
+  }
+  dustG.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+  const dust = new THREE.Points(dustG, new THREE.PointsMaterial({
+    color: 0xbfd0e8, size: .013, transparent: true, opacity: .16, depthWrite: false,
+    blending: THREE.AdditiveBlending }));
+  dust.frustumCulled = false; sc.add(dust);
+
+  /* ---------- interactables ---------- */
+  WORLD.interactables = [
+    { id: 'phone', pos: new THREE.Vector3(-2.78, .7, -6.02), r: 1.7, label: 'Pick up phone', key: 'E', enabled: false },
+    { id: 'lamp',  pos: new THREE.Vector3(-3.0, .86, -6.15), r: 1.5, label: 'Turn on lamp',  key: 'E', enabled: true },
+    { id: 'door',  pos: new THREE.Vector3(10.85, 1.1, -3.0), r: 2.0, label: 'Leave', key: 'E', enabled: false },
+    { id: 'window', pos: new THREE.Vector3(6.45, 1.6, -6.9), r: 2.0, label: 'Look outside', key: 'E', enabled: true },
+    { id: 'fridge', pos: new THREE.Vector3(10.3, 1.2, .15), r: 1.6, label: 'Open fridge', key: 'E', enabled: true }
+  ];
+
+  sc.userData.tick = (dt, time) => {
+    // dust drift
+    const a = dustG.attributes.position.array;
+    for (let i = 0; i < DN; i++) {
+      a[i * 3 + 1] += Math.sin(time * .4 + i) * .0009;
+      a[i * 3]     += Math.cos(time * .25 + i * .7) * .0008;
+    }
+    dustG.attributes.position.needsUpdate = true;
+    rain.userData.tick(dt, { x: 0, z: -4 });
+  };
+
+  sc.add(camera);          // the phone and the arms hang off the camera
+  if (WORLD.arms) camera.remove(WORLD.arms.group);
+  WORLD.arms = makeArms();
+  camera.add(WORLD.arms.group);
+  WORLD.scene = sc;
+  return sc;
+}
+
+/* phone screen drawing — 'INCOMING', 'CALL', 'ENDED' */
+function drawPhoneScreen(x, s, mode, t = 0) {
+  x.fillStyle = '#070a10'; x.fillRect(0, 0, s, s);
+  if (mode === 'OFF') return;
+  const g = x.createLinearGradient(0, 0, 0, s);
+  g.addColorStop(0, '#12202f'); g.addColorStop(1, '#070b12');
+  x.fillStyle = g; x.fillRect(0, 0, s, s);
+  x.textAlign = 'center';
+  if (mode === 'INCOMING') {
+    x.fillStyle = '#9fd6ff'; x.font = '15px Inter, sans-serif';
+    x.fillText('incoming call', s / 2, 52);
+    x.fillStyle = '#ffffff'; x.font = 'bold 27px Inter, sans-serif';
+    x.fillText('UNKNOWN', s / 2, 92);
+    x.fillStyle = '#6f8098'; x.font = '13px Inter, sans-serif';
+    x.fillText('no caller id', s / 2, 118);
+    // answer / decline circles
+    x.fillStyle = '#2fae5a'; x.beginPath(); x.arc(s * .3, 190, 28, 0, 7); x.fill();
+    x.fillStyle = '#c3372c'; x.beginPath(); x.arc(s * .7, 190, 28, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = 'bold 20px Inter, sans-serif';
+    x.fillText('✆', s * .3, 198); x.fillText('✕', s * .7, 197);
+  } else if (mode === 'CALL') {
+    x.fillStyle = '#ffffff'; x.font = 'bold 25px Inter, sans-serif';
+    x.fillText('UNKNOWN', s / 2, 84);
+    x.fillStyle = '#7fe0a0'; x.font = '15px Inter, sans-serif';
+    const sec = Math.floor(t);
+    x.fillText('00:' + String(sec).padStart(2, '0'), s / 2, 112);
+    // jittering waveform
+    x.strokeStyle = '#6fc5ff'; x.lineWidth = 2; x.beginPath();
+    for (let i = 0; i < s; i += 4) {
+      const h = Math.sin(i * .12 + t * 9) * 18 * Math.random() + Math.sin(i * .03 + t * 3) * 8;
+      i === 0 ? x.moveTo(i, 180 + h) : x.lineTo(i, 180 + h);
+    }
+    x.stroke();
+  } else if (mode === 'ENDED') {
+    x.fillStyle = '#8b97a8'; x.font = '17px Inter, sans-serif';
+    x.fillText('call ended', s / 2, 110);
+    x.fillStyle = '#4b5666'; x.font = '13px Inter, sans-serif';
+    x.fillText('02:14', s / 2, 138);
+  }
+  x.textAlign = 'left';
+  x.fillStyle = 'rgba(255,255,255,.05)';
+  for (let i = 0; i < s; i += 4) x.fillRect(0, i, s, 1);
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  FIRST-PERSON ARMS                                                  */
+/*  Used for the stretch on waking and for holding the phone. They     */
+/*  live on the camera and stay hidden the rest of the time.           */
+/* ------------------------------------------------------------------ */
+function makeArms() {
+  const skin   = mat({ color: 0xa87d63, roughness: .88 });
+  const sleeve = mat({ map: TEX.fabric([1, 1], '#454b59'), color: 0xa9b1c1, roughness: 1 });
+  const build = (side) => {
+    const arm = new THREE.Group();
+    arm.position.set(side * .2, -.32, -.06);
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(.088, .088, .3), sleeve);
+    upper.position.z = -.15; arm.add(upper);
+    const elbow = new THREE.Group(); elbow.position.z = -.3; arm.add(elbow);
+    const fore = new THREE.Mesh(new THREE.BoxGeometry(.076, .076, .26), sleeve);
+    fore.position.z = -.13; elbow.add(fore);
+    const wrist = new THREE.Mesh(new THREE.BoxGeometry(.07, .06, .05), skin);
+    wrist.position.z = -.27; elbow.add(wrist);
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(.072, .05, .105), skin);
+    hand.position.z = -.34; elbow.add(hand);
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(.028, .04, .06), skin);
+    thumb.position.set(-side * .045, .005, -.33); elbow.add(thumb);
+    arm.userData.elbow = elbow;
+    return arm;
+  };
+  const g = new THREE.Group();
+  const L = build(-1), R = build(1);
+  g.add(L, R); g.visible = false;
+  [L, R].forEach(a => { a.rotation.set(1.25, 0, 0); a.userData.elbow.rotation.set(0, 0, 0); });
+  return { group: g, L, R };
+}
+
+/* Poses are [armX, armY, armZ, elbowX] per side. */
+const POSE = {
+  down:    { L: [1.25, 0, 0, 0],        R: [1.25, 0, 0, 0] },
+  stretch: { L: [-2.0, .34, -.25, -.85], R: [-2.0, -.34, .25, -.85] },
+  settle:  { L: [.35, .25, -.1, -.5],   R: [.35, -.25, .1, -.5] },
+  phone:   { L: [1.25, 0, 0, 0],        R: [-.42, -.34, .1, -1.72] }
+};
+function armsTo(name, dur = .8) {
+  const A = WORLD.arms; if (!A) return Promise.resolve();
+  A.group.visible = true;
+  const target = POSE[name];
+  const from = {};
+  for (const side of ['L', 'R']) {
+    const a = A[side];
+    from[side] = [a.rotation.x, a.rotation.y, a.rotation.z, a.userData.elbow.rotation.x];
+  }
+  return tween(dur, (k) => {
+    const e = smooth(k);
+    for (const side of ['L', 'R']) {
+      const a = A[side], f = from[side], t = target[side];
+      a.rotation.set(lerp(f[0], t[0], e), lerp(f[1], t[1], e), lerp(f[2], t[2], e));
+      a.userData.elbow.rotation.x = lerp(f[3], t[3], e);
+    }
+  }).then(() => { if (name === 'down') A.group.visible = false; });
+}
+
+/* ------------------------------------------------------------------ */
+/*  PLAYER                                                             */
+/* ------------------------------------------------------------------ */
+const PL = {
+  pos: new THREE.Vector3(-4.3, .55, -5.4),
+  vel: new THREE.Vector3(),
+  yaw: 0, pitch: 0, roll: 0,
+  height: 1.72, radius: .3,
+  grounded: false, locked: true,      // locked = cutscene / no control
+  bob: 0, bobAmt: 0, stepPhase: 0,
+  running: false, stamina: 1,
+  breathT: 0, camOffset: new THREE.Vector3(), extraRoll: 0
+};
+const KEYS = Object.create(null);
+let mouseDX = 0, mouseDY = 0, pointerLocked = false;
+
+addEventListener('keydown', (e) => {
+  const k = e.code;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(k)) e.preventDefault();
+  if (!KEYS[k]) onKeyPress(k);
+  KEYS[k] = true;
+});
+addEventListener('keyup', (e) => { KEYS[e.code] = false; });
+addEventListener('blur', () => { for (const k in KEYS) KEYS[k] = false; });
+
+document.addEventListener('mousemove', (e) => {
+  if (!pointerLocked) return;
+  mouseDX += e.movementX || 0;
+  mouseDY += e.movementY || 0;
+});
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === renderer.domElement;
+  if (!pointerLocked && GAME.state === 'play' && !GAME.cutscene) pauseGame();
+});
+renderer.domElement.addEventListener('click', () => {
+  if (GAME.state === 'play' && !pointerLocked && !GAME.paused) lockPointer();
+});
+function lockPointer() { renderer.domElement.requestPointerLock?.(); }
+function unlockPointer() { document.exitPointerLock?.(); }
+
+function playerBox(px = PL.pos.x, py = PL.pos.y, pz = PL.pos.z) {
+  const r = PL.radius;
+  return new THREE.Box3(
+    new THREE.Vector3(px - r, py, pz - r),
+    new THREE.Vector3(px + r, py + PL.height, pz + r));
+}
+function hits(b) { for (let i = 0; i < colliders.length; i++) if (colliders[i].intersectsBox(b)) return colliders[i]; return null; }
+
+function movePlayer(dt) {
+  const acc = new THREE.Vector3();
+  let wish = 0;
+  if (!PL.locked) {
+    const f = (KEYS.KeyW || KEYS.ArrowUp ? 1 : 0) - (KEYS.KeyS || KEYS.ArrowDown ? 1 : 0);
+    const s = (KEYS.KeyD || KEYS.ArrowRight ? 1 : 0) - (KEYS.KeyA || KEYS.ArrowLeft ? 1 : 0);
+    if (f || s) {
+      const sin = Math.sin(PL.yaw), cos = Math.cos(PL.yaw);
+      acc.x = (-sin * f + cos * s);
+      acc.z = (-cos * f - sin * s);
+      acc.normalize();
+      wish = 1;
+      TUT.mark('move');
+    }
+    PL.running = !!(KEYS.ShiftLeft || KEYS.ShiftRight) && wish && f > 0;
+    if (PL.running) TUT.mark('run');
+    if ((KEYS.Space) && PL.grounded) {
+      PL.vel.y = 4.3; PL.grounded = false; TUT.mark('jump');
+      Audio_.burst({ dur: .09, freq: 300, q: 1, gain: .06, type: 'lowpass' });
+    }
+  }
+  const speed = PL.running ? 4.35 : 2.3;
+  const target = acc.multiplyScalar(speed);
+  const rate = PL.grounded ? 11 : 3.2;
+  PL.vel.x = lerp(PL.vel.x, target.x, 1 - Math.exp(-rate * dt));
+  PL.vel.z = lerp(PL.vel.z, target.z, 1 - Math.exp(-rate * dt));
+  PL.vel.y -= 13.5 * dt;
+
+  // ---- horizontal collision, axis by axis
+  const stepX = PL.vel.x * dt, stepZ = PL.vel.z * dt;
+  PL.pos.x += stepX;
+  if (hits(playerBox())) { PL.pos.x -= stepX; PL.vel.x *= -.05; }
+  PL.pos.z += stepZ;
+  if (hits(playerBox())) { PL.pos.z -= stepZ; PL.vel.z *= -.05; }
+
+  // ---- vertical
+  PL.pos.y += PL.vel.y * dt;
+  PL.grounded = false;
+  const vb = playerBox();
+  const h = hits(vb);
+  if (h) {
+    if (PL.vel.y <= 0) { PL.pos.y = h.max.y; PL.grounded = true; }
+    else { PL.pos.y = h.min.y - PL.height - .001; }
+    if (PL.vel.y < -4.5) Audio_.thud(.12);
+    PL.vel.y = 0;
+  }
+  if (PL.pos.y <= 0) { PL.pos.y = 0; PL.vel.y = 0; PL.grounded = true; }
+
+  // ---- head bob + footsteps
+  const planarSpeed = Math.hypot(PL.vel.x, PL.vel.z);
+  const moving = planarSpeed > .35 && PL.grounded;
+  PL.bobAmt = lerp(PL.bobAmt, moving ? (PL.running ? 1.5 : 1) : 0, 1 - Math.exp(-8 * dt));
+  if (moving) {
+    const prev = PL.stepPhase;
+    PL.stepPhase += planarSpeed * dt * (PL.running ? 2.0 : 2.45);
+    if (Math.floor(PL.stepPhase / Math.PI) !== Math.floor(prev / Math.PI)) Audio_.footstep(PL.running);
+  }
+  PL.bob = Math.sin(PL.stepPhase * 2) * .035 * PL.bobAmt * (S.bob / 100);
+  const sway = Math.cos(PL.stepPhase) * .022 * PL.bobAmt * (S.bob / 100);
+  PL.extraRoll = lerp(PL.extraRoll, -PL.vel.x * 0 + sway * .5, 1 - Math.exp(-8 * dt));
+  PL.breathT += dt * (PL.running ? 2.4 : 1.1);
+  const breathe = Math.sin(PL.breathT) * .006;
+
+  if (!GAME.cutscene) {
+    camera.position.set(
+      PL.pos.x + sway * .5 + PL.camOffset.x,
+      PL.pos.y + PL.height - .1 + PL.bob + breathe + PL.camOffset.y,
+      PL.pos.z + PL.camOffset.z);
+    camera.rotation.set(PL.pitch, PL.yaw, PL.roll + PL.extraRoll, 'YXZ');
+  }
+}
+
+function applyLook(dt) {
+  if (PL.locked || !pointerLocked) { mouseDX = mouseDY = 0; return; }
+  const sens = (S.sens / 100) * .0022;
+  PL.yaw   -= mouseDX * sens;
+  PL.pitch -= mouseDY * sens * (S.inv ? -1 : 1);
+  PL.pitch = clamp(PL.pitch, -1.35, 1.35);
+  mouseDX = mouseDY = 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  HUD                                                                */
+/* ------------------------------------------------------------------ */
+const HUD = {
+  prompt: $('#prompt'), cross: $('#crosshair'), objT: $('#obj-text'), obj: $('#objective'),
+  subs: $('#subs'), tips: $('#tips'),
+  showPrompt(key, label) {
+    this.prompt.innerHTML = `<b>${key}</b>${label}`;
+    this.prompt.classList.add('show'); this.cross.classList.add('hot');
+  },
+  hidePrompt() { this.prompt.classList.remove('show'); this.cross.classList.remove('hot'); },
+  setObjective(text) {
+    GAME.objective = text;
+    $('#p-obj').textContent = text;
+    if (!text) { this.obj.classList.remove('show'); return; }
+    this.obj.classList.remove('show');
+    setTimeout(() => { this.objT.textContent = text; this.obj.classList.add('show'); }, 220);
+  },
+  say(who, text, glitchWords = []) {
+    if (!S.subs) return;
+    let html = who ? `<span class="who">${who}</span>` : '';
+    html += text.split(' ').map(w => glitchWords.some(g => w.toLowerCase().includes(g))
+      ? `<span class="gl">${w}</span>` : w).join(' ');
+    this.subs.innerHTML = html;
+    this.subs.classList.add('show');
+  },
+  clearSay() { this.subs.classList.remove('show'); }
+};
+
+/* Tutorial prompt chips that light up and then dim once performed */
+const TUT = {
+  items: {},
+  add(id, key, label) {
+    if (this.items[id]) return;
+    const el = document.createElement('div');
+    el.className = 'tip';
+    el.innerHTML = `<span class="k">${key}</span><span>${label}</span>`;
+    HUD.tips.appendChild(el);
+    this.items[id] = { el, done: false };
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+  },
+  mark(id) {
+    const it = this.items[id];
+    if (!it || it.done) return;
+    it.done = true; it.el.classList.add('done');
+    setTimeout(() => {
+      it.el.classList.remove('show');
+      setTimeout(() => { it.el.remove(); delete this.items[id]; }, 600);
+    }, 2600);
+  },
+  clear() { HUD.tips.innerHTML = ''; this.items = {}; }
+};
+
+/* ------------------------------------------------------------------ */
+/*  CUTSCENE CAMERA                                                    */
+/* ------------------------------------------------------------------ */
+/* Cutscene tweens run on wall-clock time, not on frame delta: on a slow
+   machine the camera must still keep step with the scripted audio. */
+const CAM = { active: false, from: null, to: null, t0: 0, dur: 1, ease: smooth, done: null };
+function camTo(to, dur = 1.6, ease = smooth) {
+  return new Promise(res => {
+    CAM.from = { pos: camera.position.clone(), rot: new THREE.Vector3(camera.rotation.x, camera.rotation.y, camera.rotation.z) };
+    CAM.to = to; CAM.t0 = performance.now(); CAM.dur = dur; CAM.ease = ease; CAM.active = true; CAM.done = res;
+  });
+}
+function tickCam() {
+  if (!CAM.active) return;
+  const k = clamp((performance.now() - CAM.t0) / (CAM.dur * 1000), 0, 1), e = CAM.ease(k);
+  const f = CAM.from, t = CAM.to;
+  camera.position.set(lerp(f.pos.x, t.pos[0], e), lerp(f.pos.y, t.pos[1], e), lerp(f.pos.z, t.pos[2], e));
+  camera.rotation.set(lerp(f.rot.x, t.rot[0], e), lerp(f.rot.y, t.rot[1], e), lerp(f.rot.z, t.rot[2], e), 'YXZ');
+  if (k >= 1) { CAM.active = false; const d = CAM.done; CAM.done = null; d && d(); }
+}
+
+/* ------------------------------------------------------------------ */
+/*  VOICE — glitched, half-intelligible, with subtitles                */
+/* ------------------------------------------------------------------ */
+function radioVox(text, { pitch = 82, spread = 1, gain = .13 } = {}) {
+  if (!Audio_.ready) return 0;
+  const ctx = Audio_.ctx, t0 = Audio_.t + .05;
+  const out = ctx.createGain(); out.gain.value = gain;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = .9;
+  const dist = ctx.createWaveShaper();
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 3.4); }
+  dist.curve = curve;
+  out.connect(dist).connect(bp).connect(Audio_.master);
+
+  const words = text.replace(/[^a-zA-Z' ]/g, ' ').split(/\s+/).filter(Boolean);
+  let t = t0;
+  words.forEach((w) => {
+    const syl = Math.max(1, Math.round(w.length / 2.4));
+    for (let s = 0; s < syl; s++) {
+      const dur = rand(.11, .2) * spread;
+      const f0 = pitch * rand(.86, 1.18);
+      // buzz source
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t);
+      o.frequency.linearRampToValueAtTime(f0 * rand(.9, 1.12), t + dur);
+      // two formants shape it into a vowel-ish sound
+      const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = rand(380, 780); f1.Q.value = 7;
+      const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = rand(1100, 2200); f2.Q.value = 9;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(1, t + .02);
+      g.gain.setValueAtTime(1, t + dur * .7);
+      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(f1).connect(g).connect(out);
+      o.connect(f2).connect(g);
+      o.start(t); o.stop(t + dur + .02);
+      t += dur * rand(.85, 1.05);
+    }
+    t += rand(.05, .13);   // gap between words
+  });
+  setTimeout(() => { try { out.disconnect(); } catch {} }, (t - Audio_.t) * 1000 + 800);
+  return (t - t0);
+}
+
+let ttsVoice = null;
+function pickVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const vs = speechSynthesis.getVoices();
+  if (!vs || !vs.length) return null;
+  const pref = vs.find(v => /male|daniel|alex|fred|george|david/i.test(v.name) && /en/i.test(v.lang))
+            || vs.find(v => /en-GB|en-US/i.test(v.lang)) || vs[0];
+  return pref;
+}
+if ('speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = () => { ttsVoice = pickVoice(); };
+  setTimeout(() => { ttsVoice = pickVoice(); }, 400);
+}
+
+/* Speaks a line: TTS (when the browser has a voice) layered under a
+   synthesized garble + subtitle. Resolves when the line is finished. */
+function speakLine(text, { who = '???', glitch = .5, rate = .84, pitch = .35, hold = 700, glitchWords = [] } = {}) {
+  return new Promise(res => {
+    HUD.say(who, text, glitchWords);
+    const voxDur = radioVox(text, { gain: .1 + glitch * .06, pitch: 74 });
+    let spoken = false;
+    try {
+      if ('speechSynthesis' in window) {
+        ttsVoice = ttsVoice || pickVoice();
+        const u = new SpeechSynthesisUtterance(text);
+        if (ttsVoice) u.voice = ttsVoice;
+        u.rate = rate; u.pitch = pitch; u.volume = clamp(S.vol / 100, 0, 1) * .95;
+        u.onend = () => { if (!spoken) { spoken = true; setTimeout(res, hold); } };
+        u.onerror = () => { if (!spoken) { spoken = true; setTimeout(res, hold); } };
+        speechSynthesis.speak(u);
+      }
+    } catch {}
+    // glitch bursts riding the line
+    const n = Math.round(2 + glitch * 5);
+    for (let i = 0; i < n; i++) {
+      setTimeout(() => {
+        Audio_.glitch(rand(.05, .22), .05 + glitch * .12);
+        GAME.glitchPulse = Math.max(GAME.glitchPulse, .35 + glitch * .5);
+      }, rand(60, Math.max(600, voxDur * 900)));
+    }
+    // hard fallback timer so a line never stalls the sequence
+    const fallback = Math.max(1600, voxDur * 1000 + hold + text.length * 42);
+    setTimeout(() => { if (!spoken) { spoken = true; res(); } }, fallback);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  GAME STATE                                                         */
+/* ------------------------------------------------------------------ */
+/* dev switches: index.html?skipintro=1&nogr() — handy while editing the flat */
+const DEV = { skipIntro: /[?&]skipintro/.test(location.search) };
+
+const GAME = {
+  state: 'boot',          // boot | menu | play | end
+  paused: false, cutscene: false,
+  objective: '', glitchPulse: 0, phase: 'sleep',
+  time: 0, ambience: {}, flags: {}, callTimer: 0, phoneMode: 'OFF',
+  menuScene: null
+};
+
+const EL = {
+  menu: $('#menu'), settings: $('#settings'), pause: $('#pause'), hud: $('#hud'),
+  boot: $('#boot'), black: $('#black'), lids: $('#lids'), wake: $('#wake'),
+  wakeInner: $('#wake-inner'), bars: $('#bars'), card: $('#title-card'), ring: $('#ringpulse'), dmg: $('#dmg')
+};
+const show = (el) => el.classList.remove('hidden');
+const hide = (el) => el.classList.add('hidden');
+const fadeTo = (v, ms = 1200) => {
+  EL.black.style.transition = `opacity ${ms}ms ease`;
+  EL.black.style.opacity = v;
+  return wait(ms);
+};
+
+/* ------------------------------------------------------------------ */
+/*  AMBIENCE                                                           */
+/* ------------------------------------------------------------------ */
+function startApartmentAmbience() {
+  Audio_.init(); Audio_.resume();
+  stopAmbience();
+  GAME.ambience.rain  = Audio_.bed({ type: 'brown', freq: 1500, gain: .1, filter: 'lowpass' });
+  GAME.ambience.hiss  = Audio_.bed({ type: 'white', freq: 2600, q: .4, gain: .012, filter: 'highpass' });
+  GAME.ambience.room  = Audio_.bed({ type: 'brown', freq: 120, gain: .075, filter: 'lowpass' });
+  GAME.ambience.drone = Audio_.drone(41, .035);
+}
+function startMenuAmbience() {
+  Audio_.init(); Audio_.resume();
+  stopAmbience();
+  GAME.ambience.rain  = Audio_.bed({ type: 'brown', freq: 2000, gain: .13, filter: 'lowpass' });
+  GAME.ambience.room  = Audio_.bed({ type: 'brown', freq: 150, gain: .07, filter: 'lowpass' });
+  GAME.ambience.drone = Audio_.drone(36, .05);
+  clearInterval(GAME.ambience.hornTimer);
+  GAME.ambience.hornTimer = setInterval(() => { if (GAME.state === 'menu') Audio_.trainHorn(rand(0, 2)); }, 17000);
+  setTimeout(() => { if (GAME.state === 'menu') Audio_.trainHorn(1.2); }, 2600);
+}
+function stopAmbience() {
+  for (const k of ['rain', 'hiss', 'room', 'drone']) { GAME.ambience[k]?.stop?.(.6); GAME.ambience[k] = null; }
+  clearInterval(GAME.ambience.hornTimer);
+  GAME.ambience.ring?.stop?.(); GAME.ambience.ring = null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  INTERACTION                                                        */
+/* ------------------------------------------------------------------ */
+const fwd = new THREE.Vector3(), toObj = new THREE.Vector3();
+function currentInteractable() {
+  if (PL.locked || GAME.cutscene || GAME.paused) return null;
+  camera.getWorldDirection(fwd);
+  let best = null, bestScore = -1;
+  for (const it of WORLD.interactables) {
+    if (!it.enabled) continue;
+    toObj.copy(it.pos).sub(camera.position);
+    const dist = toObj.length();
+    if (dist > it.r) continue;
+    toObj.normalize();
+    const facing = toObj.dot(fwd);
+    if (facing < .55) continue;
+    const score = facing - dist * .12;
+    if (score > bestScore) { bestScore = score; best = it; }
+  }
+  return best;
+}
+function onKeyPress(code) {
+  if (code === 'Escape') {
+    if (GAME.state === 'play' && !GAME.cutscene) { GAME.paused ? resumeGame() : pauseGame(); }
+    else if (!EL.settings.classList.contains('hidden')) closeSettings();
+    return;
+  }
+  if (code === 'KeyE') {
+    if (GAME.phase === 'sleep' && GAME.flags.canWake && !GAME.flags.waking) { doWakeUp(); return; }
+    const it = currentInteractable();
+    if (it) interact(it);
+  }
+}
+function interact(it) {
+  switch (it.id) {
+    case 'lamp': {
+      const L = WORLD.lamp;
+      L.on = !L.on; L.target = L.on ? 1 : 0;
+      Audio_.click(2400, .12);
+      it.label = L.on ? 'Turn off lamp' : 'Turn on lamp';
+      if (L.on && !GAME.flags.lampOnce) { GAME.flags.lampOnce = true; }
+      break;
+    }
+    case 'phone': answerPhone(); break;
+    case 'door':  leaveHouse(); break;
+    case 'window':
+      Audio_.burst({ dur: .3, freq: 500, q: .7, gain: .04, type: 'lowpass' });
+      flavour('Rain. Sodium light. Eight floors of other people’s windows, all of them dark.');
+      break;
+    case 'fridge':
+      Audio_.burst({ dur: .35, freq: 220, q: .8, gain: .09, type: 'lowpass' });
+      flavour('Half a carton of milk and a takeaway box. You are not hungry.');
+      break;
+  }
+}
+let flavourTimer = null;
+function flavour(text) {
+  HUD.say('', text);
+  clearTimeout(flavourTimer);
+  flavourTimer = setTimeout(() => HUD.clearSay(), 3800);
+}
+
+/* ------------------------------------------------------------------ */
+/*  SEQUENCE: NEW GAME → the ringing in the dark                       */
+/* ------------------------------------------------------------------ */
+async function startNewGame() {
+  hide(EL.menu); hide(EL.settings);
+  GAME.state = 'play'; GAME.paused = false; GAME.cutscene = true;
+  GAME.phase = 'sleep'; GAME.flags = {}; GAME.glitchPulse = 0;
+  TUT.clear(); HUD.clearSay(); HUD.hidePrompt(); HUD.setObjective('');
+
+  await fadeTo(1, 900);
+
+  const sc = buildApartment();
+  scene = sc; renderPass.scene = sc;
+  renderer.toneMappingExposure = 2.5;     // night interior, lit only by the city and one lamp
+  GAME.menuScene = GAME.menuScene || null;
+
+  // the body in the bed
+  PL.pos.set(-3.1, 0, -5.25);
+  PL.vel.set(0, 0, 0); PL.yaw = -Math.PI / 2; PL.pitch = 0; PL.roll = 0;
+  PL.locked = true; PL.stepPhase = 0; PL.camOffset.set(0, 0, 0);
+  camera.position.set(-4.25, .93, -5.35);
+  camera.rotation.set(1.16, .12, .22, 'YXZ');
+
+  GU.uDesat.value = .55; GU.uAberr.value = .0025; GU.uVignette.value = 1.35;
+  EL.lids.classList.remove('open'); show(EL.lids);
+  show(EL.hud); EL.hud.style.opacity = 0;
+
+  startApartmentAmbience();
+  GAME.ambience.rain?.to(.04, .5);             // muffled: we are asleep
+
+  await fadeTo(0, 1400);                        // black overlay off — eyelids still shut
+
+  // ---- the phone starts ringing
+  await wait(900);
+  GAME.ambience.ring = Audio_.ring();
+  GAME.ambience.ring.to(.55, .8);
+  WORLD.phone.ringing = true;
+  GAME.phoneMode = 'INCOMING';
+
+  // pulse the screen edges in time with the ring
+  EL.ring.style.transition = 'opacity .5s'; EL.ring.style.opacity = .5;
+
+  if (DEV.skipIntro) { GAME.flags.canWake = false; handOverControl(); return; }
+
+  await wait(2400);
+  GAME.flags.canWake = true;
+  show(EL.wake);
+  requestAnimationFrame(() => EL.wakeInner.classList.add('show'));
+}
+
+async function doWakeUp() {
+  GAME.flags.waking = true; GAME.flags.canWake = false;
+  EL.wakeInner.classList.remove('show');
+  setTimeout(() => hide(EL.wake), 900);
+  EL.ring.style.opacity = 0;
+
+  Audio_.breath(1.0, true);
+  GAME.ambience.rain?.to(.11, 1.5);
+  GAME.ambience.hiss?.to(.02, 1.5);
+
+  // ---- eyelids: three heavy blinks before they stay open
+  const blink = async (openMs, shutMs) => {
+    EL.lids.classList.add('open');  await wait(openMs);
+    EL.lids.classList.remove('open'); await wait(shutMs);
+  };
+  await blink(620, 420);
+  await blink(780, 330);
+  EL.lids.classList.add('open');
+  await wait(500);
+
+  GU.uDesat.value = .3;
+  // small head roll as focus returns
+  await camTo({ pos: [-4.22, .96, -5.3], rot: [1.02, -.05, .1] }, 1.5);
+  hide(EL.lids);
+
+  // ---- sit up, swing the legs out
+  Audio_.burst({ dur: .5, freq: 800, q: .5, gain: .06 });        // sheets
+  await camTo({ pos: [-3.85, 1.2, -5.25], rot: [-.12, -1.0, .06] }, 1.8);
+  GU.uDesat.value = .12; GU.uVignette.value = 1.15;
+
+  // ---- stretch: arms up, arch back, breathe in, then settle
+  Audio_.breath(1.3, true);
+  armsTo('stretch', 1.1);
+  Audio_.burst({ dur: .35, freq: 1100, q: .6, gain: .04 });      // sleeve cloth
+  await camTo({ pos: [-3.6, 1.34, -5.25], rot: [.36, -1.4, -.05] }, 1.25);
+  await wait(180);
+  Audio_.breath(.9, false);
+  armsTo('settle', .7);
+  await camTo({ pos: [-3.3, 1.22, -5.25], rot: [-.1, -1.5, .03] }, .9);
+  armsTo('down', .55);
+
+  // ---- stand
+  Audio_.thud(.16);
+  await camTo({ pos: [-3.1, 1.66, -5.25], rot: [-.06, -Math.PI / 2, 0] }, 1.15);
+  Audio_.footstep(false);
+  await camTo({ pos: [-3.1, 1.62, -5.25], rot: [0, -Math.PI / 2, 0] }, .45);
+
+  handOverControl();
+}
+
+/* The moment the game stops being a cutscene and becomes a game. */
+function handOverControl() {
+  GAME.cutscene = false; PL.locked = false;
+  PL.pos.set(-3.1, 0, -5.25); PL.yaw = -Math.PI / 2; PL.pitch = 0;
+  GAME.phase = 'awake';
+  GU.uDesat.value = 0; GU.uVignette.value = 1.12;
+  hide(EL.lids); hide(EL.wake);
+  EL.hud.style.transition = 'opacity 1s'; EL.hud.style.opacity = 1;
+
+  TUT.add('move', 'W A S D', 'move');
+  TUT.add('jump', 'SPACE', 'jump');
+  TUT.add('interact', 'E', 'interact');
+  HUD.setObjective('Answer the phone');
+  WORLD.interactables.find(i => i.id === 'phone').enabled = true;
+
+  lockPointer();
+}
+
+/* ------------------------------------------------------------------ */
+/*  SEQUENCE: THE CALL                                                 */
+/* ------------------------------------------------------------------ */
+async function answerPhone() {
+  if (GAME.flags.answered) return;
+  GAME.flags.answered = true;
+  TUT.mark('interact');
+  const ph = WORLD.phone;
+  WORLD.interactables.find(i => i.id === 'phone').enabled = false;
+  HUD.hidePrompt();
+  PL.locked = true;
+  GAME.phase = 'call';
+
+  // phone comes up to the ear
+  const g = ph.group;
+  const worldPos = new THREE.Vector3(); g.getWorldPosition(worldPos);
+  scene.remove(g); camera.add(g);
+  g.position.copy(camera.worldToLocal(worldPos.clone()));
+  g.rotation.set(-Math.PI / 2, 0, .28);
+  g.scale.setScalar(1);
+
+  Audio_.click(3000, .16);
+  GAME.ambience.ring?.stop(); GAME.ambience.ring = null;
+  ph.ringing = false;
+  GAME.phoneMode = 'CALL'; GAME.callTimer = 0;
+
+  const target = { p: new THREE.Vector3(.085, -.055, -.26), r: new THREE.Euler(-.15, -.35, .18) };
+  const start  = { p: g.position.clone(), r: g.rotation.clone() };
+  armsTo('phone', .7);
+  await tween(.75, (k) => {
+    const e = smooth(k);
+    g.position.lerpVectors(start.p, target.p, e);
+    g.rotation.set(lerp(start.r.x, target.r.x, e), lerp(start.r.y, target.r.y, e), lerp(start.r.z, target.r.z, e));
+  });
+
+  EL.bars.classList.add('on');
+  GAME.ambience.room?.to(.02, 1.2);
+  GAME.ambience.drone?.to(.075, 1.5);
+
+  // ---- dead air, then breathing on the line
+  Audio_.glitch(.7, .09);
+  GU.uAberr.value = .0035;
+  await wait(1100);
+  HUD.say('', 'Static. Somewhere underneath it, someone is breathing.');
+  Audio_.breath(1.6, false);
+  await wait(2000);
+
+  HUD.say('YOU', '…Hello?');
+  Audio_.breath(.5, true);
+  await wait(1500);
+
+  GAME.glitchPulse = 1.1;
+  Audio_.glitch(.5, .2);
+  await wait(500);
+
+  await speakLine('Meet me at the train station.', {
+    who: '???', glitch: .75, rate: .78, pitch: .3, hold: 900, glitchWords: ['train', 'station']
+  });
+
+  GAME.glitchPulse = 1.4;
+  Audio_.glitch(.45, .22);
+  flickerLamp(1.6);
+  await wait(700);
+
+  await speakLine('Two fourteen. The last train.', {
+    who: '???', glitch: .85, rate: .74, pitch: .25, hold: 800, glitchWords: ['fourteen', 'last']
+  });
+  await wait(400);
+  await speakLine('Don’t make me come to you.', {
+    who: '???', glitch: 1.0, rate: .7, pitch: .2, hold: 1000, glitchWords: ['make', 'come', 'you']
+  });
+
+  // ---- they hang up
+  GAME.glitchPulse = 1.8;
+  Audio_.glitch(.8, .26);
+  await wait(500);
+  Audio_.click(1200, .2);
+  GAME.phoneMode = 'ENDED';
+  drawPhoneScreen(WORLD.phone.screen.ctx, WORLD.phone.screen.size, 'ENDED');
+  WORLD.phone.screen.tex.needsUpdate = true;
+  HUD.say('', 'Call ended. 02:14.');
+  // dial tone
+  Audio_.tone({ freq: 425, type: 'sine', dur: 1.6, gain: .07 });
+  await wait(1700);
+  HUD.clearSay();
+
+  // phone into the pocket
+  await tween(.6, (k) => {
+    const e = smooth(k);
+    g.position.set(lerp(target.p.x, .12, e), lerp(target.p.y, -.42, e), lerp(target.p.z, -.22, e));
+    g.rotation.x = lerp(target.r.x, -1.2, e);
+    g.scale.setScalar(1 - e * .4);
+  });
+  camera.remove(g);
+  armsTo('down', .5);
+  GAME.phoneMode = 'OFF';
+  WORLD.phone.glow.intensity = 0;
+
+  EL.bars.classList.remove('on');
+  GU.uAberr.value = .0014;
+
+  // ---- the flat reacts: lamp dies, TV dies, the cold gets in
+  killLights();
+  await wait(300);
+
+  GAME.phase = 'leave';
+  PL.locked = false;
+  HUD.setObjective('Leave your house');
+  WORLD.interactables.find(i => i.id === 'door').enabled = true;
+  WORLD.interactables.find(i => i.id === 'door').label = 'Open the door';
+  TUT.add('run', 'SHIFT', 'run');
+  GAME.ambience.drone?.to(.06, 3);
+  Audio_.heartbeat(.3);
+  setTimeout(() => Audio_.heartbeat(.26), 1000);
+}
+
+function tween(dur, fn) {
+  return new Promise(res => {
+    const t0 = performance.now();
+    const step = () => {
+      const k = clamp((performance.now() - t0) / (dur * 1000), 0, 1);
+      fn(k);
+      k < 1 ? requestAnimationFrame(step) : res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+let lampFlickerT = 0;
+function flickerLamp(sec) { lampFlickerT = sec; }
+function killLights() {
+  const L = WORLD.lamp;
+  let t = 0;
+  const iv = setInterval(() => {
+    t += .09;
+    L.light.intensity = (Math.random() < .5 ? 0 : 1) * (L.on ? 38 : 0) * Math.max(0, 1 - t);
+    if (t >= 1) {
+      clearInterval(iv);
+      L.on = false; L.target = 0; L.light.intensity = 0;
+      L.bulb.material.emissiveIntensity = .05;
+      const li = WORLD.interactables.find(i => i.id === 'lamp');
+      li.enabled = false;
+    }
+  }, 90);
+  // TV dies with a crackle
+  Audio_.burst({ dur: .4, freq: 3000, q: .6, gain: .16 });
+  Audio_.tone({ freq: 15000, slideTo: 60, type: 'sine', dur: .5, gain: .05 });
+  WORLD.tv.dead = true;
+  WORLD.tv.light.intensity = 0;
+  const c = WORLD.tv.screen;
+  c.ctx.fillStyle = '#040507'; c.ctx.fillRect(0, 0, c.size, c.size);
+  c.tex.needsUpdate = true;
+}
+
+/* ------------------------------------------------------------------ */
+/*  SEQUENCE: LEAVING                                                  */
+/* ------------------------------------------------------------------ */
+async function leaveHouse() {
+  if (GAME.flags.leaving) return;
+  GAME.flags.leaving = true;
+  PL.locked = true; GAME.cutscene = true;
+  HUD.hidePrompt(); HUD.setObjective('');
+  WORLD.interactables.forEach(i => i.enabled = false);
+
+  // handle turns, latch, hinges
+  Audio_.click(900, .14);
+  await wait(260);
+  Audio_.burst({ dur: .9, freq: 320, q: 4, gain: .07, type: 'bandpass' });
+
+  const d = WORLD.door;
+  const idx = colliders.indexOf(d.collider);
+  if (idx >= 0) colliders.splice(idx, 1);
+  d.leak.intensity = 14;
+
+  const camStart = { pos: camera.position.clone(), rot: new THREE.Vector3(camera.rotation.x, camera.rotation.y, camera.rotation.z) };
+  await tween(1.9, (k) => {
+    const e = smooth(k);
+    d.pivot.rotation.y = -e * 1.5;
+    camera.position.set(lerp(camStart.pos.x, 10.75, e), lerp(camStart.pos.y, 1.62, e), lerp(camStart.pos.z, -3.0, e));
+    camera.rotation.set(lerp(camStart.rot.x, -.02, e), lerp(camStart.rot.y, -Math.PI / 2, e), 0, 'YXZ');
+    d.leak.intensity = 14 + e * 16;
+  });
+
+  // the corridor beyond: wind, and something far away that sounds like a train
+  GAME.ambience.rain?.to(.2, 1.5);
+  Audio_.trainHorn(.4);
+  GAME.ambience.drone?.to(.1, 2);
+  GU.uVignette.value = 1.5;
+  await wait(1200);
+
+  await fadeTo(1, 2000);
+  stopAmbience();
+  hide(EL.hud);
+  TUT.clear();
+  await wait(400);
+  await endCard();
+}
+
+async function endCard() {
+  GAME.state = 'end';
+  $('#tc1').textContent = 'Chapter One';
+  $('#tc2').textContent = 'The Call';
+  $('#tc3').textContent = '';
+  show(EL.card);
+  requestAnimationFrame(() => EL.card.classList.add('show'));
+  EL.black.style.opacity = 0;
+  Audio_.init(); Audio_.resume();
+  await wait(2600);
+  Audio_.trainHorn(0);
+  $('#tc3').textContent = 'to be continued';
+  await wait(3400);
+  $('#tc1').textContent = 'Next';
+  $('#tc2').textContent = 'The Station';
+  $('#tc3').textContent = 'chapter two';
+  await wait(3200);
+  EL.card.classList.remove('show');
+  await wait(1100);
+  hide(EL.card);
+  try { localStorage.setItem('lasttrain.save', JSON.stringify({ chapter: 1, done: true, at: Date.now() })); } catch {}
+  toMenu();
+}
+
+/* ------------------------------------------------------------------ */
+/*  SCRIPTED SCARE — something passes the living-room window           */
+/* ------------------------------------------------------------------ */
+function shadowPass() {
+  if (GAME.flags.shadowDone || !WORLD.scene) return;
+  GAME.flags.shadowDone = true;
+  const sil = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.2),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .96, side: THREE.DoubleSide }));
+  sil.position.set(4.2, 1.2, -7.9);
+  WORLD.scene.add(sil);
+  Audio_.burst({ dur: .25, freq: 160, q: .7, gain: .1, type: 'lowpass' });
+  GAME.ambience.drone?.to(.11, .8);
+  tween(1.6, (k) => {
+    sil.position.x = 4.2 + k * 4.6;
+    sil.material.opacity = .96 * Math.sin(k * Math.PI);
+  }).then(() => {
+    WORLD.scene.remove(sil);
+    GAME.glitchPulse = Math.max(GAME.glitchPulse, .8);
+    Audio_.heartbeat(.34);
+    setTimeout(() => Audio_.heartbeat(.3), 900);
+    GAME.ambience.drone?.to(.06, 4);
+    // TV bursts into static for a moment
+    if (!WORLD.tv.dead) {
+      WORLD.tv.surge = 1.2;
+      Audio_.burst({ dur: .5, freq: 4200, q: .4, gain: .12 });
+    }
+    flickerLamp(1.2);
+    EL.dmg.style.opacity = .5;
+    setTimeout(() => EL.dmg.style.opacity = 0, 700);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  PER-FRAME WORLD UPDATES                                            */
+/* ------------------------------------------------------------------ */
+let tvAcc = 0, phoneAcc = 0;
+function updateWorld(dt) {
+  const t = GAME.time;
+
+  // ---- phone
+  const ph = WORLD.phone;
+  if (ph) {
+    if (ph.ringing) {
+      const cyc = (t % 2.6);
+      const active = cyc < .36 || (cyc > .42 && cyc < .78);
+      const j = active ? .0035 : 0;
+      ph.group.position.set(
+        ph.home.x + rand(-j, j), ph.home.y + (active ? Math.abs(Math.sin(t * 60)) * .004 : 0), ph.home.z + rand(-j, j));
+      ph.glow.intensity = active ? 7 + Math.sin(t * 30) * 1.4 : 2;
+      EL.ring.style.opacity = GAME.phase === 'sleep' ? (active ? .62 : .22) : 0;
+      // the ring gets louder as you close on it, so it can be followed by ear
+      if (GAME.ambience.ring && GAME.phase !== 'sleep') {
+        const d = camera.position.distanceTo(ph.home);
+        GAME.ambience.ring.to(clamp(1.5 / Math.max(.8, d), .12, 1) * .6, .25);
+      }
+    } else if (GAME.phoneMode === 'CALL') {
+      ph.glow.intensity = 4 + Math.sin(t * 14) * 1.2;
+    }
+    // redraw the screen
+    phoneAcc += dt;
+    if (phoneAcc > (GAME.phoneMode === 'CALL' ? .07 : .25)) {
+      phoneAcc = 0;
+      if (GAME.phoneMode === 'INCOMING' || GAME.phoneMode === 'CALL') {
+        GAME.callTimer += GAME.phoneMode === 'CALL' ? .25 : 0;
+        drawPhoneScreen(ph.screen.ctx, ph.screen.size, GAME.phoneMode, GAME.callTimer);
+        ph.screen.tex.needsUpdate = true;
+      }
+    }
+  }
+
+  // ---- bedside lamp
+  const L = WORLD.lamp;
+  if (L) {
+    let want = L.target * 38;
+    if (lampFlickerT > 0) {
+      lampFlickerT -= dt;
+      want *= (Math.random() < .25 ? .12 : 1) * rand(.5, 1.15);
+      if (L.target === 0) want = Math.random() < .2 ? 1.2 : 0;   // ghost flicker even when off
+    }
+    L.light.intensity = lerp(L.light.intensity, want, 1 - Math.exp(-14 * dt));
+    L.bulb.material.emissiveIntensity = .15 + L.light.intensity * .09;
+    L.shade.material.emissiveIntensity = .05 + L.light.intensity * .045;
+  }
+
+  // ---- TV static
+  if (WORLD.tv && !WORLD.tv.dead) {
+    tvAcc += dt;
+    if (tvAcc > .055) {
+      tvAcc = 0;
+      const { ctx, size } = WORLD.tv.screen;
+      const img = ctx.createImageData(size, size), d = img.data;
+      const surge = WORLD.tv.surge || 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = Math.random() * (110 + surge * 190) + 28;
+        d[i] = v * .82; d[i + 1] = v * .92; d[i + 2] = v * 1.1; d[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      // rolling bar
+      const y = (t * 90) % size;
+      ctx.fillStyle = `rgba(255,255,255,${.05 + surge * .12})`;
+      ctx.fillRect(0, y, size, 14);
+      WORLD.tv.screen.tex.needsUpdate = true;
+      WORLD.tv.light.intensity = 10 + Math.random() * 6 + surge * 20;
+      if (WORLD.tv.surge) WORLD.tv.surge = Math.max(0, WORLD.tv.surge - .09);
+    }
+  }
+
+  // ---- door light leak breathing
+  if (WORLD.door && !WORLD.door.open) {
+    WORLD.door.leak.intensity = GAME.phase === 'leave' ? 3.2 + Math.sin(t * 1.7) * 1.4 : 0;
+  }
+
+  // ---- scripted beat: first time the player reaches the living room
+  if (GAME.phase === 'leave' && !GAME.flags.shadowDone && PL.pos.x > 3.2) shadowPass();
+
+  // ---- click-to-look hint when the browser refused pointer lock
+  $('#clicklook').classList.toggle('show', !pointerLocked && !PL.locked && !GAME.paused);
+
+  // ---- interaction prompt
+  const it = currentInteractable();
+  if (it) HUD.showPrompt(it.key, it.label); else HUD.hidePrompt();
+
+  // ---- glitch decay
+  GAME.glitchPulse = Math.max(0, GAME.glitchPulse - dt * 1.9);
+  GU.uGlitch.value = Math.min(1, GAME.glitchPulse * (GAME.phase === 'call' ? .5 : .35));
+  GU.uPulse.value = GAME.phase === 'sleep' ? .05 : 0;
+
+  // ---- dread creeps in while the objective is to leave
+  if (GAME.phase === 'leave') {
+    GU.uVignette.value = lerp(GU.uVignette.value, 1.28, dt * .4);
+    if (Math.random() < dt * .09) Audio_.heartbeat(.18);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  MAIN LOOP                                                          */
+/* ------------------------------------------------------------------ */
+let last = performance.now(), fpsAcc = 0, fpsN = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  let dt = (now - last) / 1000; last = now;
+  dt = Math.min(dt, .05);
+  GAME.time += dt;
+  GU.uTime.value = GAME.time;
+
+  if (GAME.state === 'menu' && GAME.menuScene) {
+    GAME.menuScene.userData.tick(dt, GAME.time);
+  } else if (GAME.state === 'play' && !GAME.paused) {
+    applyLook(dt);
+    if (!GAME.cutscene) movePlayer(dt);
+    else {
+      tickCam();
+      // keep audio-reactive stuff alive during cutscenes
+      PL.vel.set(0, 0, 0);
+    }
+    if (scene.userData.tick) scene.userData.tick(dt, GAME.time);
+    updateWorld(dt);
+  } else if (GAME.state === 'play' && GAME.paused) {
+    if (scene.userData.tick) scene.userData.tick(dt * .15, GAME.time);
+  }
+
+  composer.render();
+
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 1) { $('#fps-tag').textContent = Math.round(fpsN / fpsAcc) + ' fps'; fpsAcc = 0; fpsN = 0; }
+}
+
+/* ------------------------------------------------------------------ */
+/*  MENU / PAUSE / SETTINGS                                            */
+/* ------------------------------------------------------------------ */
+function toMenu() {
+  GAME.state = 'menu'; GAME.paused = false; GAME.cutscene = false;
+  PL.locked = true;
+  unlockPointer();
+  hide(EL.hud); hide(EL.pause); hide(EL.settings); hide(EL.lids); hide(EL.wake);
+  EL.bars.classList.remove('on');
+  TUT.clear(); HUD.clearSay(); HUD.hidePrompt();
+  if (!GAME.menuScene) GAME.menuScene = buildMenuScene();
+  scene = GAME.menuScene; renderPass.scene = scene;
+  GU.uDesat.value = .06; GU.uVignette.value = .92;
+  renderer.toneMappingExposure = 1.3; GU.uAberr.value = .0014; GU.uGlitch.value = 0; GU.uPulse.value = 0;
+  camera.fov = S.fov; camera.updateProjectionMatrix();
+  show(EL.menu);
+  EL.black.style.opacity = 0;
+  refreshSaveButton();
+  if (Audio_.ready) startMenuAmbience();
+}
+function refreshSaveButton() {
+  let save = null;
+  try { save = JSON.parse(localStorage.getItem('lasttrain.save') || 'null'); } catch {}
+  const b = $('#btn-cont');
+  if (save && save.done) {
+    b.disabled = false;
+    b.innerHTML = 'Continue<small>chapter two — locked</small>';
+    b.disabled = true;
+  }
+}
+function pauseGame() {
+  if (GAME.state !== 'play' || GAME.cutscene) return;
+  GAME.paused = true; unlockPointer(); show(EL.pause);
+  for (const k in KEYS) KEYS[k] = false;
+  GAME.ambience.rain?.to(.03, .3); GAME.ambience.drone?.to(.01, .3);
+  if (GAME.ambience.ring) GAME.ambience.ring.to(.12, .2);
+}
+function resumeGame() {
+  GAME.paused = false; hide(EL.pause); hide(EL.settings);
+  GAME.ambience.rain?.to(.11, .6); GAME.ambience.drone?.to(GAME.phase === 'leave' ? .07 : .04, .8);
+  if (GAME.ambience.ring) GAME.ambience.ring.to(.55, .3);
+  if (!PL.locked) lockPointer();
+}
+function openSettings(from) {
+  GAME.settingsFrom = from; show(EL.settings);
+  syncSettingsUI();
+}
+function closeSettings() {
+  hide(EL.settings);
+  if (GAME.settingsFrom === 'pause') show(EL.pause);
+  else if (GAME.settingsFrom === 'menu') show(EL.menu);
+}
+
+/* --- settings widgets --- */
+const SLIDERS = [
+  ['s-sens', 'v-sens', 'sens', v => v + '%'],
+  ['s-fov',  'v-fov',  'fov',  v => v + '°'],
+  ['s-bri',  'v-bri',  'bri',  v => v + '%'],
+  ['s-vol',  'v-vol',  'vol',  v => v + '%'],
+  ['s-bob',  'v-bob',  'bob',  v => v + '%']
+];
+const TOGGLES = [['t-inv', 'inv'], ['t-grain', 'grain'], ['t-bloom', 'bloom'], ['t-subs', 'subs']];
+function syncSettingsUI() {
+  SLIDERS.forEach(([sid, vid, key, fmt]) => {
+    const el = document.getElementById(sid);
+    el.value = S[key]; document.getElementById(vid).textContent = fmt(S[key]);
+  });
+  TOGGLES.forEach(([tid, key]) => document.getElementById(tid).classList.toggle('on', !!S[key]));
+}
+SLIDERS.forEach(([sid, vid, key, fmt]) => {
+  const el = document.getElementById(sid);
+  el.addEventListener('input', () => {
+    S[key] = +el.value;
+    document.getElementById(vid).textContent = fmt(S[key]);
+    if (key === 'vol') Audio_.setVolume(S.vol);
+    applyVisualSettings();
+    saveSettings();
+  });
+});
+TOGGLES.forEach(([tid, key]) => {
+  const el = document.getElementById(tid);
+  el.addEventListener('click', () => {
+    S[key] = !S[key];
+    el.classList.toggle('on', S[key]);
+    applyVisualSettings(); saveSettings();
+    Audio_.click(2200, .08);
+  });
+});
+$('#set-reset').addEventListener('click', () => {
+  Object.assign(S, DEFAULTS); syncSettingsUI(); applyVisualSettings(); Audio_.setVolume(S.vol); saveSettings();
+});
+$('#set-back').addEventListener('click', () => { Audio_.click(1400, .08); closeSettings(); });
+
+/* --- menu buttons --- */
+$('#btn-new').addEventListener('click', () => { Audio_.init(); Audio_.resume(); Audio_.click(900, .12); startNewGame(); });
+$('#btn-set').addEventListener('click', () => { Audio_.init(); Audio_.click(1400, .08); hide(EL.menu); openSettings('menu'); });
+$('#btn-quit').addEventListener('click', async () => {
+  Audio_.click(700, .12);
+  await fadeTo(1, 900);
+  stopAmbience();
+  $('#tc1').textContent = 'Thank you for playing';
+  $('#tc2').textContent = 'THE LAST TRAIN';
+  $('#tc3').textContent = 'you may close this window';
+  show(EL.card); requestAnimationFrame(() => EL.card.classList.add('show'));
+  EL.black.style.opacity = 0;
+  GAME.state = 'end';
+  try { window.close(); } catch {}
+});
+$$('.mbtn').forEach(b => b.addEventListener('mouseenter', () => { if (!b.disabled) Audio_.click(rand(2000, 2600), .045); }));
+
+/* --- pause buttons --- */
+$('#p-resume').addEventListener('click', () => { Audio_.click(1600, .08); resumeGame(); });
+$('#p-set').addEventListener('click', () => { Audio_.click(1400, .08); hide(EL.pause); openSettings('pause'); });
+$('#p-quit').addEventListener('click', async () => {
+  Audio_.click(700, .1);
+  hide(EL.pause);
+  await fadeTo(1, 700);
+  stopAmbience();
+  GAME.flags = {}; GAME.phase = 'sleep'; GAME.phoneMode = 'OFF';
+  WORLD.phone = null; WORLD.scene = null; WORLD.interactables = [];
+  toMenu();
+});
+
+/* ------------------------------------------------------------------ */
+/*  BOOT                                                               */
+/* ------------------------------------------------------------------ */
+// debug handle (handy for tweaking: LASTTRAIN.PL.pos, LASTTRAIN.GAME.phase, ...)
+window.LASTTRAIN = { GAME, PL, WORLD, S, Audio: Audio_, camera, get scene() { return scene; } };
+
+(function boot() {
+  syncSettingsUI();
+  applyVisualSettings();
+  GAME.menuScene = buildMenuScene();
+  scene = GAME.menuScene; renderPass.scene = scene;
+  requestAnimationFrame(loop);
+
+  // warm one frame, then reveal the menu
+  setTimeout(() => {
+    hide(EL.boot);
+    toMenu();
+    EL.black.style.transition = 'opacity 2s ease';
+    EL.black.style.opacity = 0;
+  }, 520);
+
+  // audio can only start after a gesture
+  const kick = () => { Audio_.init(); Audio_.resume(); if (GAME.state === 'menu' && !GAME.ambience.rain) startMenuAmbience(); };
+  addEventListener('pointerdown', kick, { once: false });
+  addEventListener('keydown', kick, { once: false });
+})();
+</script>
+</body>
+</html>
