@@ -7,6 +7,7 @@
  */
 
 import { Settings } from '../core/Settings.js';
+import { MenuNav } from './MenuNav.js';
 import { Audio } from '../audio/AudioEngine.js';
 import { el } from './Widgets.js';
 import { clamp, damp } from '../util/MathUtil.js';
@@ -349,9 +350,13 @@ export class HUD {
     document.getElementById('ui-layer').appendChild(this.pauseOverlay);
     void this.pauseOverlay.offsetWidth;
     this.pauseOverlay.classList.add('visible');
+    // A player who paused with a controller has to be able to leave with one.
+    this._pauseNavHandle = MenuNav.push(this.pauseOverlay, { onCancel: onResume });
   }
 
   hidePause() {
+    this._pauseNavHandle?.pop();
+    this._pauseNavHandle = null;
     this.pauseOverlay.classList.remove('visible');
     setTimeout(() => this.pauseOverlay.remove(), 260);
   }

@@ -7,6 +7,7 @@
  */
 
 import { Settings, PRESETS, DEFAULT_KEYBINDS } from '../core/Settings.js';
+import { MenuNav } from './MenuNav.js';
 import { Audio } from '../audio/AudioEngine.js';
 import {
   makeSlider, makeToggle, makeSelect, makeKeybind, makeButton, makeSectionHeader, el,
@@ -548,6 +549,12 @@ export class SettingsMenu {
     // Force a reflow so the CSS transition actually runs on first open.
     void this.root.offsetWidth;
     this.root.classList.add('visible');
+    this._nav = MenuNav.push(this.root, {
+      onCancel: () => {
+        if (this.input.captureNextKey) return;   // a rebind is armed
+        this.close();
+      },
+    });
 
     this._esc = (e) => {
       // If a rebind is armed, Escape should cancel that, not close the dialog.
@@ -562,6 +569,8 @@ export class SettingsMenu {
   close() {
     if (!this.open) return;
     this.open = false;
+    this._nav?.pop();
+    this._nav = null;
     this.root.classList.remove('visible');
     window.removeEventListener('keydown', this._esc);
     setTimeout(() => this.root.remove(), 280);

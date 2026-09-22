@@ -162,7 +162,11 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(2, 2, 3, 0.72);
+  /* 0.9, not 0.72. The title behind this is near-white at 148px and a
+     backdrop blur is not guaranteed — it is unsupported on some GPUs and
+     silently ignored — so the scrim has to do the work on its own. At 0.72
+     the word STITCHWORK read straight through the settings panel. */
+  background: rgba(2, 2, 3, 0.9);
   backdrop-filter: blur(9px) saturate(0.5);
   -webkit-backdrop-filter: blur(9px) saturate(0.5);
   opacity: 0;
@@ -505,4 +509,254 @@
   .opt-row { flex-direction: column; align-items: flex-start; gap: 10px; }
   .opt-slider { width: 100%; }
   .opt-control { width: 100%; justify-content: space-between; }
+}
+
+/* ==========================================================================
+   Keyboard / controller navigation
+   ==========================================================================
+   The front end is driven by MenuNav, which marks exactly one element in the
+   live layer with `.nav-on`. This is the only thing that tells a player with a
+   pad in their hands where they are, so it is deliberately loud: a warm rule
+   down the leading edge, a lift, and a faint bloom. It has to be readable over
+   the live 3D theatre behind it. */
+
+.nav-on {
+  position: relative;
+  outline: none;
+}
+
+.sw-btn.nav-on {
+  background: linear-gradient(90deg, rgba(194, 59, 46, 0.16), transparent 62%);
+  color: var(--bone);
+}
+.sw-btn.nav-on::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8%;
+  bottom: 8%;
+  width: 3px;
+  background: var(--blood-lit);
+  box-shadow: 0 0 12px rgba(194, 59, 46, 0.7);
+}
+
+.opt-action.nav-on,
+.opt-toggle.nav-on,
+.opt-keybind.nav-on {
+  border-color: var(--blood-lit);
+  box-shadow: 0 0 0 1px rgba(194, 59, 46, 0.45), 0 0 18px rgba(194, 59, 46, 0.22);
+}
+
+/* --- chapter cards -------------------------------------------------------- */
+
+.ch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 18px;
+  padding: 4px 2px 10px;
+}
+
+.ch-card {
+  display: block;
+  text-align: left;
+  padding: 0;
+  border: 1px solid rgba(232, 224, 210, 0.1);
+  background: rgba(10, 9, 8, 0.55);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 180ms var(--ease-out), transform 180ms var(--ease-out);
+}
+.ch-card:hover,
+.ch-card.nav-on {
+  border-color: var(--blood-lit);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6), 0 0 22px rgba(194, 59, 46, 0.16);
+}
+.ch-card[disabled] {
+  cursor: default;
+  opacity: 0.34;
+}
+.ch-card[disabled]:hover { transform: none; border-color: rgba(232, 224, 210, 0.1); }
+
+.ch-card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: saturate(0.82) contrast(1.06);
+}
+
+.ch-card-body { padding: 12px 14px 15px; }
+
+.ch-card-no {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  color: rgba(232, 224, 210, 0.34);
+}
+.ch-card-title {
+  font-family: var(--title-font);
+  font-size: 21px;
+  letter-spacing: 0.03em;
+  color: var(--bone);
+  margin-top: 3px;
+}
+.ch-card-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(232, 224, 210, 0.46);
+  font-style: italic;
+  margin-top: 7px;
+  min-height: 3em;
+}
+.ch-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 11px;
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.3);
+}
+
+/* The stub progress bar: twelve are hidden across the building and finding
+   them all changes the ending, so the count belongs where chapters are chosen
+   rather than buried in the archive. */
+.ch-stubs {
+  display: flex;
+  gap: 3px;
+}
+.ch-stub {
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(232, 224, 210, 0.26);
+  transform: rotate(45deg);
+}
+.ch-stub.got {
+  background: var(--blood-lit);
+  border-color: var(--blood-lit);
+  box-shadow: 0 0 7px rgba(194, 59, 46, 0.6);
+}
+
+/* --- archive -------------------------------------------------------------- */
+
+.arch-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.arch-item {
+  display: block;
+  text-align: left;
+  padding: 11px 13px;
+  border: 1px solid rgba(232, 224, 210, 0.09);
+  background: rgba(14, 12, 11, 0.5);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out);
+}
+.arch-item:hover,
+.arch-item.nav-on {
+  border-color: var(--blood-lit);
+  background: rgba(30, 16, 14, 0.55);
+}
+.arch-item .k {
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.3);
+}
+.arch-item .t {
+  font-size: 16px;
+  color: var(--bone);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+.arch-empty {
+  font-size: 15px;
+  font-style: italic;
+  color: rgba(232, 224, 210, 0.3);
+  padding: 8px 0 14px;
+}
+
+/* --- the run panel -------------------------------------------------------- */
+
+#menu-run {
+  position: absolute;
+  right: clamp(28px, 7vw, 120px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(340px, 34vw);
+  padding: 22px 24px 24px;
+  border-left: 1px solid rgba(232, 224, 210, 0.12);
+  background: linear-gradient(90deg, transparent, rgba(6, 5, 5, 0.55));
+  pointer-events: none;
+}
+@media (max-width: 900px) { #menu-run { display: none; } }
+
+#menu-run .run-k {
+  font-family: var(--mono-font);
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.3);
+}
+#menu-run .run-ch {
+  font-family: var(--title-font);
+  font-size: 24px;
+  letter-spacing: 0.03em;
+  color: var(--bone);
+  margin-top: 9px;
+  line-height: 1.2;
+}
+#menu-run .run-sub {
+  font-size: 14px;
+  font-style: italic;
+  color: rgba(232, 224, 210, 0.44);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+#menu-run .run-when {
+  font-family: var(--mono-font);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.26);
+  margin-top: 12px;
+}
+#menu-run .run-blurb {
+  font-size: 15px;
+  line-height: 1.7;
+  font-style: italic;
+  color: rgba(232, 224, 210, 0.4);
+  margin: 12px 0 0;
+}
+#menu-run .run-stats {
+  display: flex;
+  gap: 22px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(232, 224, 210, 0.08);
+}
+#menu-run .run-stat { display: flex; flex-direction: column; }
+#menu-run .run-stat .v {
+  font-family: var(--title-font);
+  font-size: 20px;
+  color: var(--bone);
+  line-height: 1;
+}
+#menu-run .run-stat .l {
+  font-family: var(--mono-font);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 210, 0.28);
+  margin-top: 6px;
 }

@@ -9,14 +9,21 @@
 import { Audio } from '../audio/AudioEngine.js';
 import { Save, formatWhen, formatPlaytime } from '../save/SaveSystem.js';
 import { CHAPTERS, TOTAL_STUBS, isChapterBuilt, BUILT_CHAPTERS } from '../chapters/ChapterData.js';
+import { getNote, getTape, getStub } from '../chapters/StoryContent.js';
+import { chapterArt } from './ChapterArt.js';
 import { el } from './Widgets.js';
+import { MenuNav } from './MenuNav.js';
 import { Settings } from '../core/Settings.js';
 
 const TITLE = 'STITCHWORK';
 
 export class MainMenu {
-  constructor({ settingsMenu, onNewGame, onContinue, onChapterSelect }) {
+  constructor({ settingsMenu, reader = null, onNewGame, onContinue, onChapterSelect }) {
     this.settingsMenu = settingsMenu;
+    // The archive needs somewhere to show what it finds. It is the same reader
+    // the game uses in a level, so a note read from the menu looks exactly
+    // like the note read off the floor it was lying on.
+    this.reader = reader;
     this.onNewGame = onNewGame;
     this.onContinue = onContinue;
     this.onChapterSelect = onChapterSelect;
@@ -66,6 +73,15 @@ export class MainMenu {
     this.nav = nav;
     root.appendChild(nav);
 
+    // ---- the run panel -----------------------------------------------------
+    // The right two thirds of this screen were empty, and the single most
+    // useful thing a front end can tell you is where you left off. Built here
+    // and refilled on every show, because it changes every time you play.
+    const run = el('aside');
+    run.id = 'menu-run';
+    this.runPanel = run;
+    root.appendChild(run);
+
     // ---- footer ------------------------------------------------------------
     const footer = el('div');
     footer.id = 'menu-footer';
@@ -89,8 +105,53 @@ export class MainMenu {
   }
 
   /** Rebuilt whenever the menu is shown, so Continue reflects the latest save. */
+  /** The "where you left off" panel, rebuilt with the buttons. */
+  _buildRunPanel() {
+    const box = this.runPanel;
+    box.innerHTML = '';
+
+    const save = Save.peekSlot(0);
+    const stubs = Save.stubCount;
+    const notes = Save.profile.foundNotes.length + Save.profile.foundTapes.length;
+
+    if (!save) {
+      box.classList.add('empty');
+      box.appendChild(el('div', 'run-k', 'No run in progress'));
+      box.appendChild(el('p', 'run-blurb',
+        'Hollowhart Puppet Works closed on the fourteenth of November 1986, '
+        + 'between the half and beginners, and nobody has been inside since. '
+        + 'Your sister went in on Tuesday.'));
+      return;
+    }
+    box.classList.remove('empty');
+
+    const ch = CHAPTERS.find((c) => c.id === save.chapter);
+    box.appendChild(el('div', 'run-k', 'Where you left off'));
+    box.appendChild(el('div', 'run-ch', `Chapter ${String(save.chapter).padStart(2, '0')} — ${ch?.title ?? '?'}`));
+    if (ch?.subtitle) box.appendChild(el('div', 'run-sub', ch.subtitle));
+    box.appendChild(el('div', 'run-when', formatWhen(save.savedAt)));
+
+    const stats = el('div', 'run-stats');
+    const stat = (v, l) => {
+      const d = el('div', 'run-stat');
+      d.appendChild(el('span', 'v', String(v)));
+      d.appendChild(el('span', 'l', l));
+      return d;
+    };
+    stats.append(
+      stat(formatPlaytime(Save.profile.totalPlaytime), 'inside'),
+      stat(`${stubs}/${TOTAL_STUBS}`, 'stubs'),
+      stat(notes, 'recovered'),
+    );
+    box.appendChild(stats);
+  }
+
   _buildButtons() {
     this.nav.innerHTML = '';
+    this._buildRunPanel();
+    // Rebuilt in place while the menu is up (Continue changes after a save),
+    // so the nav layer has to be told its items moved.
+    queueMicrotask(() => this._nav?.refresh());
 
     const save = Save.peekSlot(0);
     const highest = Save.highestChapter;
@@ -151,8 +212,7 @@ export class MainMenu {
     add(
       'Archive',
       found > 0 ? `${found} recovered · ${Save.stubCount}/${TOTAL_STUBS} stubs` : 'Nothing recovered yet',
-      () => this._openArchive(),
-      { disabled: found === 0 && Save.stubCount === 0 }
+      () => this._openArchive()
     );
 
     add('Credits', null, () => this._openCredits());
@@ -205,18 +265,17 @@ export class MainMenu {
     void overlay.offsetWidth;
     overlay.classList.add('visible');
 
-    const onKey = (e) => {
-      if (e.code === 'Escape') {
-        Audio.uiBack();
-        close();
-      }
-    };
+    // A dialog takes navigation from whatever is underneath it and hands it
+    // back on close, with the selection underneath still where it was.
+    const nav = MenuNav.push(overlay, { onCancel: () => close() });
+
     function close() {
+      if (overlay._closed) return;
+      overlay._closed = true;
+      nav.pop();
       overlay.classList.remove('visible');
-      window.removeEventListener('keydown', onKey);
       setTimeout(() => overlay.remove(), 280);
     }
-    window.addEventListener('keydown', onKey);
     overlay.addEventListener('mousedown', (e) => {
       if (e.target === overlay) {
         Audio.uiBack();
@@ -224,7 +283,7 @@ export class MainMenu {
       }
     });
 
-    return { overlay, close };
+    return { overlay, close, nav };
   }
 
   _confirm(title, message, onYes) {
@@ -258,102 +317,169 @@ export class MainMenu {
   }
 
   _openChapterSelect() {
-    this._dialog('Chapter Select', 'Replaying a chapter does not erase your current run', () => {
-      const frag = document.createDocumentFragment();
+    this._dialog(
+      'Chapter Select',
+      'Every built chapter is playable from the start. Replaying one does not erase your run.',
+      () => {
+        const frag = document.createDocumentFragment();
+        const grid = el('div', 'ch-grid');
 
-      for (const ch of CHAPTERS) {
-        // Built, not unlocked. See BUILT_CHAPTERS.
-        const unlocked = isChapterBuilt(ch.id);
-        const reached = Save.isChapterUnlocked(ch.id);
-        const card = el('div');
-        card.style.cssText = `
-          display:flex; gap:20px; align-items:flex-start;
-          padding:18px 0; border-bottom:1px solid rgba(232,224,210,0.06);
-          opacity:${unlocked ? 1 : 0.32};`;
+        for (const ch of CHAPTERS) {
+          // Built, not unlocked. Locking the chapter list behind progress
+          // meant the one thing a new player could not do was look at what
+          // was in the game.
+          const built = isChapterBuilt(ch.id);
+          const reached = Save.isChapterUnlocked(ch.id);
 
-        const num = el('div', null, String(ch.id).padStart(2, '0'));
-        num.style.cssText = `
-          font-family:var(--title-font); font-size:40px; line-height:1;
-          color:${unlocked ? 'var(--blood-lit)' : 'rgba(232,224,210,0.2)'};
-          min-width:60px;`;
-        card.appendChild(num);
+          const card = el('button', 'ch-card');
+          card.type = 'button';
+          card.disabled = !built;
 
-        const text = el('div');
-        text.style.cssText = 'flex:1;min-width:0;';
-        const t = el('div', null, ch.title);
-        t.style.cssText = 'font-size:23px;color:var(--bone);letter-spacing:0.04em;';
-        text.appendChild(t);
+          card.appendChild(chapterArt(ch.id, built));
 
-        const st = el('div', null, unlocked ? ch.subtitle : 'Not built yet');
-        st.style.cssText = 'font-family:var(--mono-font);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(232,224,210,0.32);margin-top:4px;';
-        text.appendChild(st);
+          const body = el('div', 'ch-card-body');
+          body.appendChild(el('div', 'ch-card-no', `Chapter ${String(ch.id).padStart(2, '0')}`));
+          body.appendChild(el('div', 'ch-card-title', ch.title));
+          body.appendChild(el('div', 'ch-card-sub', built ? ch.blurb : 'Not built yet.'));
 
-        if (unlocked) {
-          const blurb = el('p', null, ch.blurb);
-          blurb.style.cssText = 'font-size:16px;line-height:1.55;color:rgba(232,224,210,0.5);margin:10px 0 0;max-width:62ch;font-style:italic;';
-          text.appendChild(blurb);
+          const meta = el('div', 'ch-card-meta');
+          if (built) {
+            meta.appendChild(el('span', null,
+              `${ch.estimatedMinutes} min · ${ch.lensName ? ch.lensName : 'finale'}${reached ? '' : ' · new'}`));
 
-          const meta = el('div');
-          meta.style.cssText = 'font-family:var(--mono-font);font-size:10px;letter-spacing:0.14em;color:rgba(232,224,210,0.28);margin-top:8px;';
-          const foundStubs = Save.profile.foundStubs.filter((s) => s.startsWith(`ch${ch.id}`)).length;
-          meta.textContent =
-            `~${ch.estimatedMinutes} MIN · STUBS ${foundStubs}/${ch.stubs}` +
-            (ch.lensName ? ` · LENS: ${ch.lensName.toUpperCase()}` : ' · FINALE') +
-            (reached ? '' : ' · NOT YET REACHED');
-          text.appendChild(meta);
+            // The stubs, as stubs. Twelve of them change how the game ends,
+            // so the count belongs where chapters are chosen and not buried
+            // three screens deep in the archive.
+            const stubs = el('div', 'ch-stubs');
+            const got = Save.profile.foundStubs.filter((x) => x.startsWith(`ch${ch.id}-`)).length;
+            for (let i = 0; i < ch.stubs; i++) {
+              stubs.appendChild(el('span', `ch-stub${i < got ? ' got' : ''}`));
+            }
+            meta.appendChild(stubs);
+          } else {
+            meta.appendChild(el('span', null, 'Coming in a later build'));
+          }
+          body.appendChild(meta);
+          card.appendChild(body);
+
+          if (built) {
+            card.addEventListener('click', () => {
+              Audio.uiClick();
+              this.onChapterSelect(ch.id);
+            });
+            card.addEventListener('mouseenter', () => Audio.uiHover());
+          } else {
+            card.addEventListener('click', () => Audio.uiDenied());
+          }
+
+          grid.appendChild(card);
         }
-        card.appendChild(text);
 
-        if (unlocked) {
-          const play = el('button', 'opt-action', 'Play');
-          play.type = 'button';
-          play.style.flexShrink = '0';
-          play.addEventListener('click', () => {
-            Audio.uiClick();
-            this.onChapterSelect(ch.id);
-          });
-          play.addEventListener('mouseenter', () => Audio.uiHover());
-          card.appendChild(play);
-        }
-
-        frag.appendChild(card);
-      }
-      return frag;
-    }, { wide: true });
+        frag.appendChild(grid);
+        return frag;
+      },
+      { wide: true }
+    );
   }
 
   _openArchive() {
-    this._dialog('Archive', 'Everything you have recovered from the building', () => {
-      const frag = document.createDocumentFragment();
+    const { close } = this._dialog(
+      'Archive',
+      'Everything you have recovered from the building',
+      () => {
+        const frag = document.createDocumentFragment();
 
-      const summary = el('div');
-      summary.style.cssText = 'display:flex;gap:36px;margin:4px 0 22px;';
-      const stat = (n, label) => {
-        const d = el('div');
-        const v = el('div', null, String(n));
-        v.style.cssText = 'font-family:var(--title-font);font-size:34px;color:var(--bone);line-height:1;';
-        const l = el('div', null, label);
-        l.style.cssText = 'font-family:var(--mono-font);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(232,224,210,0.3);margin-top:6px;';
-        d.append(v, l);
-        return d;
-      };
-      summary.append(
-        stat(Save.profile.foundNotes.length, 'Notes'),
-        stat(Save.profile.foundTapes.length, 'Tapes'),
-        stat(`${Save.stubCount}/${TOTAL_STUBS}`, 'Ticket stubs'),
-        stat(formatPlaytime(Save.profile.totalPlaytime), 'Time inside'),
-      );
-      frag.appendChild(summary);
+        const summary = el('div');
+        summary.style.cssText = 'display:flex;gap:36px;margin:4px 0 22px;flex-wrap:wrap;';
+        const stat = (n, label) => {
+          const d = el('div');
+          const v = el('div', null, String(n));
+          v.style.cssText = 'font-family:var(--title-font);font-size:34px;color:var(--bone);line-height:1;';
+          const l = el('div', null, label);
+          l.style.cssText = 'font-family:var(--mono-font);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(232,224,210,0.3);margin-top:6px;';
+          d.append(v, l);
+          return d;
+        };
+        summary.append(
+          stat(Save.profile.foundNotes.length, 'Notes'),
+          stat(Save.profile.foundTapes.length, 'Tapes'),
+          stat(`${Save.stubCount}/${TOTAL_STUBS}`, 'Ticket stubs'),
+          stat(formatPlaytime(Save.profile.totalPlaytime), 'Time inside'),
+        );
+        frag.appendChild(summary);
 
-      const note = el('p');
-      note.style.cssText = 'font-size:17px;line-height:1.65;color:rgba(232,224,210,0.45);max-width:62ch;font-style:italic;';
-      note.textContent = Save.stubCount >= TOTAL_STUBS
-        ? 'You have all twelve. She left one in every room she was ever alone in.'
-        : 'Collected notes, tapes and rehearsal reels are readable here once found. Twelve ticket stubs are hidden across the building — find all of them to change how this ends.';
-      frag.appendChild(note);
+        // The archive used to be four numbers and a sentence. Everything the
+        // player had picked up and read once was, from then on, gone — which
+        // for a game whose entire story is told on scraps of paper is the same
+        // as not having a story. Every recovered item is re-readable here.
+        const section = (heading, ids, get, onOpen) => {
+          frag.appendChild(el('div', 'opt-section', heading));
+          if (!ids.length) {
+            frag.appendChild(el('p', 'arch-empty', 'Nothing yet.'));
+            return;
+          }
+          const list = el('div', 'arch-list');
+          for (const id of ids) {
+            const item = get(id);
+            if (!item) continue;
+            const b = el('button', 'arch-item');
+            b.type = 'button';
+            b.appendChild(el('div', 'k', `Chapter ${item.chapter ?? '?'}`));
+            b.appendChild(el('div', 't', item.title ?? id));
+            b.addEventListener('click', () => {
+              Audio.uiClick();
+              close();
+              onOpen(item);
+            });
+            b.addEventListener('mouseenter', () => Audio.uiHover());
+            list.appendChild(b);
+          }
+          frag.appendChild(list);
+        };
 
-      return frag;
-    });
+        const sortByChapter = (ids, get) =>
+          [...ids].sort((a, b) => (get(a)?.chapter ?? 9) - (get(b)?.chapter ?? 9));
+
+        section('Notes', sortByChapter(Save.profile.foundNotes, getNote), getNote,
+          (n) => this.reader?.showNote(n));
+        section('Tapes and reels', sortByChapter(Save.profile.foundTapes, getTape), getTape,
+          (t) => this.reader?.showTape(t));
+
+        frag.appendChild(el('div', 'opt-section', 'Ticket stubs'));
+        const stubRow = el('div', 'arch-list');
+        for (const id of sortByChapter(Save.profile.foundStubs, getStub)) {
+          const stub = getStub(id);
+          if (!stub) continue;
+          const b = el('button', 'arch-item');
+          b.type = 'button';
+          b.appendChild(el('div', 'k', `Chapter ${stub.chapter} · no. ${stub.index}`));
+          b.appendChild(el('div', 't', stub.back));
+          b.addEventListener('click', () => {
+            Audio.uiClick();
+            close();
+            this.reader?.showStub(stub, { found: Save.stubCount, total: TOTAL_STUBS });
+          });
+          b.addEventListener('mouseenter', () => Audio.uiHover());
+          stubRow.appendChild(b);
+        }
+        if (!Save.stubCount) {
+          frag.appendChild(el('p', 'arch-empty',
+            'Twelve are hidden across the building. Find all of them to change how this ends.'));
+        } else {
+          frag.appendChild(stubRow);
+        }
+
+        if (Save.stubCount >= TOTAL_STUBS) {
+          const all = el('p', 'arch-empty');
+          all.style.fontStyle = 'italic';
+          all.textContent = 'You have all twelve. She left one in every room she was ever alone in.';
+          frag.appendChild(all);
+        }
+
+        return frag;
+      },
+      { wide: true }
+    );
   }
 
   _openCredits() {
@@ -405,11 +531,14 @@ export class MainMenu {
     document.getElementById('static-overlay').classList.add('on');
     void this.root.offsetWidth;
     this.root.classList.add('visible');
+    this._nav = MenuNav.push(this.root);
   }
 
   hide() {
     if (!this.visible) return;
     this.visible = false;
+    this._nav?.pop();
+    this._nav = null;
     this.root.classList.add('leaving');
     this.root.classList.remove('visible');
     document.getElementById('static-overlay').classList.remove('on');

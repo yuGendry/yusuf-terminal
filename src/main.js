@@ -28,6 +28,7 @@ import { CHAPTERS, BUILT_CHAPTERS } from './chapters/ChapterData.js';
 import { setTextureAnisotropy } from './world/Textures.js';
 
 import { MenuScene } from './menu/MenuScene.js';
+import { MenuNav } from './ui/MenuNav.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { SettingsMenu } from './ui/SettingsMenu.js';
 import { HUD } from './ui/HUD.js';
@@ -156,6 +157,10 @@ class App {
 
     this.mainMenu = new MainMenu({
       settingsMenu: this.settingsMenu,
+      // The archive reads notes and plays tapes with the same reader the game
+      // uses in a level, so a note reread from the menu looks exactly like the
+      // note picked up off the floor it was lying on.
+      reader: this.game.reader,
       onNewGame: () => this.startGame({ fresh: true, chapter: 1, intro: true }),
       onContinue: () => this.startGame({ fresh: false }),
       onChapterSelect: (id) => this.startGame({ fresh: true, chapter: id }),
@@ -531,6 +536,7 @@ class App {
     if (this.state === 'menu') {
       this.menuScene.update(dt);
       this.music?.update(dt);
+      MenuNav.update(dt, this.input);
     } else if (this.state === 'cinematic') {
       // A cinematic owns the camera and the clock. Nothing else ticks — no
       // physics, no AI — so a player who leaves one running is not quietly
@@ -564,7 +570,12 @@ class App {
       this.togglePause();
     }
 
-    if (this.paused) return;
+    if (this.paused) {
+      // The pause menu is a front end too, and a player who paused with a
+      // controller has to be able to un-pause with it.
+      MenuNav.update(dt, this.input);
+      return;
+    }
 
     this.game.update(dt);
     Save.profile.totalPlaytime += 0;   // Game owns the accounting
