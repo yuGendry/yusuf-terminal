@@ -242,7 +242,7 @@
 <script src="lib/three.bundle.js"></script>
 
 <script>
-const { THREE, EffectComposer, RenderPass, UnrealBloomPass, ShaderPass } = window;
+const { THREE, EffectComposer, RenderPass, UnrealBloomPass, ShaderPass, OutputPass } = window;
 if (!THREE) {
   document.getElementById('err').style.display = 'flex';
   document.getElementById('errmsg').textContent = 'lib/three.bundle.js did not load — keep it next to index.html.';
@@ -576,13 +576,18 @@ const GradeShader = {
     }`
 };
 
+/* Pass order matters: the scene and bloom are composited in linear space,
+   OutputPass applies tone mapping + sRGB, and the grade (grain, vignette,
+   glitch) runs last, in display space, straight to the screen. */
 const composer   = new EffectComposer(renderer);
 let renderPass   = new RenderPass(scene, camera);
 const bloomPass  = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.48, 0.5, 0.92);
+const outputPass = new OutputPass();
 const gradePass  = new ShaderPass(GradeShader);
 gradePass.renderToScreen = true;
 composer.addPass(renderPass);
 composer.addPass(bloomPass);
+composer.addPass(outputPass);
 composer.addPass(gradePass);
 const GU = gradePass.uniforms;
 
@@ -1134,7 +1139,7 @@ function buildApartment() {
   plane(root, { x: -3, z: -3, w: 6, d: 8, material: MW.floorBed });                 // bedroom
   plane(root, { x: 5.5, z: -3.6, w: 11, d: 6.8, material: MW.floorLiv });           // living
   plane(root, { x: 5.5, z: .3, w: 11, d: 1.4, material: MW.floorKit });             // kitchen strip
-  plane(root, { x: 2.5, y: CEIL, w: 17.4, d: 8.4, material: MW.ceil, rx: Math.PI / 2 });
+  plane(root, { x: 2.5, y: CEIL, z: -3, w: 17.4, d: 8.4, material: MW.ceil, rx: Math.PI / 2 });
 
   /* ---------- outer shell ---------- */
   const T = .22;                                     // wall thickness
@@ -1219,11 +1224,21 @@ function buildApartment() {
   WORLD.rain = rain;
 
   /* ---------- lighting ---------- */
-  sc.add(new THREE.HemisphereLight(0x3c5378, 0x17181f, 2.3));
+  // Ambient: diffuse shading divides irradiance by PI, and these surfaces are
+  // dark, so the moonlight bounce needs a much larger number than it looks.
+  sc.add(new THREE.HemisphereLight(0x4a638e, 0x1c1e26, 2.5));
   // practical fills so the flat is navigable without ever feeling lit
-  const bedFill = new THREE.PointLight(0x5d7cb4, 20, 13, 1.6); bedFill.position.set(-3.6, 2.35, -4.2); sc.add(bedFill);
-  const livFill = new THREE.PointLight(0x55709e, 22, 16, 1.6); livFill.position.set(7.4, 2.4, -4.6); sc.add(livFill);
-  const moon = new THREE.DirectionalLight(0x9db7e0, 3.2);
+  const fills = [
+    [-3.6, 2.35, -4.2, 0x5d7cb4, 22],   // bedroom, over the bed
+    [-3.4, 2.35, -1.4, 0x536f9e, 16],   // bedroom, south end
+    [ 2.2, 2.35, -3.6, 0x51699a, 16],   // the doorway between the two rooms
+    [ 7.4, 2.40, -4.6, 0x55709e, 22],   // living room
+    [ 9.4, 2.35, -1.6, 0x4f6890, 16]    // by the front door
+  ].map(([x, y, z, c, i]) => {
+    const l = new THREE.PointLight(c, i, 14, 1.6);
+    l.position.set(x, y, z); sc.add(l); return l;
+  });
+  const moon = new THREE.DirectionalLight(0x9db7e0, 2.2);
   moon.position.set(-16, 9, -9); moon.target.position.set(-2, .6, -3.6);
   moon.castShadow = true;
   moon.shadow.mapSize.set(1024, 1024);
@@ -1459,10 +1474,10 @@ function buildApartment() {
 
   /* ---------- ceiling lamp (off) + dust ---------- */
   const cord = new THREE.Mesh(new THREE.CylinderGeometry(.008, .008, .5, 6), MW.dark);
-  cord.position.set(5.5, 2.55, -3.2); root.add(cord);
-  const shade2 = new THREE.Mesh(new THREE.ConeGeometry(.3, .28, 16, 1, true),
-    mat({ color: 0x24262b, roughness: .8, side: THREE.DoubleSide }));
-  shade2.position.set(5.5, 2.24, -3.2); root.add(shade2);
+  cord.position.set(6.4, 2.55, -2.2); root.add(cord);
+  const shade2 = new THREE.Mesh(new THREE.ConeGeometry(.26, .24, 16, 1, true),
+    mat({ color: 0x3a3d44, roughness: .8, side: THREE.DoubleSide }));
+  shade2.position.set(6.4, 2.26, -2.2); root.add(shade2);
 
   // floating dust motes
   const dustG = new THREE.BufferGeometry();
@@ -2028,7 +2043,7 @@ async function startNewGame() {
 
   const sc = buildApartment();
   scene = sc; renderPass.scene = sc;
-  renderer.toneMappingExposure = 2.5;     // night interior, lit only by the city and one lamp
+  renderer.toneMappingExposure = 1.35;    // night interior: dark, but you can walk it
   GAME.menuScene = GAME.menuScene || null;
 
   // the body in the bed
@@ -2268,7 +2283,7 @@ function killLights() {
   let t = 0;
   const iv = setInterval(() => {
     t += .09;
-    L.light.intensity = (Math.random() < .5 ? 0 : 1) * (L.on ? 38 : 0) * Math.max(0, 1 - t);
+    L.light.intensity = (Math.random() < .5 ? 0 : 1) * (L.on ? 26 : 0) * Math.max(0, 1 - t);
     if (t >= 1) {
       clearInterval(iv);
       L.on = false; L.target = 0; L.light.intensity = 0;
@@ -2428,7 +2443,7 @@ function updateWorld(dt) {
   // ---- bedside lamp
   const L = WORLD.lamp;
   if (L) {
-    let want = L.target * 38;
+    let want = L.target * 26;
     if (lampFlickerT > 0) {
       lampFlickerT -= dt;
       want *= (Math.random() < .25 ? .12 : 1) * rand(.5, 1.15);
