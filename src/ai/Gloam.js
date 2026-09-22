@@ -56,6 +56,8 @@ export class Gloam extends EventBus {
 
     this.position = new THREE.Vector3().copy(this.patrol[0] ?? new THREE.Vector3());
     this.target = this.position.clone();
+    /** Set by `lure`: somewhere the level has sent it, overriding its senses. */
+    this._lure = null;
     this.speed = 0;
     /** Confidence that the last sound was the player, 0..1. */
     this.interest = 0;
@@ -172,6 +174,7 @@ export class Gloam extends EventBus {
    */
   hear(position, loudness) {
     if (!this.enabled || loudness < HEARING_FLOOR) return;
+    if (this.lured) return;   // it is busy
 
     const distance = this.position.distanceTo(position);
     // Inverse-square-ish falloff, then a hard range cut.
@@ -187,9 +190,56 @@ export class Gloam extends EventBus {
     else if (this.state === STATE.LISTENING) this.setState(STATE.INVESTIGATING);
   }
 
+  /**
+   * Send it somewhere and keep it there, regardless of what it can hear.
+   *
+   * A level needs this for a set piece — Chapter 3's tannoy call goes out over
+   * a horn at a dead end and this thing goes to answer it, which is the whole
+   * point of running the call. `hear` cannot express that: it is distance-
+   * attenuated by design, so a sound twenty-five metres away at the far end of
+   * a corridor is, correctly, not heard. A lure is the level saying "it went",
+   * not the player making a noise.
+   *
+   * While lured it ignores the player entirely. It will still catch them if
+   * they walk into it, because walking into it should never be survivable.
+   */
+  lure(position, seconds = 22) {
+    if (!this.enabled) return;
+    this._lure = { at: position.clone(), until: this.engine.elapsed + seconds };
+    this.interest = 1;
+    this.target.copy(position);
+    this.setState(STATE.HUNTING);
+    this.emit('lured', this._lure);
+  }
+
+  get lured() {
+    return !!this._lure && this.engine.elapsed < this._lure.until;
+  }
+
   update(dt, { maskHum = 0 } = {}) {
     if (!this.enabled) return;
     this.stateTime += dt;
+
+    // A lure overrides everything, including the player's own footsteps: it is
+    // gone, and it stays gone for as long as the level said.
+    if (this._lure) {
+      if (this.engine.elapsed >= this._lure.until) {
+        this._lure = null;
+        this.interest = 0.2;
+        this.setState(STATE.LISTENING);
+      } else {
+        this.target.copy(this._lure.at);
+        this.speed = damp(this.speed, 3.2, 3, dt);
+        this._move(dt);
+        this._animate(dt);
+        this._audio(dt);
+        if (this.position.distanceTo(this.player.position) < CATCH_DISTANCE) {
+          this.setState(STATE.FEEDING);
+          this.emit('caught', this);
+        }
+        return;
+      }
+    }
 
     // The mask's hum is a continuous sound source at the player's position —
     // wearing it anywhere near this thing is simply telling it where you are.
@@ -380,6 +430,7 @@ export class Gloam extends EventBus {
   }
 
   reset() {
+    this._lure = null;
     this.position.copy(this.patrol[0] ?? new THREE.Vector3());
     this.target.copy(this.position);
     this.interest = 0;

@@ -201,6 +201,42 @@ Line them up and you will see what the rest of us saw and were told we had not.
 Do not tell her you have looked.`,
   },
 
+  'ch3-note-calls': {
+    chapter: 3,
+    title: 'Pinned above the calls panel',
+    body: `Whoever is on the book: the panel is not a doorbell. You are not asking them to come. You are telling them the show has started without them.
+
+Press the rooms in the order on the sheet. One at a time. Wait for the lamp.
+
+Room 3 is not to be called. Not for the half, not for beginners, not ever. If you press 3 the whole call resets and you will start again from the top, and she will hear you do it.
+
+I am aware of how this reads. Press the rooms on the sheet, skip 3, and go home at the end of your shift like the rest of us.`,
+  },
+  'ch3-note-cylinder': {
+    chapter: 3,
+    title: 'In dressing room 3, under a cold light',
+    body: `I took the cylinder out of the box myself and I am not putting it back.
+
+Marta says the tune is a key. It is not a key. A key opens a door for whoever holds it. This opens a door for whoever the door recognises, and I have watched it refuse people who worked here twenty years.
+
+I am leaving it here because nobody comes to 3 any more, and because I would rather it be lost than be useful.
+
+If you have found it, then you have been where nobody goes, which means you are not looking for a shortcut. You are looking for someone.
+
+Take it. I hope she is still your sister when you get there.`,
+  },
+  'ch3-note-crossover': {
+    chapter: 3,
+    title: 'Chalked on a board at the crossover mouth',
+    body: `KEEP TO THE BOARDS
+
+The crossover is the only way from one side to the other and it is forty feet of other people's rubbish. Flats, weights, a dead hamper, six years of everything nobody would carry upstairs.
+
+The crew wore a path down the middle of it in the dark, twice a night, for eleven years. That path is still there and it is the only quiet ground in the room.
+
+You cannot see it. Somebody who worked here could walk it blind.`,
+  },
+
   // ---- Chapter 4 : Backstage --------------------------------------------
   'ch4-note-pumps': {
     chapter: 4,
@@ -351,6 +387,7 @@ export const STUBS = {
   'ch2-stub-3': { chapter: 2, index: 6, back: 'If the hands on the rack are pointing the same way, something moved them.' },
   'ch3-stub-1': { chapter: 3, index: 7, back: 'I learned the tune before I learned to read. So did everyone here.' },
   'ch3-stub-2': { chapter: 3, index: 8, back: "Don't run from the one in the basement. Running is the whole thing it wants." },
+  'ch3-stub-3': { chapter: 3, index: 11, back: 'Dressing room 3 was given to nobody for eleven years and the light bill was paid every month.' },
   'ch4-stub-1': { chapter: 4, index: 9, back: 'The water is not the worst thing down here. The water is just how you know.' },
   'ch4-stub-2': { chapter: 4, index: 10, back: 'She kept the fourth lens for herself. I took it back. It is in her desk.' },
 };
@@ -446,6 +483,23 @@ export const RADIO = {
       { t: 0, text: 'Below this floor there is something with no eyes and a great many arms.' },
       { t: 6, text: 'It cannot see you. It cannot see anything. Crouch, go slowly, and for God\'s sake take the mask off — it sings, and that is all the thing needs.' },
       { t: 14, text: 'If you hear it stop, you stop too.' },
+    ],
+  },
+  'ch3-radio-4': {
+    chapter: 3,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'That is the calls panel. Stage management used it to call the company down for beginners.' },
+      { t: 6, text: 'Run the call properly and it goes out over every speaker in the building — including the one at the far end of the crossover.' },
+      { t: 13, text: 'Think about what that means for the thing in here with you. Think about it before you press anything.' },
+    ],
+  },
+  'ch3-radio-5': {
+    chapter: 3,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'It has gone for the speaker. That is your window and it is not a long one.' },
+      { t: 5, text: 'Go. Now. Keep to the boards and do not look at what is on the racks.' },
     ],
   },
   'ch3-radio-3': {

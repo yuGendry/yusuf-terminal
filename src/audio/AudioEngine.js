@@ -235,7 +235,14 @@ export class AudioEngine {
     src.buffer = this.noiseBuffer();
     src.loop = true;
     // Start at a random offset so repeated footsteps never sound identical.
-    const offset = Math.random() * (src.buffer.duration - duration - 0.01);
+    //
+    // Clamped, because the buffer is two seconds long and a caller asking for
+    // a longer noise than that produced a negative offset, which is not a
+    // quiet failure: `start()` throws, the sound never plays, and whatever
+    // called it stops dead mid-sequence. The source loops, so a longer
+    // duration than the buffer is fine — it simply wraps.
+    const room = Math.max(0, src.buffer.duration - duration - 0.01);
+    const offset = Math.random() * room;
 
     const filter = ctx.createBiquadFilter();
     filter.type = filterType;

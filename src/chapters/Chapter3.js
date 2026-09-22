@@ -62,6 +62,10 @@ export function buildChapter3(ctx) {
     marksHit: [],
     blockingDone: false,
     tineEntry: [],
+    callEntry: [],
+    callDone: false,
+    cylinderFound: false,
+    cylinderFitted: false,
     costumeDoorOpen: false,
     gramophoneWinds: 0,
     gramophoneTime: 0,
@@ -548,12 +552,22 @@ export function buildChapter3(ctx) {
       // two rooms' worth away from the practice room's west door, opening onto
       // the void between them.
       { side: 'e', at: 2, width: 1.8, top: 2.4 },
+      // West, into the crossover and the dressing rooms. The music box on the
+      // east side does not work until you have been through here.
+      { side: 'w', at: 0, width: 1.8, top: 2.4 },
     ],
   });
 
   // Costume racks forming the maze. Each is solid, so they are real cover.
+  //
+  // The x = -17 column used to be three nine-metre racks at z = -19, -24 and
+  // -29. Overlapping, they were a continuous wall of costume from z = -33.5 to
+  // -14.5 — the full depth of the room — which did not matter while the only
+  // ways out were east and south. The west doorway to the crossover is on the
+  // far side of it, so that column now leaves a four-metre aisle on the line
+  // of the door.
   const rackRows = [
-    [-17, -19, 9], [-17, -24, 9], [-17, -29, 9],
+    [-17, -19, 7], [-17, -30, 7],
     [-9, -20, 7], [-9, -28, 7],
     [-1, -19, 7], [-1, -27, 7],
     [6, -18, 6], [6, -25, 6],
@@ -614,7 +628,7 @@ export function buildChapter3(ctx) {
   puzzles.register({
     id: 'ch3-gloam',
     name: 'The Long Dark',
-    objective: 'Cross the costume floor. Quietly.',
+    objective: 'Cross the costume floor. Quietly. The way on is west.',
     marker: new THREE.Vector3(9, BAS_Y + 1, -22),
     hints: [
       'Whatever is down here has no eyes. Light does not give you away and darkness does not protect you. Only noise matters.',
@@ -624,8 +638,19 @@ export function buildChapter3(ctx) {
   });
 
   // The player's footsteps are what it hears — reported here, not sensed there.
+  //
+  // `crossoverNoise` is declared down with the crossover itself and hoists.
+  // A step off the worn boards in there lands on somebody's discarded scenery
+  // and is very much louder than a step anywhere else in the chapter.
   ctx.onFootstep = (info) => {
-    if (gloam.enabled) gloam.hear(info.position, info.loudness);
+    if (!gloam.enabled) return;
+    const debris = crossoverNoise(info.position);
+    if (debris > 0) {
+      audio?.woodSnap?.(info.position);
+      gloam.hear(info.position, Math.min(1, info.loudness + debris));
+      return;
+    }
+    gloam.hear(info.position, info.loudness);
   };
 
   kit.trigger({
@@ -635,6 +660,531 @@ export function buildChapter3(ctx) {
       music.setMood('tension');
       ctx.playRadio(RADIO['ch3-radio-2']);
     },
+  });
+
+  // ==========================================================================
+  // THE CROSSOVER  —  Chapter 3's second pursuit beat
+  // ==========================================================================
+  //
+  // Forty feet of everything nobody would carry upstairs, running west out of
+  // the costume store. It is the only way to the dressing rooms, and the music
+  // box on the far side of the building does not work without what is in one
+  // of them.
+  //
+  // The beat exists to make the player hold two lenses in their head at once,
+  // which nothing before this asks of them. Echo shows the path the crew wore
+  // down the middle of the boards over eleven years of two shows a night, and
+  // that worn strip is the only ground in the room that is quiet. But Echo is
+  // worn on the mask, and the mask hums, and Gloam hears the hum before it
+  // hears anything else. So the loop is: look, take it off, walk what you
+  // remember, lose it, stop, look again. The answer is visible the whole time
+  // and looking at it is what gets you killed.
+
+  const CROSS = { x: -33, z: -24, w: 24, d: 5, h: 3.4 };
+  const PATH_HALF = 0.95;   // metres either side of the centreline that are quiet
+
+  kit.room({
+    width: CROSS.w, depth: CROSS.d, height: CROSS.h, x: CROSS.x, z: CROSS.z, y: BAS_Y,
+    floorMat: material('stageFloor', { repeat: 8 }),
+    wallMat: material('wallPlaster', { repeat: 5 }),
+    ceilMat: material('ceiling', { repeat: 4 }),
+    surface: 'wood',
+    piers: false,
+    openings: [
+      { side: 'e', at: 0, width: 1.8, top: 2.4 },   // to the costume store
+      { side: 'w', at: 0, width: 1.8, top: 2.4 },   // to the dressing rooms
+    ],
+  });
+
+  /**
+   * How much louder a step is for being taken off the boards.
+   *
+   * Declared as a function rather than a const arrow because the footstep hook
+   * above refers to it and function declarations hoist. It is only ever called
+   * during play, by which time `CROSS` has initialised.
+   */
+  function crossoverNoise(p) {
+    if (p.x < CROSS.x - CROSS.w / 2 || p.x > CROSS.x + CROSS.w / 2) return 0;
+    if (p.z < CROSS.z - CROSS.d / 2 || p.z > CROSS.z + CROSS.d / 2) return 0;
+    const off = Math.abs(p.z - CROSS.z);
+    if (off <= PATH_HALF) return 0;
+    // Ramps up over the half-metre either side of the boards, so the edge of
+    // safety is something you can feel your way along rather than a tripwire.
+    return clamp((off - PATH_HALF) / 0.5, 0, 1) * 0.62;
+  }
+
+  // The worn path, under Echo. Eleven years of the same feet in the dark.
+  {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 512;
+    const g = c.getContext('2d');
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, 64, 512);
+    // A soft-edged strip: bright down the middle, gone by the edges, so the
+    // player reads a worn path rather than a painted lane.
+    const grad = g.createLinearGradient(0, 0, 64, 0);
+    grad.addColorStop(0, 'rgba(169,143,214,0)');
+    grad.addColorStop(0.5, 'rgba(169,143,214,0.85)');
+    grad.addColorStop(1, 'rgba(169,143,214,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 512);
+    // Footfalls, thicker where the path bends round the junk.
+    for (let i = 0; i < 150; i++) {
+      const y = (i / 150) * 512;
+      const wobble = Math.sin(i * 0.31) * 7 + Math.sin(i * 0.11) * 4;
+      g.fillStyle = `rgba(214,198,246,${0.18 + Math.random() * 0.4})`;
+      g.beginPath();
+      g.ellipse(32 + wobble + (i % 2 ? 6 : -6), y, 4.5, 8, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+
+    const boards = new THREE.Mesh(
+      new THREE.PlaneGeometry(CROSS.w - 1.2, PATH_HALF * 2 + 0.5),
+      new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    boards.rotation.x = -Math.PI / 2;
+    boards.rotation.z = Math.PI / 2;
+    boards.position.set(CROSS.x, BAS_Y + 0.025, CROSS.z);
+    boards.userData.lensOnly = 'echo';
+    scene.add(boards);
+  }
+
+  // The junk either side. Solid, so it is cover as well as a hazard — and so
+  // that walking into it in the dark tells you where the edge of the path is.
+  {
+    const junkRng = makeRng(31_986);
+    const mats = ['paintedWood', 'rustedSteel', 'feltDark'];
+    for (let i = 0; i < 34; i++) {
+      const side = i % 2 ? 1 : -1;
+      const px = CROSS.x - CROSS.w / 2 + 1.4 + (i / 34) * (CROSS.w - 2.8) + junkRng() * 0.6;
+      const pz = CROSS.z + side * (PATH_HALF + 0.55 + junkRng() * 0.9);
+      const kind = Math.floor(junkRng() * 3);
+      const mat = material(mats[kind], { repeat: 1, color: kind === 0 ? 0x33261b : undefined });
+      if (kind === 0) {
+        // A flat, leaning on the wall.
+        kit.box(0.12, 1.9 + junkRng() * 0.8, 1.2 + junkRng(), px, BAS_Y + 1.1, pz, mat,
+          { surface: 'wood', rotY: side * (1.4 + junkRng() * 0.3), shadow: false });
+      } else if (kind === 1) {
+        // A stage weight or a hamper.
+        const h = 0.4 + junkRng() * 0.5;
+        kit.box(0.6 + junkRng() * 0.4, h, 0.5 + junkRng() * 0.5, px, BAS_Y + h / 2, pz, mat,
+          { surface: 'metal', rotY: junkRng() * 1.2, shadow: false });
+      } else {
+        // A roll of cloth.
+        const roll = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.19, 0.19, 1.3 + junkRng() * 0.7, 9),
+          mat
+        );
+        roll.rotation.z = Math.PI / 2;
+        roll.rotation.y = junkRng() * 0.8;
+        roll.position.set(px, BAS_Y + 0.19, pz);
+        roll.castShadow = true;
+        scene.add(roll);
+        physics.addStaticBox({ x: 0.7, y: 0.19, z: 0.19 }, { x: px, y: BAS_Y + 0.19, z: pz }, null, { surface: 'carpet' });
+      }
+    }
+  }
+
+  kit.practical(-27, BAS_Y + 3.0, -24, {
+    intensity: 7, distance: 7, cordLength: 0.3, castShadow: false,
+    flicker: { chance: 0.95, severity: 1, seed: 141 },
+  });
+  kit.dust(new THREE.Vector3(CROSS.x, BAS_Y + 1.4, CROSS.z), new THREE.Vector3(CROSS.w, 3, CROSS.d), { count: 600, seed: 142 });
+
+  kit.sign(-22.2, BAS_Y + 1.95, -22.6, 'CROSSOVER', { height: 0.3, width: 1.5, rotY: Math.PI / 2 });
+  placeNote(scene, interaction, reader, save, 'ch3-note-crossover',
+    new THREE.Vector3(-22.4, BAS_Y + 0.03, -25.2), 0.4);
+
+  // Once the west door is open this thing works both rooms.
+  kit.trigger({
+    x: -21, z: -24, y: BAS_Y + 1.5, width: 2.4, depth: 3, once: true,
+    onEnter: () => {
+      gloam.patrol.push(
+        new THREE.Vector3(-26, BAS_Y, CROSS.z),
+        new THREE.Vector3(-42, BAS_Y, CROSS.z),
+        new THREE.Vector3(-26, BAS_Y, CROSS.z)
+      );
+      hud.say('The boards under your feet stop being boards.', { duration: 3.4 });
+    },
+  });
+
+  // ==========================================================================
+  // THE DRESSING ROOMS
+  // ==========================================================================
+
+  const CORR = { x: -47.4, z: -24, w: 4.8, d: 26, h: 3.2 };
+  /** North to south. Room 3 sits directly opposite the way in. */
+  const DRESSING_Z = [-34, -29, -24, -19, -14];
+  const DEAD_ROOM = 3;                       // the one nobody is ever called to
+  const CALL_ORDER = [5, 2, 4, 1];           // the sheet, with 3 left out
+
+  kit.room({
+    width: CORR.w, depth: CORR.d, height: CORR.h, x: CORR.x, z: CORR.z, y: BAS_Y,
+    floorMat: material('lobbyFloor', { repeat: 4 }),
+    wallMat: material('wallPlasterClean', { repeat: 5 }),
+    ceilMat: material('ceiling', { repeat: 4 }),
+    surface: 'wood',
+    piers: false,
+    openings: [
+      { side: 'e', at: 0, width: 1.8, top: 2.4 },
+      ...DRESSING_Z.map((dz) => ({ side: 'w', at: dz - CORR.z, width: 1.2, top: 2.3 })),
+    ],
+  });
+
+  const dressingRooms = DRESSING_Z.map((dz, i) => {
+    const number = i + 1;
+    const dead = number === DEAD_ROOM;
+    const rx = -52.5;
+
+    kit.room({
+      width: 5.4, depth: 4.6, height: 3.0, x: rx, z: dz, y: BAS_Y,
+      floorMat: material('lobbyFloor', { repeat: 2 }),
+      wallMat: material('wallPlasterClean', { repeat: 2 }),
+      ceilMat: material('ceiling', { repeat: 2 }),
+      surface: 'wood',
+      piers: false,
+      trim: true,
+      openings: [{ side: 'e', at: 0, width: 1.2, top: 2.3 }],
+    });
+
+    // The mirror and its bulbs. A dressing room is a mirror with a table under
+    // it; everything else in the room is optional.
+    const mirror = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.5, 1.0),
+      new THREE.MeshStandardMaterial({
+        color: 0x1a1a1e, roughness: 0.08, metalness: 0.92,
+        emissive: 0x05060a, emissiveIntensity: 1,
+      })
+    );
+    mirror.position.set(rx - 2.6, BAS_Y + 1.55, dz);
+    mirror.rotation.y = Math.PI / 2;
+    scene.add(mirror);
+
+    const bulbs = [];
+    for (let b = 0; b < 8; b++) {
+      const a = (b / 8) * Math.PI * 2;
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 8, 6),
+        material(dead ? 'bulbOff' : 'bulbOn', dead ? {} : { emissive: 0xffd9a0, emissiveIntensity: 3 })
+      );
+      bulb.position.set(rx - 2.52, BAS_Y + 1.55 + Math.sin(a) * 0.66, dz + Math.cos(a) * 0.95);
+      scene.add(bulb);
+      bulbs.push(bulb);
+    }
+    if (!dead) {
+      kit.practical(rx - 2.2, BAS_Y + 2.3, dz, {
+        intensity: 9, distance: 5, cordLength: 0.2, castShadow: false,
+        flicker: { chance: 0.25, severity: 0.5, seed: 150 + i },
+      });
+    }
+
+    kit.table(rx - 2.2, BAS_Y, dz, { width: 0.6, depth: 1.8, height: 0.76, rotY: Math.PI / 2 });
+    kit.box(0.5, 0.9, 0.5, rx + 1.6, BAS_Y + 0.45, dz - 1.2,
+      material('paintedWood', { color: 0x352618 }), { surface: 'wood', shadow: false });
+
+    // The name plate on the corridor wall beside the door. Plates face east,
+    // into the corridor: a plane's normal is +Z, so +PI/2 sends it to +X.
+    const plate = kit.sign(-49.6, BAS_Y + 2.05, dz, `${number}`, {
+      height: 0.26, width: 0.34, rotY: Math.PI / 2,
+      colour: dead ? '#5d564a' : '#d8cdb4',
+    });
+
+    return { number, dead, z: dz, x: rx, bulbs, plate, mirror };
+  });
+
+  // Room 3. Paid for, lit, and given to nobody for eleven years.
+  {
+    const room = dressingRooms[DEAD_ROOM - 1];
+
+    // The cylinder, on the dressing table under a cold light.
+    const cylinder = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.055, 0.22, 14),
+      material('brass')
+    );
+    cylinder.rotation.z = Math.PI / 2;
+    cylinder.position.set(room.x - 2.2, BAS_Y + 0.82, room.z);
+    cylinder.castShadow = true;
+    scene.add(cylinder);
+
+    // Pins along it, so it reads as the thing that plays a tune rather than as
+    // a bit of pipe.
+    for (let i = 0; i < 26; i++) {
+      const a = (i * 2.399) % (Math.PI * 2);
+      const pin = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.012), material('brass'));
+      pin.position.set(
+        room.x - 2.2 - 0.09 + (i / 26) * 0.18,
+        BAS_Y + 0.82 + Math.sin(a) * 0.058,
+        room.z + Math.cos(a) * 0.058
+      );
+      scene.add(pin);
+    }
+
+    const cold = new THREE.PointLight(0x9fb4d0, 3.2, 3.2, 2);
+    cold.position.set(room.x - 2.2, BAS_Y + 1.5, room.z);
+    scene.add(cold);
+
+    interaction.register({
+      object: cylinder,
+      reach: 2.2,
+      label: 'Take the cylinder',
+      enabled: () => !state.cylinderFound,
+      onUse: () => {
+        state.cylinderFound = true;
+        cylinder.visible = false;
+        interaction.unregister(cylinder);
+        audio?.leverClunk?.(cylinder.position);
+        hud.say('Brass, and heavier than it looks. Twenty-six pins in a spiral.', { duration: 4 });
+        hud.setObjective('Get back to the music box. The crossover is the only way.');
+        puzzles.activate('ch3-tannoy');
+      },
+    });
+
+    placeNote(scene, interaction, reader, save, 'ch3-note-cylinder',
+      new THREE.Vector3(room.x + 0.6, BAS_Y + 0.03, room.z + 1.4), -0.3);
+    placeStub(scene, interaction, reader, save, 'ch3-stub-3',
+      new THREE.Vector3(room.x - 1.2, BAS_Y + 0.02, room.z - 1.5));
+  }
+
+  // ==========================================================================
+  // PUZZLE — The Calls Panel
+  // ==========================================================================
+  //
+  // Stage management called the company down for beginners on this. Run the
+  // call properly and it goes out over the one horn on this floor that is
+  // still wired — at the dead end past dressing room 1, twenty-five metres
+  // from the panel and a long way from the only route home.
+  //
+  // The sheet gives four rooms. There are five buttons. The fifth is 3, and
+  // pressing it fails the whole call, which is what the note above the panel
+  // says in as many words and what the ghost on the book shows you by reaching
+  // for it, stopping, and moving on.
+
+  const PANEL_POS = new THREE.Vector3(CORR.x, BAS_Y + 1.35, -11.32);
+  const HORN_POS = new THREE.Vector3(CORR.x, BAS_Y + 2.6, -36.6);
+
+  const callButtons = [];
+  {
+    const back = kit.box(1.5, 0.9, 0.12, PANEL_POS.x, PANEL_POS.y, PANEL_POS.z,
+      material('paintedWood', { color: 0x2b2a2e }), { surface: 'metal', solid: false, shadow: false });
+    back.name = 'calls-panel';
+
+    for (let i = 0; i < 5; i++) {
+      const number = i + 1;
+      const bx = PANEL_POS.x - 0.56 + i * 0.28;
+
+      const button = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.058, 0.058, 0.05, 16),
+        material('bulbOff')
+      );
+      button.rotation.x = Math.PI / 2;
+      // The panel is on the corridor's south wall and faces north, which is
+      // -Z: a plane's normal is +Z, so the plate and every label on it are
+      // turned by PI. The buttons stand proud on the -Z side to match.
+      button.position.set(bx, PANEL_POS.y + 0.06, PANEL_POS.z - 0.09);
+      button.userData.callNumber = number;
+      scene.add(button);
+
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const g = c.getContext('2d');
+      g.fillStyle = '#17161a';
+      g.fillRect(0, 0, 64, 64);
+      g.fillStyle = '#cbbf9f';
+      g.font = 'bold 42px "IBM Plex Mono", monospace';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(`${number}`, 32, 35);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const label = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.1, 0.1),
+        new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8, side: THREE.DoubleSide })
+      );
+      label.position.set(bx, PANEL_POS.y - 0.09, PANEL_POS.z - 0.07);
+      label.rotation.y = Math.PI;
+      scene.add(label);
+
+      callButtons.push({ number, mesh: button });
+    }
+
+    // The call lamp: one quarter per room answered.
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.1, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x1a1713, emissive: 0xffb066, emissiveIntensity: 0 })
+    );
+    lamp.position.set(PANEL_POS.x, PANEL_POS.y + 0.29, PANEL_POS.z - 0.08);
+    scene.add(lamp);
+
+    const lampLight = new THREE.PointLight(0xffb066, 0, 2.6, 2);
+    lampLight.position.copy(lamp.position).setZ(lamp.position.z - 0.3);
+    scene.add(lampLight);
+
+    kit.sign(PANEL_POS.x, PANEL_POS.y + 0.62, PANEL_POS.z - 0.07, 'CALLS', {
+      height: 0.2, width: 0.8, rotY: Math.PI,
+    });
+
+    const paintLamp = () => {
+      const t = state.callDone ? 1 : state.callEntry.length / CALL_ORDER.length;
+      lamp.material.emissiveIntensity = t * 4;
+      lampLight.intensity = t * 5;
+    };
+
+    const flashButton = (number, colour = 0xffd9a0) => {
+      const b = callButtons.find((x) => x.number === number);
+      if (!b) return;
+      b.mesh.material = material('bulbOn', { emissive: colour, emissiveIntensity: 5 });
+      setTimeout(() => { b.mesh.material = material('bulbOff'); }, 420);
+    };
+
+    const pressCall = (number) => {
+      if (state.callDone) return;
+      audio?.toneAt?.(PANEL_POS, {
+        freq: 520 + number * 40, type: 'square', duration: 0.12,
+        attack: 0.002, decay: 0.08, sustain: 0.2, release: 0.1, gain: 0.05,
+      });
+      // The panel clicks. Everything in this building makes a noise.
+      gloam.hear(PANEL_POS, 0.3);
+
+      const want = CALL_ORDER[state.callEntry.length];
+      if (number !== want) {
+        state.callEntry = [];
+        paintLamp();
+        flashButton(number, 0xc23b2e);
+        audio?.uiDenied?.();
+        hud.say(
+          number === DEAD_ROOM
+            ? 'The lamp goes out. Somewhere above you, something notices.'
+            : 'The lamp goes out. The call resets.',
+          { duration: 2.8 }
+        );
+        if (number === DEAD_ROOM) {
+          // Calling the room nobody is called to is not merely wrong.
+          gloam.hear(PANEL_POS, 0.85);
+          dressingRooms[DEAD_ROOM - 1].bulbs.forEach((b) => {
+            b.material = material('bulbOn', { emissive: 0xc23b2e, emissiveIntensity: 4 });
+            setTimeout(() => { b.material = material('bulbOff'); }, 1400);
+          });
+        }
+        return;
+      }
+
+      flashButton(number);
+      state.callEntry.push(number);
+      paintLamp();
+
+      if (state.callEntry.length < CALL_ORDER.length) {
+        hud.say(`Room ${number} answers.`, { duration: 1.6 });
+        return;
+      }
+
+      // The call goes out.
+      state.callDone = true;
+      state.callEntry = [];
+      paintLamp();
+      puzzles.solve('ch3-tannoy');
+      hud.setObjective('Cross back while it is answering the call.');
+
+      // Four rising tones over the horn at the far end, then the announcement.
+      [0, 0.35, 0.7, 1.05].forEach((delay, i) => {
+        setTimeout(() => {
+          audio?.toneAt?.(HORN_POS, {
+            freq: [392, 523, 659, 784][i], type: 'triangle', duration: 0.5,
+            attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.4, gain: 0.11, reverb: 0.8,
+          });
+        }, delay * 1000);
+      });
+      setTimeout(() => {
+        hud.say('"Your calls, ladies and gentlemen. This is your beginners call."', { duration: 5 });
+        audio?.noise?.({ duration: 2.2, gain: 0.05, filterType: 'bandpass', freq: 900, q: 1.4, reverb: 0.7 });
+        gloam.lure(HORN_POS, 26);
+        ctx.playRadio(RADIO['ch3-radio-5']);
+        music.setMood('chase');
+        ctx.checkpoint('ch3-tannoy-done');
+      }, 1600);
+      setTimeout(() => {
+        if (!state.chapterDone) music.setMood('tension');
+      }, 28000);
+    };
+
+    for (const b of callButtons) {
+      interaction.register({
+        object: b.mesh,
+        reach: 1.9,
+        label: () => `Call dressing room ${b.number}`,
+        enabled: () => !state.callDone,
+        disabledLabel: 'The call has gone out',
+        onUse: () => pressCall(b.number),
+      });
+    }
+
+    paintLamp();
+  }
+
+  // The horn at the dead end. It has to be visible from the panel end of the
+  // corridor, because the player needs to understand where the sound will
+  // come from before they decide to make it.
+  {
+    const horn = new THREE.Mesh(
+      new THREE.ConeGeometry(0.28, 0.5, 14, 1, true),
+      material('rustedSteel', { repeat: 1 })
+    );
+    horn.rotation.x = -Math.PI / 2;
+    horn.position.copy(HORN_POS);
+    horn.castShadow = true;
+    scene.add(horn);
+    kit.sign(CORR.x, BAS_Y + 2.0, -36.7, 'BEGINNERS', { height: 0.22, width: 1.1, rotY: 0 });
+  }
+
+  placeNote(scene, interaction, reader, save, 'ch3-note-calls',
+    new THREE.Vector3(CORR.x + 1.6, BAS_Y + 0.03, -12.4), 0.2);
+
+  // The ghost on the book, running the call for the last time. She reaches for
+  // 3, stops, and goes on — which is the answer, shown rather than written.
+  {
+    let step = 0;
+    const SEQUENCE = [...CALL_ORDER.slice(0, 2), DEAD_ROOM, ...CALL_ORDER.slice(2)];
+    const operator = createEchoOperator({
+      scene,
+      position: new THREE.Vector3(CORR.x + 0.7, BAS_Y, -12.3),
+      facing: Math.PI,
+      actionEvery: 1.4,
+      onAction: () => {
+        const number = SEQUENCE[step % SEQUENCE.length];
+        const b = callButtons.find((x) => x.number === number);
+        if (b) {
+          const skipped = number === DEAD_ROOM;
+          b.mesh.material = material('bulbOn', {
+            // She hovers over 3 and it barely lights: a hand that went out and
+            // came back. Anything brighter reads as a press.
+            emissive: skipped ? 0x4a3d66 : 0xa98fd6,
+            emissiveIntensity: skipped ? 0.8 : 5,
+          });
+          setTimeout(() => { if (!state.callDone) b.mesh.material = material('bulbOff'); }, skipped ? 620 : 360);
+        }
+        step++;
+      },
+    });
+    ghosts.push({
+      update: (dt, playerPos, active) => operator.update(dt, playerPos, active),
+      dispose: () => operator.dispose(),
+    });
+  }
+
+  puzzles.register({
+    id: 'ch3-tannoy',
+    name: 'The Calls Panel',
+    objective: 'Run the beginners call. Five buttons, four rooms.',
+    marker: PANEL_POS.clone(),
+    hints: [
+      'The panel at the end of the dressing-room corridor called the company down for beginners. It is loud, it is heard everywhere on this floor, and that is not a problem — it is the reason to use it.',
+      'There are five rooms and the call is four. The note pinned above the panel says which one is never called, and somebody is still standing at the panel running the call: put the Echo lens on and watch which buttons light. The one she reaches for and does not press is the one to leave alone.',
+      'Press 5, then 2, then 4, then 1. Never 3. When the call goes out over the horn at the far end of the corridor, the thing in the crossover goes to answer it — that is your window to get back east to the music box, and it lasts about twenty-five seconds.',
+    ],
   });
 
   // ==========================================================================
@@ -668,6 +1218,46 @@ export function buildChapter3(ctx) {
     tines.push(tine);
   }
 
+  // The cylinder itself, which is not in the box when you find it. Chapter 3
+  // used to hand you a working music box two rooms into the basement; the
+  // crossover and the dressing rooms are on the other side of this.
+  const boxCylinder = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055, 0.055, 0.22, 14),
+    material('brass')
+  );
+  boxCylinder.rotation.z = Math.PI / 2;
+  boxCylinder.position.set(0, 0.02, -0.11);
+  boxCylinder.visible = false;
+  musicBox.add(boxCylinder);
+
+  // The empty seat it goes into, so the absence is legible rather than just an
+  // interaction that refuses.
+  const boxWell = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 0.05, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x0d0a07, roughness: 1 })
+  );
+  boxWell.position.set(0, 0.06, -0.11);
+  musicBox.add(boxWell);
+
+  interaction.register({
+    object: boxBody,
+    reach: 2.0,
+    label: () => (state.cylinderFitted ? 'The cylinder is seated' : 'Fit the cylinder'),
+    enabled: () => state.cylinderFound && !state.cylinderFitted,
+    disabledLabel: () => (state.cylinderFitted
+      ? 'The cylinder is seated'
+      : 'The cylinder is missing from its seat'),
+    onUse: () => {
+      state.cylinderFitted = true;
+      boxCylinder.visible = true;
+      boxWell.visible = false;
+      audio?.leverClunk?.(musicBox.position);
+      hud.say('It drops into the seat and the whole box settles. Six tines, waiting.', { duration: 4 });
+      hud.setObjective('Play the first phrase of the lullaby.');
+      puzzles.activate('ch3-music');
+    },
+  });
+
   const boxLight = new THREE.PointLight(0xffc98a, 2.6, 3.4, 2);
   boxLight.position.set(8.4, BAS_Y + 1.25, -18.5);
   scene.add(boxLight);
@@ -695,6 +1285,7 @@ export function buildChapter3(ctx) {
   };
 
   const pressTine = (i) => {
+    if (!state.cylinderFitted) return;
     playTine(i);
     // A struck tine is a real sound in the world — the thing downstairs hears
     // it. Solving this puzzle loudly has a cost.
@@ -733,8 +1324,10 @@ export function buildChapter3(ctx) {
       object: tine,
       reach: 1.8,
       label: () => `Strike the ${['first', 'second', 'third', 'fourth', 'fifth', 'sixth'][tine.userData.tineIndex]} tine`,
-      enabled: () => !state.costumeDoorOpen,
-      disabledLabel: 'The cylinder has turned',
+      enabled: () => state.cylinderFitted && !state.costumeDoorOpen,
+      disabledLabel: () => (state.costumeDoorOpen
+        ? 'The cylinder has turned'
+        : 'Nothing under the tines to turn'),
       onUse: () => pressTine(tine.userData.tineIndex),
     });
   });
@@ -777,7 +1370,7 @@ export function buildChapter3(ctx) {
     objective: 'Six tines. Play the right six notes.',
     marker: new THREE.Vector3(8.4, BAS_Y + 1, -18.5),
     hints: [
-      'The music box on the bench is the lock — the cylinder turns when it hears the right tune. It is a tune everyone who worked here knew by heart.',
+      'The music box on the bench is the lock — the cylinder turns when it hears the right tune. It is a tune everyone who worked here knew by heart. The box is missing its cylinder, and the cylinder is a long way west of here.',
       'Someone is still sitting at that bench playing it. Put the mask on with the Echo lens and watch her hands: the tine she strikes lights up. She plays the same six notes on a loop.',
       'Left to right, the tines are D, E, F, G, A, B-flat. The phrase is D — F — A — G — F — E, so strike tines 1, 3, 5, 4, 3, 2 in that order. Every strike is loud, so do it when nothing is nearby.',
     ],
@@ -976,6 +1569,7 @@ export function buildChapter3(ctx) {
 
       if (!state.chapterDone) {
         state.choirStarted = false;
+        state.callEntry = [];
         if (state.blockingDone) {
           // Already past the hall; Gloam stays awake but loses the scent.
           gloam.start();

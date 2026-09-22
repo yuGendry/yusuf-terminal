@@ -153,9 +153,14 @@ export class Interaction extends EventBus {
     }
 
     const usable = next.enabled ? !!next.enabled() : true;
+    // Both labels may be functions. `disabledLabel` used not to be called if
+    // it was one, so a level that varied its refusal — "the cylinder is
+    // missing" before you have it, "the cylinder has turned" after — printed
+    // the source of the arrow function on the screen.
+    const text = (v) => (typeof v === 'function' ? v() : v);
     const label = usable
-      ? (typeof next.label === 'function' ? next.label() : next.label)
-      : (next.disabledLabel ?? (typeof next.label === 'function' ? next.label() : next.label));
+      ? text(next.label)
+      : (text(next.disabledLabel) ?? text(next.label));
 
     // The glyph follows whichever device the player is actually holding, so a
     // controller player is never told to press E.
