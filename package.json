@@ -24,7 +24,9 @@
     "walkcheck": "node scripts/walkcheck.mjs",
     "signcheck": "node scripts/signcheck.mjs",
     "portraits": "node scripts/portraits.mjs",
-    "menucheck": "node scripts/menucheck.mjs"
+    "menucheck": "node scripts/menucheck.mjs",
+    "build:single": "vite build --config vite.singlefile.config.js",
+    "singlefilecheck": "node scripts/singlefilecheck.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "playwright": "^1.63.0",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vite-plugin-singlefile": "^2.3.3"
   }
 }

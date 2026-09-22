@@ -31,6 +31,7 @@ later, they will be listed here with their source and licence.
 | [Rapier](https://rapier.rs) (`@dimforge/rapier3d-compat`) | Apache-2.0 | Rigid-body physics and the kinematic character controller, compiled to WebAssembly |
 | [Vite](https://vitejs.dev) | MIT | Development server and production bundler |
 | [Playwright](https://playwright.dev) | Apache-2.0 | Headless smoke and playtest harness (development only; not shipped) |
+| [vite-plugin-singlefile](https://github.com/richardtallent/vite-plugin-singlefile) | MIT | Folds the whole build into one standalone HTML file (development only; not shipped) |
 
 ## Typography
 

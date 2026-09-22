@@ -23,7 +23,27 @@ npm install
 npm run dev      # development server on http://localhost:5173
 npm run build    # static site in dist/
 npm run preview  # serve the production build
+
+npm run build:single      # one standalone STITCHWORK.html, no server needed
+npm run singlefilecheck   # proves that file runs when opened straight off disk
 ```
+
+### The single-file build
+
+`npm run build:single` folds the entire game into one self-contained HTML file
+that plays when you double-click it — no server, no Node, no install. That is
+only possible because of two facts about this project that are not true of most
+Vite apps: there are no asset files at all (every texture is generated on a
+canvas at runtime and every sound is synthesised with the Web Audio API), and
+`@dimforge/rapier3d-compat` carries its WebAssembly inlined as base64 inside
+its own JavaScript. Both matter because a page loaded from `file://` is an
+opaque origin and cannot fetch anything next to it — so the whole game has to
+end up inside the one document, which also means the per-chapter dynamic
+imports are flattened rather than code-split.
+
+`singlefilecheck` opens the result over `file://`, exactly as Explorer would,
+and fails if the page requests anything at all from the disk, if it never
+reaches the menu, or if a chapter will not load.
 
 `npm run build` produces a fully static site; `dist/` can be hosted anywhere
 with no server-side component.
