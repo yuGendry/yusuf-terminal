@@ -58,6 +58,9 @@ export class Understudy extends EventBus {
 
     this.enabled = false;
     this.caught = false;
+    /** Set by `stalk()`: a fixed route it walks instead of hunting. */
+    this.route = null;
+    this._routeIndex = 0;
     this.spawn = spawn.clone();
     this.position = spawn.clone();
     this.yaw = 0;
@@ -201,19 +204,57 @@ export class Understudy extends EventBus {
     if (this.enabled) return;
     this.enabled = true;
     this.caught = false;
+    this.route = null;
     this.root.visible = true;
     this._speed = 0;
     this.emit('started');
   }
 
+  /**
+   * Walk a fixed route instead of walking at the player.
+   *
+   * The chapter needs this thing on screen long before it is hunting: a beat
+   * where it crosses the room you are working in, on its own business, and
+   * the only rule is that it must not walk into you. That reads as far worse
+   * than a pursuit, because a pursuit can be outrun and this cannot be
+   * negotiated with at all — and it makes the pursuit at the end land as a
+   * change in what it is doing rather than as its first appearance.
+   *
+   * It still catches on contact. Nothing about this creature is ever safe to
+   * touch.
+   */
+  stalk(waypoints) {
+    this.route = waypoints.map((p) => (p.isVector3 ? p.clone() : new THREE.Vector3(...p)));
+    this._routeIndex = 0;
+    this.enabled = true;
+    this.caught = false;
+    this.root.visible = true;
+    this.position.copy(this.route[0]);
+    this.root.position.copy(this.position);
+    this.emit('started');
+  }
+
+  /** Stop walking the route and come for the player. */
+  hunt() {
+    this.route = null;
+    this.start();
+    this.emit('hunting');
+  }
+
+  get stalking() {
+    return !!this.route;
+  }
+
   stop() {
     this.enabled = false;
+    this.route = null;
     this.root.visible = false;
     this._stopAudio();
   }
 
   reset() {
     this.stop();
+    this.route = null;
     this.caught = false;
     this.position.copy(this.spawn);
     this.root.position.copy(this.spawn);
@@ -252,7 +293,18 @@ export class Understudy extends EventBus {
    * enough to be exploited.
    */
   _steer(dt) {
-    this._dir.subVectors(this.player.position, this.position);
+    // While stalking, the goal is the next point on the route; otherwise it is
+    // the player, always, with no line of sight involved.
+    let goal = this.player.position;
+    if (this.route) {
+      goal = this.route[this._routeIndex];
+      if (this.position.distanceTo(goal) < 1.2) {
+        this._routeIndex = (this._routeIndex + 1) % this.route.length;
+        goal = this.route[this._routeIndex];
+      }
+    }
+
+    this._dir.subVectors(goal, this.position);
     this._dir.y = 0;
     const dist = this._dir.length();
     if (dist < 0.001) return;
@@ -292,7 +344,8 @@ export class Understudy extends EventBus {
 
     this.root.position.copy(this.position);
 
-    // Face the player, always, including while sliding around something.
+    // Face the way it is going, always, including while sliding around
+    // something. While hunting that is the player, which is the point.
     const wantYaw = Math.atan2(this._dir.x, this._dir.z);
     let delta = wantYaw - this.yaw;
     while (delta > Math.PI) delta -= Math.PI * 2;

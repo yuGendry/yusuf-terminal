@@ -88,6 +88,12 @@ export function buildChapter4(ctx) {
     drained: false,
     hollowFound: false,
     stairCrossed: false,
+    tankFull: false,
+    clampOff: false,
+    lidShut: false,
+    spoolTaken: false,
+    spoolFitted: false,
+    stalkStarted: false,
     warp: [],
     warpDone: false,
     sluiceClosed: false,
@@ -112,6 +118,14 @@ export function buildChapter4(ctx) {
     { x0: 1.5, x1: 10.5, z0: -18, z1: -4 },      // the foot of the stairwell
     { x0: -18, x1: 18, z0: -46, z1: -18 },       // the hall
     { x0: 18, x1: 34, z0: -39, z1: -25 },        // Odile's laboratory
+    // The dye house, as a ring around the dip tank. One rectangle over the
+    // whole room would draw the hall's surface straight through the tank,
+    // which has its own level and its own surface — two water planes crossing
+    // inside a vessel that is meant to be sealed.
+    { x0: -39.8, x1: -35.3, z0: -39.8, z1: -24.2 },
+    { x0: -26.7, x1: -18.2, z0: -39.8, z1: -24.2 },
+    { x0: -35.3, x1: -26.7, z0: -39.8, z1: -36.3 },
+    { x0: -35.3, x1: -26.7, z0: -27.7, z1: -24.2 },
     { x0: -28, x1: 12, z0: -86, z1: -56 },       // the Threadworks
     { x0: -14, x1: -2, z0: -96, z1: -86 },       // the lift lobby
   ];
@@ -534,6 +548,7 @@ export function buildChapter4(ctx) {
     openings: [
       { side: 's', at: 6, width: 3.0, top: 2.8 },
       { side: 'e', at: 0, width: 2.0, top: 2.4 },
+      { side: 'w', at: 0, width: 2.0, top: 2.6 },   // to the dye house
       // The cut stair's doorway: four metres up a wall with nothing under it.
       { side: 'n', at: -8, width: 2.4, sill: 4.2, top: 6.6 },
     ],
@@ -703,7 +718,13 @@ export function buildChapter4(ctx) {
       interaction.unregister(hollowCase);
       puzzles.solve('ch4-hollow');
       hud.say('The glass is not dark. It is showing you something, and it is somewhere else.', { duration: 5 });
-      setTimeout(() => puzzles.activate('ch4-stair'), 2200);
+      // The dye house before the stair, deliberately. The stair is one way —
+      // it stops being there behind you — and the green spool the loom needs
+      // is on this side of it.
+      setTimeout(() => {
+        puzzles.activate('ch4-diptank');
+        ctx.playRadio(RADIO['ch4-radio-4']);
+      }, 2200);
     },
   });
 
@@ -840,6 +861,348 @@ export function buildChapter4(ctx) {
   const sluiceLight = new THREE.PointLight(0x9fd0c8, 1.6, 3.5, 2);
   sluiceLight.position.set(GAL.x + 5.5, GAL.y + 1.6, GAL.z + 4.2);
   scene.add(sluiceLight);
+
+  // ==========================================================================
+  // PUZZLE — The Dip Tank  (the dye house, west off the hall)
+  // ==========================================================================
+  //
+  // The chapter's idea, made small enough to hold in one room: a thing you
+  // need is at the bottom of a tank, and the only tool is the tank's own water
+  // level. Everything you do here you do in one of two states and neither
+  // state alone is enough.
+  //
+  //   empty  — you can get down to the crate, unclamp it, and shut its lid
+  //   full   — the crate floats to the rim, where you can reach it
+  //
+  // Flooding with the lid open fills the crate and it sits there. Flooding
+  // with the clamp on makes it strain and stay down. Both fail visibly and
+  // recoverably, which is what stops "three things in an order" from being a
+  // guessing game: you can see exactly which of the three you got wrong.
+
+  const DYE = { x: -29, z: -32, w: 22, d: 16, h: 6.5 };
+  const TANK = { x: -31, z: -32, w: 5.2, d: 5.2, h: 1.5, wall: 0.28 };
+  const TANK_FLOOR = LOWER_Y + 0.12;
+  const TANK_RIM = TANK_FLOOR + TANK.h;
+  const TANK_LOW = TANK_FLOOR + 0.1;
+  const TANK_HIGH = TANK_RIM - 0.26;
+  const RIM_WALK = TANK_RIM + 0.07;
+  /**
+   * Every step in this room has 0.8m of going and under 0.4m of rise.
+   *
+   * Not arbitrary: the character controller auto-steps 0.42m, and walkcheck
+   * samples the world on a 0.75m grid. A stair finer than that grid is
+   * invisible to the flood fill — the first version of this tank had 0.44m
+   * treads and the checker reported the inside of it as unreachable, correctly,
+   * because from where it was standing the only way in was a 2.4m drop. Going
+   * wider than the grid guarantees a sample lands on every tread.
+   */
+  const TANK_GOING = 0.8;
+
+  kit.room({
+    width: DYE.w, depth: DYE.d, height: DYE.h, x: DYE.x, z: DYE.z, y: LOWER_Y,
+    floorMat: material('tileFloor', { repeat: 5 }),
+    wallMat: material('wallPlaster', { repeat: 4 }),
+    ceilMat: material('ceiling', { repeat: 3 }),
+    surface: 'tile',
+    openings: [{ side: 'e', at: 0, width: 2.0, top: 2.6 }],
+  });
+  kit.dust(new THREE.Vector3(DYE.x, LOWER_Y + 2.5, DYE.z), new THREE.Vector3(22, 5, 16), { count: 700, seed: 46 });
+
+  // The tank: four steel sides standing on the floor, open at the top.
+  {
+    const steel = material('rustedSteel', { repeat: 1 });
+    const hw = TANK.w / 2;
+    const hd = TANK.d / 2;
+    for (const [dx, dz, w, d] of [
+      [0, -hd, TANK.w + TANK.wall * 2, TANK.wall],
+      [0, hd, TANK.w + TANK.wall * 2, TANK.wall],
+      [-hw, 0, TANK.wall, TANK.d],
+      [hw, 0, TANK.wall, TANK.d],
+    ]) {
+      kit.box(w, TANK.h, d, TANK.x + dx, TANK_FLOOR + TANK.h / 2, TANK.z + dz, steel,
+        { surface: 'metal', tile: 1.1 });
+    }
+    // The tank's own floor, a little proud of the room's so it reads as a
+    // vessel rather than as a fence.
+    kit.box(TANK.w, 0.24, TANK.d, TANK.x, TANK_FLOOR - 0.12, TANK.z, steel,
+      { surface: 'metal', tile: 1.1, shadow: false });
+  }
+
+  // A walkway all the way round the rim, steps up to it from the floor, and
+  // steps down the inside. Round rather than along one side, because the crate
+  // comes up on the far side from the way in and has to be reachable from
+  // wherever it surfaces.
+  {
+    const steel = material('rustedSteel', { repeat: 1 });
+    const OUT = TANK.w / 2 + TANK.wall;       // outer face of the tank wall
+    const WALK = 1.4;                          // width of the rim walk
+    const FAR = OUT + WALK;
+
+    for (const sx of [-1, 1]) {
+      kit.box(WALK, 0.14, FAR * 2, TANK.x + sx * (OUT + WALK / 2), RIM_WALK, TANK.z,
+        steel, { surface: 'metal', tile: 1.0 });
+    }
+    for (const sz of [-1, 1]) {
+      kit.box(OUT * 2, 0.14, WALK, TANK.x, RIM_WALK, TANK.z + sz * (OUT + WALK / 2),
+        steel, { surface: 'metal', tile: 1.0 });
+    }
+    // A handrail on the outside edge only. The inside edge is where you step
+    // down, and a rail across it would be a wall.
+    for (const sx of [-1, 1]) {
+      kit.box(0.08, 1.0, FAR * 2, TANK.x + sx * FAR, RIM_WALK + 0.57, TANK.z,
+        steel, { surface: 'metal', shadow: false });
+    }
+
+    // Up from the dye-house floor, on the east.
+    const rise = (RIM_WALK - LOWER_Y) / 5;
+    for (let i = 0; i < 4; i++) {
+      kit.box(TANK_GOING, 0.16, 2.0, TANK.x + FAR + TANK_GOING / 2 + i * TANK_GOING, RIM_WALK - rise * (i + 1), TANK.z,
+        steel, { surface: 'metal', tile: 0.9, shadow: false });
+    }
+
+    // Down the inside, on the east.
+    const drop = (RIM_WALK - TANK_FLOOR) / 4;
+    for (let i = 0; i < 3; i++) {
+      kit.box(TANK_GOING, 0.16, 2.0, TANK.x + TANK.w / 2 - TANK_GOING / 2 - i * TANK_GOING, RIM_WALK - drop * (i + 1), TANK.z,
+        steel, { surface: 'metal', tile: 0.9, shadow: false });
+    }
+  }
+
+  // The tank's water. Its own surface, its own level, nothing to do with the
+  // hall's — which is the point: this is a tank, not a room.
+  const tankWater = new THREE.Mesh(
+    new THREE.PlaneGeometry(TANK.w, TANK.d, 6, 6),
+    new THREE.MeshStandardMaterial({
+      color: 0x14212a, roughness: 0.08, metalness: 0.6,
+      emissive: 0x081820, emissiveIntensity: 1,
+      transparent: true, opacity: 0.88, side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  tankWater.rotation.x = -Math.PI / 2;
+  tankWater.position.set(TANK.x, TANK_LOW, TANK.z);
+  tankWater.renderOrder = 2;
+  scene.add(tankWater);
+  const tankWaterBase = tankWater.geometry.attributes.position.array.slice();
+
+  // The crate, its lid, and the clamp holding it to the tank floor.
+  const crate = new THREE.Group();
+  crate.position.set(TANK.x - 1.9, TANK_FLOOR + 0.3, TANK.z);
+  scene.add(crate);
+  {
+    const wood = material('paintedWood', { color: 0x4a3a26 });
+    for (const [dx, dz, w, d] of [[0, -0.42, 0.9, 0.06], [0, 0.42, 0.9, 0.06], [-0.42, 0, 0.06, 0.9], [0.42, 0, 0.06, 0.9]]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(w, 0.56, d), wood);
+      side.position.set(dx, 0, dz);
+      side.castShadow = true;
+      crate.add(side);
+    }
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.9), wood);
+    base.position.y = -0.28;
+    crate.add(base);
+  }
+
+  const crateLid = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.06, 0.94), material('paintedWood', { color: 0x3d2f1e }));
+  crateLid.position.set(0, 0.28, 0);
+  crateLid.rotation.x = -1.35;          // hanging open
+  crateLid.position.z = -0.44;
+  crateLid.castShadow = true;
+  crate.add(crateLid);
+
+  // The green spool, inside it.
+  const greenSpool = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.2, 0.42, 14),
+    new THREE.MeshStandardMaterial({ color: 0x2f5d3a, roughness: 0.85, emissive: 0x0d2414, emissiveIntensity: 1 })
+  );
+  greenSpool.position.set(0, -0.02, 0);
+  greenSpool.castShadow = true;
+  crate.add(greenSpool);
+
+  const crateClamp = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.16), material('rustedSteel', { repeat: 1 }));
+  crateClamp.position.set(TANK.x - 1.9, TANK_FLOOR + 0.25, TANK.z - 0.95);
+  crateClamp.castShadow = true;
+  scene.add(crateClamp);
+
+  // The stop cock, on the dye-house wall where you cannot reach it from inside
+  // the tank. That is not decoration: it is what makes it impossible to flood
+  // the tank while standing in it, so the puzzle never needs a drowning rule.
+  const cock = new THREE.Group();
+  cock.position.set(DYE.x - DYE.w / 2 + 0.6, LOWER_Y + 1.35, DYE.z + 3.4);
+  scene.add(cock);
+  {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.26), material('rustedSteel', { repeat: 1 }));
+    body.castShadow = true;
+    cock.add(body);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 8, 18), material('brass'));
+    wheel.position.set(0.22, 0, 0);
+    wheel.rotation.y = Math.PI / 2;
+    cock.add(wheel);
+    cock.userData.wheel = wheel;
+
+    // A sight glass, so the tank's state is legible from the cock.
+    const glass = new THREE.Mesh(
+      new THREE.BoxGeometry(0.05, 0.42, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x9fd0c8, emissive: 0x2f6a70, emissiveIntensity: 1, transparent: true, opacity: 0.7 })
+    );
+    glass.position.set(-0.22, 0, 0);
+    cock.add(glass);
+    cock.userData.glass = glass;
+  }
+
+  kit.practical(DYE.x, LOWER_Y + 5.6, DYE.z, {
+    intensity: 14, distance: 13, castShadow: false,
+    flicker: { chance: 0.5, severity: 0.7, seed: 47 },
+  });
+  kit.practical(TANK.x, RIM_WALK + 2.6, TANK.z, {
+    intensity: 10, distance: 7, cordLength: 0.5,
+    flicker: { chance: 0.3, severity: 0.5, seed: 48 },
+  });
+
+  kit.sign(DYE.x - DYE.w / 2 + 0.22, LOWER_Y + 2.3, DYE.z + 3.4, 'DIP TANK', {
+    height: 0.26, width: 1.3, rotY: Math.PI / 2,
+  });
+  placeNote(scene, interaction, reader, save, 'ch4-note-dye',
+    new THREE.Vector3(DYE.x - DYE.w / 2 + 1.1, LOWER_Y + 0.03, DYE.z + 4.4), 0.3);
+  placeStub(scene, interaction, reader, save, 'ch4-stub-3',
+    new THREE.Vector3(DYE.x + 6.5, LOWER_Y + 0.02, DYE.z - 5.5));
+
+  // --- the three things, in an order ----------------------------------------
+
+  const dye = {
+    /** Target height of the tank's surface. */
+    target: TANK_LOW,
+    /** Where the crate wants to be, which is not always where the water is. */
+    crateY: TANK_FLOOR + 0.3,
+  };
+
+  const crateFloats = () => state.clampOff && state.lidShut;
+
+  const setCock = (full) => {
+    state.tankFull = full;
+    dye.target = full ? TANK_HIGH : TANK_LOW;
+    cock.userData.wheel.rotation.z = full ? 1.3 : 0;
+    audio?.leverClunk?.(cock.position);
+
+    if (!full) {
+      hud.say('The tank drains. Whatever is in it comes down with it.', { duration: 3.2 });
+      return;
+    }
+    if (!state.clampOff && !state.lidShut) {
+      hud.say('It fills. The crate takes the water in through its open lid and strains against the clamp, and does neither one thing nor the other.', { duration: 5.5 });
+    } else if (!state.clampOff) {
+      hud.say('It fills. The crate lifts a hand’s breadth, the clamp takes up, and it stops.', { duration: 4.6 });
+    } else if (!state.lidShut) {
+      hud.say('It fills. The crate fills with it, sits down on the bottom, and does not move again.', { duration: 4.6 });
+    } else {
+      hud.say('It fills, and the crate comes up with it like something surfacing.', { duration: 4.2 });
+    }
+  };
+
+  interaction.register({
+    object: cock,
+    reach: 2.2,
+    holdTime: 1.1,
+    label: () => (state.tankFull ? 'Open the drain' : 'Fill the tank'),
+    enabled: () => !state.spoolTaken,
+    disabledLabel: 'Nothing left in the tank',
+    onUse: () => setCock(!state.tankFull),
+  });
+
+  interaction.register({
+    object: crateClamp,
+    reach: 1.9,
+    holdTime: 0.8,
+    label: () => (state.clampOff ? 'The clamp is off' : 'Throw the clamp off the crate'),
+    enabled: () => !state.clampOff && !state.tankFull,
+    disabledLabel: () => (state.clampOff ? 'The clamp is off' : 'It is under water'),
+    onUse: () => {
+      state.clampOff = true;
+      crateClamp.rotation.z = -1.1;
+      crateClamp.position.z = TANK.z - 1.2;
+      audio?.leverClunk?.(crateClamp.position);
+      hud.say('The clamp comes off and lies on the tank floor.', { duration: 2.8 });
+    },
+  });
+
+  interaction.register({
+    object: crateLid,
+    reach: 1.9,
+    holdTime: 0.7,
+    label: () => (state.lidShut ? 'The lid is shut' : 'Shut the crate'),
+    enabled: () => !state.lidShut && !state.tankFull,
+    disabledLabel: () => (state.lidShut ? 'The lid is shut' : 'It is under water'),
+    onUse: () => {
+      state.lidShut = true;
+      crateLid.rotation.x = 0;
+      crateLid.position.z = 0;
+      audio?.woodSnap?.(crate.position);
+      hud.say('The lid drops flat. Watertight, near enough.', { duration: 2.8 });
+    },
+  });
+
+  interaction.register({
+    object: greenSpool,
+    // Reached from the rim walk, leaning over: about a metre across and two
+    // down, which is further than a lever but is what reaching into a tank is.
+    reach: 3.0,
+    label: 'Take the green spool',
+    enabled: () => !state.spoolTaken && crateFloats() && state.tankFull && dye.crateY > TANK_RIM - 0.9,
+    disabledLabel: () => (state.spoolTaken ? 'Taken' : 'You cannot reach it from here'),
+    onUse: () => {
+      state.spoolTaken = true;
+      greenSpool.visible = false;
+      interaction.unregister(greenSpool);
+      puzzles.solve('ch4-diptank');
+      hud.say('Green. The last one on the rack, and the only one she ever kept under water.', { duration: 4.5 });
+      hud.setObjective('Take it to the loom — across the stair that is not there.');
+      ctx.checkpoint('ch4-diptank-done');
+      setTimeout(() => puzzles.activate('ch4-stair'), 3200);
+    },
+  });
+
+  kit.onUpdate((dt, t) => {
+    const y = damp(tankWater.position.y, dye.target, 0.9, dt);
+    tankWater.position.y = y;
+
+    // The crate does what the three states say it should, and nothing else.
+    let want = TANK_FLOOR + 0.3;
+    if (crateFloats()) {
+      want = Math.max(TANK_FLOOR + 0.3, y - 0.12);
+    } else if (state.lidShut && !state.clampOff) {
+      // Buoyant but held: it lifts a hand's breadth and stops.
+      want = Math.min(TANK_FLOOR + 0.55, TANK_FLOOR + 0.3 + (y - TANK_LOW) * 0.25);
+    }
+    dye.crateY = damp(dye.crateY, want, 1.4, dt);
+    crate.position.y = dye.crateY;
+    if (state.clampOff) crateClamp.position.y = TANK_FLOOR + 0.1;
+
+    // The sight glass reads the tank, so its level is legible from the cock.
+    const fill = clamp((y - TANK_LOW) / (TANK_HIGH - TANK_LOW), 0, 1);
+    cock.userData.glass.scale.y = 0.25 + fill * 0.75;
+    cock.userData.glass.material.emissiveIntensity = 0.5 + fill * 2.5;
+
+    const pos = tankWater.geometry.attributes.position;
+    const arr = pos.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      arr[i + 2] = tankWaterBase[i + 2]
+        + Math.sin(t * 1.1 + tankWaterBase[i] * 0.9) * 0.012
+        + Math.sin(t * 1.7 + tankWaterBase[i + 1] * 0.7) * 0.009;
+    }
+    pos.needsUpdate = true;
+  });
+
+  puzzles.register({
+    id: 'ch4-diptank',
+    name: 'The Dip Tank',
+    objective: 'Get the green spool out of the tank.',
+    // On the rim walk, not over the middle of the tank: the marker is where
+    // the player should go and stand, and the middle of the tank is water.
+    marker: new THREE.Vector3(TANK.x + TANK.w / 2 + TANK.wall + 0.7, RIM_WALK + 0.1, TANK.z),
+    hints: [
+      'The spool is in a crate on the floor of the dip tank, and there is no reaching down that far. The only tool in the room is the tank itself — the cock on the west wall fills it and empties it as often as you like.',
+      'A crate floats. This one does not, for two reasons, and both of them are things you can only get at while the tank is empty. The standing orders screwed to the wall list them in the order they have to be done.',
+      'With the tank empty, climb in: throw the clamp off the crate, then shut its lid. Climb out, fill the tank from the cock on the wall, and the crate comes up to the rim where you can reach the spool. Flood it with the lid open and the crate fills instead; drain it and start again.',
+    ],
+  });
 
   // ==========================================================================
   // PUZZLE 3 — The Warp
@@ -995,6 +1358,42 @@ export function buildChapter4(ctx) {
     heads.push({ index: i, group, lamp, threaded: false });
   }
 
+  // The empty cradle at the end of the bench. Four heads, three spools on the
+  // rack behind them, and a gap where the green one should be.
+  const cradle = new THREE.Mesh(
+    new THREE.BoxGeometry(0.54, 0.16, 0.54),
+    material('rustedSteel', { repeat: 1 })
+  );
+  cradle.position.set(LOOM_X + 4.2, LOWER_Y + 0.88, LOOM_Z);
+  cradle.castShadow = true;
+  scene.add(cradle);
+
+  const fittedSpool = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2, 0.2, 0.42, 14),
+    new THREE.MeshStandardMaterial({ color: 0x2f5d3a, roughness: 0.85, emissive: 0x0d2414, emissiveIntensity: 1 })
+  );
+  fittedSpool.rotation.z = Math.PI / 2;
+  fittedSpool.position.set(LOOM_X + 4.2, LOWER_Y + 1.16, LOOM_Z);
+  fittedSpool.visible = false;
+  fittedSpool.castShadow = true;
+  scene.add(fittedSpool);
+
+  interaction.register({
+    object: cradle,
+    reach: 2.2,
+    holdTime: 0.8,
+    label: () => (state.spoolFitted ? 'The green spool is in' : 'Set the green spool in the cradle'),
+    enabled: () => state.spoolTaken && !state.spoolFitted,
+    disabledLabel: () => (state.spoolFitted ? 'The green spool is in' : 'The cradle is empty'),
+    onUse: () => {
+      state.spoolFitted = true;
+      fittedSpool.visible = true;
+      audio?.leverClunk?.(cradle.position);
+      hud.say('The green thread runs up to the fourth head. Everything on this bench is live.', { duration: 4 });
+      startStalk();
+    },
+  });
+
   function failWarp() {
     state.warp = [];
     for (const h of heads) {
@@ -1011,7 +1410,10 @@ export function buildChapter4(ctx) {
       reach: 2.4,
       holdTime: 0.9,
       label: () => (h.threaded ? `${HEAD_NAMES[h.index]} — threaded` : `Thread the ${HEAD_NAMES[h.index].toLowerCase()} head`),
-      enabled: () => !state.warpDone && !h.threaded,
+      enabled: () => state.spoolFitted && !state.warpDone && !h.threaded,
+      disabledLabel: () => (h.threaded
+        ? `${HEAD_NAMES[h.index]} — threaded`
+        : 'Nothing feeding the heads — the green spool is missing'),
       onUse: () => {
         if (state.warpDone || h.threaded) return;
 
@@ -1032,6 +1434,7 @@ export function buildChapter4(ctx) {
         puzzles.solve('ch4-warp');
         audio?.puzzleSolved?.();
         hud.say('The loom takes up. Above the lift, a counterweight moves for the first time in ten years — and stops, because it is sitting on the floor of a drained tank.', { duration: 8 });
+        understudy.hunt();
         setTimeout(() => puzzles.activate('ch4-counterweight'), 5000);
       },
     });
@@ -1043,9 +1446,9 @@ export function buildChapter4(ctx) {
     objective: 'Thread the loom.',
     marker: new THREE.Vector3(LOOM_X, LOWER_Y + 1.6, LOOM_Z),
     hints: [
-      'The four heads take thread in a set order, and it is not left to right. Each one has a tag wired to it.',
+      'The loom needs all four threads before any of them will run, and the green spool is not on the bench — it is in the dye house, west off the flooded hall. The four heads then take thread in a set order, and it is not left to right. Each one has a tag wired to it.',
       'Read all four tags before you touch anything. The number on the tag is the position in the warp, not the position on the bench.',
-      'Amber first, then red, then violet, then green. Thread them in that order and the loom takes up.',
+      'Amber first, then red, then violet, then green. Thread them in that order and the loom takes up. The thing walking the floor is on a fixed round and never varies its pace — watch one full circuit before you commit to a head, and thread on the far side of the bench from wherever it is.',
     ],
   });
 
@@ -1151,12 +1554,40 @@ export function buildChapter4(ctx) {
   });
   understudy.on('caught', () => ctx.onPlayerCaught('understudy'));
 
+  /**
+   * The Understudy's first appearance, long before it is hunting.
+   *
+   * It comes down onto the Threadworks floor and walks its rounds — a fixed
+   * loop round the room, at its one unvarying pace, not looking for anybody.
+   * The player has to thread four heads at a bench in the middle of that loop.
+   *
+   * This is deliberately not a chase. A chase can be outrun and is therefore a
+   * problem with a solution; a thing crossing the room on its own business,
+   * which will walk through you without ever noticing it did, is a condition
+   * you work around. It also means that when it does start hunting at the end
+   * of the chapter, that lands as a change in what it is doing rather than as
+   * the first time the player has seen it.
+   */
+  function startStalk() {
+    if (state.stalkStarted || state.chaseStarted) return;
+    state.stalkStarted = true;
+    understudy.stalk([
+      new THREE.Vector3(TW.x - 15, LOWER_Y, TW.z - 11),
+      new THREE.Vector3(TW.x + 15, LOWER_Y, TW.z - 11),
+      new THREE.Vector3(TW.x + 15, LOWER_Y, TW.z + 11),
+      new THREE.Vector3(TW.x - 15, LOWER_Y, TW.z + 11),
+    ]);
+    music.setMood('tension');
+    ctx.playRadio(RADIO['ch4-radio-5']);
+    ctx.checkpoint('ch4-stalk');
+  }
+
   function startChase() {
     if (state.chaseStarted) return;
     state.chaseStarted = true;
     ctx.checkpoint('ch4-chase');
     gloam.stop();
-    understudy.start();
+    understudy.hunt();
     music.setMood('chase');
     engine.postfx.fx.chromaBoost = 0.35;
     hud.say('Something comes down the stair from the gallery. It is in no hurry at all.', { duration: 5 });
@@ -1249,11 +1680,18 @@ export function buildChapter4(ctx) {
       gloam.reset();
       engine.postfx.fx.chromaBoost = 0;
 
-      if (state.chaseStarted && !state.chapterDone) {
+      if (state.chapterDone) {
+        music.setMood('silent');
+      } else if (state.chaseStarted) {
         // Put the chase back to its opening conditions rather than dropping
         // the player back in beside whatever killed them.
-        understudy.start();
+        understudy.hunt();
         music.setMood('chase');
+      } else if (state.stalkStarted) {
+        // Back to the top of its round, not to wherever on the loop it was
+        // standing when it walked into you.
+        state.stalkStarted = false;
+        startStalk();
       } else if (!state.drained) {
         gloam.start();
         music.setMood('tension');

@@ -271,6 +271,19 @@ We did not take it anywhere. She said not to. We cut it out and left it exactly 
 
 You can still hear people using it.`,
   },
+  'ch4-note-dye': {
+    chapter: 4,
+    title: 'Screwed to the dye house wall',
+    body: `DIP TANK — STANDING ORDERS
+
+1. The tank is filled and emptied from the cock on the wall. Never from inside the tank. I should not have to write this down and yet here we are.
+
+2. Stock goes in the crate. The crate has a lid and the lid is not decorative: an open crate fills, and a full crate sits on the bottom, and then somebody has to go in after it.
+
+3. The crate is clamped down while the tank is empty so it does not drift into the paddles. Unclamp it before you fill, or it will strain and it will not rise.
+
+Three things, in an order, every time. Marta got it wrong once in eleven years and we were fishing for that spool until four in the morning.`,
+  },
   'ch4-note-threadwork': {
     chapter: 4,
     title: 'Loom tag, four of them, wired together',
@@ -390,6 +403,7 @@ export const STUBS = {
   'ch3-stub-3': { chapter: 3, index: 11, back: 'Dressing room 3 was given to nobody for eleven years and the light bill was paid every month.' },
   'ch4-stub-1': { chapter: 4, index: 9, back: 'The water is not the worst thing down here. The water is just how you know.' },
   'ch4-stub-2': { chapter: 4, index: 10, back: 'She kept the fourth lens for herself. I took it back. It is in her desk.' },
+  'ch4-stub-3': { chapter: 4, index: 12, back: 'The green thread is the last one and it is the one she used on the understudy.' },
 };
 
 /** Radio messages — the voice that turns out to be Wren. */
@@ -456,6 +470,23 @@ export const RADIO = {
       { t: 6, text: 'It shows you the building the way it was drawn, not the way it was built.' },
       { t: 11.5, text: 'Stairs that were taken out. Doors that were bricked up. It is all still there and you can stand on it.' },
       { t: 18, text: 'It will tear the mask off you in about twenty seconds. Do not be halfway across something when it does.' },
+    ],
+  },
+  'ch4-radio-4': {
+    chapter: 4,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'The green spool is in the dye house, west off the hall, and it is at the bottom of a tank.' },
+      { t: 7, text: 'There is a cock on the wall that fills and empties it. Read the orders screwed up beside it before you touch anything — they are three lines long and they are all that room is.' },
+    ],
+  },
+  'ch4-radio-5': {
+    chapter: 4,
+    speaker: 'RADIO',
+    lines: [
+      { t: 0, text: 'Stop. Stop moving. There is something on the Threadworks floor with you.' },
+      { t: 6, text: 'It is not looking for you. It is doing its rounds, the same as it has done every night for ten years, and it will walk through you without ever noticing it did.' },
+      { t: 14, text: 'Thread the loom between its passes. Do not let it reach you and do not, whatever you do, try to talk to it.' },
     ],
   },
   'ch4-radio-3': {
