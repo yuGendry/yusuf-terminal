@@ -55,7 +55,10 @@ bloom and subtitles. They persist in `localStorage`.
 
 ## Poking at it
 
-`window.LASTTRAIN` exposes `{ GAME, PL, WORLD, S, Audio, camera, scene }` in the
+`index.html?skipintro=1` drops you straight into the flat with the phone
+already ringing, which saves replaying the wake-up while you edit.
+
+`window.LASTTRAIN` exposes `{ GAME, PL, WORLD, S, Audio, camera, scene, armsTo, POSE }` in the
 console, which is the quickest way to teleport (`LASTTRAIN.PL.pos.set(9, 0, -3)`),
 jump phases, or re-trigger a beat while editing.
 

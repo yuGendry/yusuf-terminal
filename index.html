@@ -1218,7 +1218,7 @@ function buildApartment() {
   const neon = new THREE.Mesh(new THREE.BoxGeometry(.2, 2.6, .08),
     new THREE.MeshStandardMaterial({ color: 0x220008, emissive: 0xff2d55, emissiveIntensity: 2.6 }));
   neon.position.set(-12.5, 1.2, -5.5); out.add(neon);
-  const neonLight = new THREE.PointLight(0xff3a63, 60, 30, 1.8); neonLight.position.set(-11.5, 1.4, -5); out.add(neonLight);
+  const neonLight = new THREE.PointLight(0xff3a63, 34, 16, 1.8); neonLight.position.set(-11.5, 1.4, -5); out.add(neonLight);
 
   const rain = makeRain(1800, 26, 20); rain.position.set(0, -6, -4); out.add(rain);
   WORLD.rain = rain;
@@ -1499,9 +1499,11 @@ function buildApartment() {
   const tube = new THREE.Mesh(new THREE.BoxGeometry(.12, .07, 1.25),
     new THREE.MeshStandardMaterial({ color: 0xe8f0ff, emissive: 0xcfe3ff, emissiveIntensity: 2.2 }));
   tube.position.set(13.6, 2.66, -3); root.add(tube);
-  const hallLight = new THREE.PointLight(0xbcd4f2, 22, 13, 1.6);
+  // Point lights ignore walls, so the landing stays dark until the door opens.
+  const hallLight = new THREE.PointLight(0xbcd4f2, 0, 13, 1.6);
   hallLight.position.set(13.6, 2.5, -3); root.add(hallLight);
-  WORLD.corridor = { light: hallLight, tube, base: 22 };
+  tube.material.emissiveIntensity = .15;
+  WORLD.corridor = { light: hallLight, tube, base: 22, live: false };
 
   /* ---------- ceiling lamp (off) + dust ---------- */
   const cord = new THREE.Mesh(new THREE.CylinderGeometry(.008, .008, .5, 6), MW.dark);
@@ -2358,6 +2360,7 @@ async function leaveHouse() {
   const idx = colliders.indexOf(d.collider);
   if (idx >= 0) colliders.splice(idx, 1);
   d.leak.intensity = 14;
+  if (WORLD.corridor) WORLD.corridor.live = true;    // the landing lights up as the door swings
 
   const camStart = { pos: camera.position.clone(), rot: new THREE.Vector3(camera.rotation.x, camera.rotation.y, camera.rotation.z) };
   await tween(1.9, (k) => {
@@ -2516,7 +2519,7 @@ function updateWorld(dt) {
   }
 
   // ---- the landing's strip light, flickering the way they do
-  if (WORLD.corridor) {
+  if (WORLD.corridor && WORLD.corridor.live) {
     const c = WORLD.corridor;
     const f = (Math.sin(t * 13.7) * .5 + .5) * (Math.random() < .04 ? .1 : 1);
     c.light.intensity = c.base * (.55 + f * .6);
