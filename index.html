@@ -152,6 +152,14 @@
   #title-card .c1{font-size:11px;letter-spacing:.62em;color:var(--dim);text-transform:uppercase;margin-bottom:16px}
   #title-card .c2{font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:clamp(28px,4.6vw,52px);letter-spacing:.04em;color:#ece7de}
   #title-card .c3{margin-top:22px;font-size:11px;letter-spacing:.4em;color:#59554e;text-transform:uppercase}
+  #death{z-index:95;display:flex;align-items:center;justify-content:center;background:#070203;
+    opacity:0;transition:opacity .7s}
+  #death.show{opacity:1}
+  #death .dc{text-align:center}
+  #death .d1{font-family:'Special Elite','Courier New',ui-monospace,serif;font-size:clamp(26px,4.2vw,46px);
+    color:#c4452e;letter-spacing:.06em;text-shadow:0 0 40px rgba(196,69,46,.45)}
+  #death .d2{margin-top:18px;font-size:14px;letter-spacing:.14em;color:#8f8078}
+  #death .d3{margin-top:26px;font-size:10.5px;letter-spacing:.4em;color:#4d4038;text-transform:uppercase}
   #vig{position:fixed;inset:0;z-index:20;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.55) 100%)}
   #dmg{position:fixed;inset:0;z-index:21;pointer-events:none;opacity:0;transition:opacity .5s;
@@ -232,6 +240,11 @@
   <div class="c1" id="tc1">Chapter One</div>
   <div class="c2" id="tc2">The Call</div>
   <div class="c3" id="tc3"></div>
+</div></div>
+<div id="death" class="layer hidden"><div class="dc">
+  <div class="d1">The 02:14 took you</div>
+  <div class="d2" id="death-why"></div>
+  <div class="d3">returning you to the last carriage</div>
 </div></div>
 <div id="vig"></div>
 <div id="dmg"></div>
@@ -788,6 +801,77 @@ function plane(parent, { x = 0, y = 0, z = 0, w = 1, d = 1, material, rx = -Math
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), material);
   m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
   m.receiveShadow = receive; parent.add(m); return m;
+}
+
+/* ------------------------------------------------------------------ */
+/*  ROUNDED / CURVED GEOMETRY                                          */
+/*  Plain boxes read as Lego under this lighting. These give everything */
+/*  a bevel or a curve for the light to catch along the edge.          */
+/* ------------------------------------------------------------------ */
+const geoCache = new Map();
+function cached(key, make) {
+  if (!geoCache.has(key)) geoCache.set(key, make());
+  return geoCache.get(key);
+}
+
+/* A box with rounded edges, built by extruding a rounded rectangle. */
+function roundedBoxGeo(w, h, d, r = .06, smooth = 2) {
+  r = Math.min(r, w / 2 - .001, h / 2 - .001, d / 2 - .001);
+  return cached(`rb${w}|${h}|${d}|${r}|${smooth}`, () => {
+    const sh = new THREE.Shape();
+    const hw = w / 2 - r, hh = h / 2 - r;
+    sh.moveTo(-hw - r, -hh);
+    sh.lineTo(-hw - r, hh);
+    sh.quadraticCurveTo(-hw - r, hh + r, -hw, hh + r);
+    sh.lineTo(hw, hh + r);
+    sh.quadraticCurveTo(hw + r, hh + r, hw + r, hh);
+    sh.lineTo(hw + r, -hh);
+    sh.quadraticCurveTo(hw + r, -hh - r, hw, -hh - r);
+    sh.lineTo(-hw, -hh - r);
+    sh.quadraticCurveTo(-hw - r, -hh - r, -hw - r, -hh);
+    const g = new THREE.ExtrudeGeometry(sh, {
+      depth: Math.max(.001, d - r * 2), bevelEnabled: true, bevelSegments: smooth,
+      bevelSize: r, bevelThickness: r, curveSegments: 4 });
+    g.translate(0, 0, -(d - r * 2) / 2);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+/* Same signature as box(), but rounded. For props, not for walls. */
+function rbox(parent, { x = 0, y = 0, z = 0, w = 1, h = 1, d = 1, r = .06, material,
+                        rot = 0, rx = 0, rz = 0, solid = false, shadow = true, receive = true }) {
+  const m = new THREE.Mesh(roundedBoxGeo(w, h, d, r), material);
+  m.position.set(x, y, z); m.rotation.set(rx, rot, rz);
+  m.castShadow = shadow; m.receiveShadow = receive;
+  parent.add(m);
+  if (solid) addCollider(null, w, h, d, x, y, z, rot);
+  return m;
+}
+
+/* A tube following a curve — lamp arms, handrails, pipes. */
+function tube(points, radius = .05, material, segs = 24) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)));
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, 8, false), material);
+}
+
+/* A soft dark patch on the ground: fake contact shadow under props. */
+let _contactTex = null;
+function contactShadow(parent, x, z, w, d, opacity = .55) {
+  if (!_contactTex) {
+    _contactTex = canvasTex('contact', 128, (g, s) => {
+      const rg = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      rg.addColorStop(0, 'rgba(0,0,0,.95)'); rg.addColorStop(.55, 'rgba(0,0,0,.45)');
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, s, s);
+    });
+  }
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: _contactTex, transparent: true, opacity,
+      depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, .012, z);
+  parent.add(m);
+  return m;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1793,13 +1877,22 @@ function buildCity() {
   });
   function streetLamp(x, z, rot = 0) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; root.add(g);
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, 6.4, 10), M.metal);
-    post.position.y = 3.2; g.add(post);
-    const armG = new THREE.Mesh(new THREE.BoxGeometry(1.5, .1, .1), M.metal);
-    armG.position.set(.75, 6.3, 0); g.add(armG);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(.8, .22, .34),
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.085, .15, 6.1, 14), M.metal);
+    post.position.y = 3.05; g.add(post);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(.2, .26, .45, 14), M.metal);
+    base.position.y = .22; g.add(base);
+    // the arm sweeps over the road instead of jutting out square
+    const arm = tube([[0, 5.9, 0], [.25, 6.34, 0], [.85, 6.5, 0], [1.42, 6.28, 0]], .06, M.metal, 20);
+    g.add(arm);
+    const head = new THREE.Mesh(
+      cached('lamphead', () => new THREE.SphereGeometry(.3, 16, 12, 0, Math.PI * 2, Math.PI * .34, Math.PI * .66)),
       new THREE.MeshStandardMaterial({ color: 0x20242a, emissive: 0xffbe72, emissiveIntensity: 3.2 }));
-    head.position.set(1.45, 6.18, 0); g.add(head);
+    head.scale.set(1.5, 1, 1.05);
+    head.position.set(1.45, 6.2, 0); g.add(head);
+    const cowl = new THREE.Mesh(
+      cached('lampcowl', () => new THREE.SphereGeometry(.33, 16, 10, 0, Math.PI * 2, 0, Math.PI * .4)),
+      mat({ color: 0x2b3037, roughness: .6, metalness: .5 }));
+    cowl.scale.set(1.5, 1, 1.05); cowl.position.set(1.45, 6.22, 0); g.add(cowl);
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(11, 11),
       new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: .72,
         depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -1819,20 +1912,58 @@ function buildCity() {
   /* ---------- parked cars ---------- */
   function car(x, z, rot, colour) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; root.add(g);
-    const body = mat({ color: colour, roughness: .35, metalness: .55 });
-    const b = new THREE.Mesh(new THREE.BoxGeometry(4.3, .82, 1.85), body); b.position.y = .72; g.add(b);
-    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.3, .72, 1.72),
-      new THREE.MeshStandardMaterial({ color: 0x0d1016, roughness: .2, metalness: .5 }));
-    cab.position.set(-.15, 1.42, 0); g.add(cab);
-    for (const [wx, wz] of [[1.45, .92], [1.45, -.92], [-1.45, .92], [-1.45, -.92]]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .22, 14), mat({ color: 0x14161a, roughness: .7 }));
-      w.rotation.x = Math.PI / 2; w.position.set(wx, .34, wz); g.add(w);
+    const body  = mat({ color: colour, roughness: .28, metalness: .6 });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x0a0d13, roughness: .08,
+                    metalness: .5, transparent: true, opacity: .82 });
+    const trim  = mat({ color: 0x15171c, roughness: .6, metalness: .4 });
+
+    rbox(g, { x: 0, y: .66, z: 0, w: 4.0, h: .58, d: 1.86, r: .22, material: body });
+    rbox(g, { x: 1.55, y: .78, z: 0, w: 1.1, h: .42, d: 1.74, r: .2, material: body });
+    rbox(g, { x: -1.6, y: .8, z: 0, w: 1.0, h: .44, d: 1.74, r: .2, material: body });
+    rbox(g, { x: 0, y: .38, z: 0, w: 3.9, h: .3, d: 1.7, r: .14, material: trim });
+    rbox(g, { x: 2.02, y: .52, z: 0, w: .22, h: .3, d: 1.7, r: .1, material: trim });
+    rbox(g, { x: -2.02, y: .52, z: 0, w: .22, h: .3, d: 1.7, r: .1, material: trim });
+
+    const cab = new THREE.Mesh(roundedBoxGeo(2.15, .72, 1.6, .32), body);
+    cab.position.set(-.18, 1.3, 0); g.add(cab);
+    const roof = new THREE.Mesh(new THREE.SphereGeometry(1.06, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), body);
+    roof.scale.set(1, .33, .78); roof.position.set(-.18, 1.42, 0); g.add(roof);
+
+    for (const gx of [.92, -1.22]) {
+      const w1 = new THREE.Mesh(roundedBoxGeo(.1, .58, 1.5, .1), glass);
+      w1.position.set(gx, 1.36, 0); w1.rotation.z = gx > 0 ? -.34 : .34; g.add(w1);
+    }
+    for (const sgn of [-1, 1]) {
+      const side = new THREE.Mesh(roundedBoxGeo(1.9, .5, .06, .08), glass);
+      side.position.set(-.2, 1.38, sgn * .79); g.add(side);
+      const mirror = new THREE.Mesh(roundedBoxGeo(.1, .12, .26, .04), trim);
+      mirror.position.set(.6, 1.18, sgn * .98); g.add(mirror);
+    }
+    for (const [wx, wz] of [[1.35, .9], [1.35, -.9], [-1.35, .9], [-1.35, -.9]]) {
+      const tyre = new THREE.Mesh(cached('tyre', () => new THREE.TorusGeometry(.27, .11, 10, 18)),
+        mat({ color: 0x121317, roughness: .85 }));
+      tyre.position.set(wx, .33, wz); tyre.rotation.y = Math.PI / 2; g.add(tyre);
+      const rim = new THREE.Mesh(cached('rim', () => new THREE.CylinderGeometry(.17, .17, .16, 12)),
+        mat({ color: 0x8b9099, roughness: .35, metalness: .85 }));
+      rim.rotation.x = Math.PI / 2; rim.position.set(wx, .33, wz); g.add(rim);
+      const arch = new THREE.Mesh(cached('wheelarch', () => new THREE.TorusGeometry(.42, .06, 8, 14, Math.PI)), trim);
+      arch.position.set(wx, .5, wz * .98); arch.rotation.y = Math.PI / 2; g.add(arch);
+    }
+    for (const sgn of [-1, 1]) {
+      const hl = new THREE.Mesh(roundedBoxGeo(.1, .2, .34, .06),
+        new THREE.MeshStandardMaterial({ color: 0x20222a, emissive: 0xd8e4f2, emissiveIntensity: .35, roughness: .2 }));
+      hl.position.set(2.04, .82, sgn * .62); g.add(hl);
+      const tl = new THREE.Mesh(roundedBoxGeo(.08, .18, .3, .05),
+        new THREE.MeshStandardMaterial({ color: 0x2a1012, emissive: 0xc0281e, emissiveIntensity: .5, roughness: .3 }));
+      tl.position.set(-2.04, .88, sgn * .62); g.add(tl);
     }
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(.5, .13),
-      new THREE.MeshStandardMaterial({ color: 0xd8d4c6, roughness: .6 }));
-    plate.position.set(2.17, .6, 0); plate.rotation.y = Math.PI / 2; g.add(plate);
+      new THREE.MeshStandardMaterial({ color: 0xd8d4c6, roughness: .6, emissive: 0x2a2a26, emissiveIntensity: .3 }));
+    plate.position.set(2.14, .6, 0); plate.rotation.y = Math.PI / 2; g.add(plate);
+    contactShadow(root, x, z, 5.6, 3.2, .6);
     addCollider(null, 4.4, 1.8, 2, x, .9, z, rot);
   }
+
   const paint = [0x2a3d5c, 0x5c2a2a, 0x3a3a3f, 0x24452f, 0x6a5a2a, 0x1e1e22];
   for (let x = 10; x < 58; x += rand(9, 16)) car(x, 4.1, 0, paint[(Math.random() * paint.length) | 0]);
   for (let x = 16; x < 58; x += rand(11, 18)) car(x, -4.1, Math.PI, paint[(Math.random() * paint.length) | 0]);
@@ -1892,9 +2023,10 @@ function buildCity() {
   seal(77.9, -30, .5, 46);       // Station Road, east
   seal(52, -65, .5, 28);         // plaza, west
   seal(92, -65, .5, 28);         // plaza, east
-  seal(72, -52.2, 20, .5);       // plaza, the way you came in stays open either side
-  seal(58, -52.2, 12, .5);
-  seal(86, -52.2, 12, .5);
+  // the plaza's north edge, but ONLY either side of Station Road (x 64..76),
+  // which is the way in — sealing across it walls the player out of the station
+  seal(57, -52.2, 10, .5);
+  seal(85, -52.2, 14, .5);
   seal(88, 0, 24, .5);           // the road east of the crossroads is closed off
   seal(88, -0.6, 24, .5);
 
@@ -1925,8 +2057,11 @@ function buildCity() {
   /* ---------- the plaza ---------- */
   // low wall around the plaza edge, bollards, a dry fountain
   for (let x = 54; x <= 90; x += 4) {
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(.14, .17, 1.0, 8), M.metal);
+    if (x > 62 && x < 78) continue;          // leave the way in from Station Road clear
+    const b = new THREE.Mesh(cached('bollard', () => new THREE.CylinderGeometry(.13, .17, 1.0, 12)), M.metal);
     b.position.set(x, .64, -53.5); root.add(b);
+    const cap = new THREE.Mesh(cached('bollardcap', () => new THREE.SphereGeometry(.14, 12, 8)), M.metal);
+    cap.position.set(x, 1.14, -53.5); root.add(cap);
     addCollider(null, .34, 1, .34, x, .64, -53.5, 0);
   }
   const fountain = new THREE.Group(); root.add(fountain);
@@ -1941,7 +2076,30 @@ function buildCity() {
   // facade with a big arched opening (approximated with a lintel + piers)
   box(root, { x: 60, y: 7, z: facadeZ, w: 16, h: 14, d: 2, material: stoneBig });
   box(root, { x: 84, y: 7, z: facadeZ, w: 16, h: 14, d: 2, material: stoneBig });
-  box(root, { x: 72, y: 10.5, z: facadeZ, w: 8, h: 7, d: 2, material: stoneBig });      // above the doors
+  // an actual arch over the doors: a ring of voussoirs, not a lintel
+  {
+    const R = 4.4, thick = 1.1;
+    const archShape = new THREE.Shape();
+    archShape.absarc(0, 0, R + thick / 2, 0, Math.PI, false);
+    archShape.absarc(0, 0, R - thick / 2, Math.PI, 0, true);
+    const archGeo = new THREE.ExtrudeGeometry(archShape, {
+      depth: 2, bevelEnabled: true, bevelSize: .08, bevelThickness: .08, bevelSegments: 2, curveSegments: 22 });
+    archGeo.translate(0, 0, -1);
+    const archM = new THREE.Mesh(archGeo, stoneBig);
+    archM.position.set(72, 7.6, facadeZ); root.add(archM);
+    box(root, { x: 72, y: 12.6, z: facadeZ, w: 8, h: 2.8, d: 2, material: stoneBig });
+    rbox(root, { x: 72, y: 12.2, z: facadeZ + .1, w: .8, h: 1.1, d: 2.2, r: .1, material: stoneBig });
+    const fan = new THREE.Mesh(new THREE.CircleGeometry(3.7, 28, 0, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x1a2530, emissive: 0xffd8a0, emissiveIntensity: .5,
+        roughness: .2, metalness: .3, transparent: true, opacity: .55, side: THREE.DoubleSide }));
+    fan.position.set(72, 7.6, facadeZ - .2); root.add(fan);
+    for (let i = 1; i < 6; i++) {
+      const a = (i / 6) * Math.PI;
+      const bar = new THREE.Mesh(roundedBoxGeo(.08, 3.7, .12, .03), stoneBig);
+      bar.position.set(72 + Math.cos(a) * 1.85, 7.6 + Math.sin(a) * 1.85, facadeZ - .25);
+      bar.rotation.z = a - Math.PI / 2; root.add(bar);
+    }
+  }
   // columns
   for (const cx of [65.5, 78.5]) {
     const col = new THREE.Mesh(new THREE.CylinderGeometry(.75, .85, 9, 16), stoneBig);
@@ -2017,12 +2175,7 @@ function buildCity() {
     num.position.set(58.2, 3.1, zz); root.add(num);
   }
   // benches
-  for (const bz of [-84, -90]) for (const bx of [70, 76]) {
-    const g = new THREE.Group(); g.position.set(bx, 0, bz); root.add(g);
-    box(g, { x: bx, y: .48, z: bz, w: 2.8, h: .12, d: .6, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }) });
-    box(g, { x: bx, y: .86, z: bz - .28, w: 2.8, h: .66, d: .1, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }), solid: false });
-    for (const s2 of [-1, 1]) box(g, { x: bx + s2 * 1.2, y: .24, z: bz, w: .12, h: .48, d: .55, material: M.metal, solid: false });
-  }
+  for (const bz of [-84, -90]) for (const bx of [70, 76]) bench(root, bx, bz, 0, M);
   // turnstiles between concourse and platform
   for (let i = 0; i < 4; i++) {
     const tx = 67 + i * 3;
@@ -2133,6 +2286,25 @@ function figureVanish() {
     .then(() => { f.group.visible = false; });
 }
 
+/* A slatted bench with curved cast-iron ends. */
+function bench(parent, x, z, rot, M) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; parent.add(g);
+  const wood = mat({ map: TEX.wood([1, 1], true), color: 0xb08d66, roughness: .85 });
+  for (let i = 0; i < 4; i++)
+    rbox(g, { x: 0, y: .46, z: -.21 + i * .14, w: 2.6, h: .055, d: .11, r: .025, material: wood });
+  for (let i = 0; i < 3; i++)
+    rbox(g, { x: 0, y: .72 + i * .18, z: -.3 - i * .05, w: 2.6, h: .055, d: .11, r: .025,
+              material: wood, rx: -.12 });
+  for (const sgn of [-1, 1]) {
+    g.add(tube([[sgn * 1.2, 0, .3], [sgn * 1.2, .2, .32], [sgn * 1.2, .46, .18],
+                [sgn * 1.2, .46, -.24], [sgn * 1.2, .95, -.42]], .035, M.metal, 18));
+    g.add(tube([[sgn * 1.2, .02, .34], [sgn * 1.2, .02, -.3]], .045, M.metal, 6));
+  }
+  contactShadow(parent, x, z, 3.6, 1.6, .5);
+  addCollider(null, 2.7, 1, .7, x, .5, z, rot);
+  return g;
+}
+
 /* Platform 1: slab, canopy, rails, and the 02:14 waiting with its doors open. */
 function buildPlatform(root, M, stoneBig) {
   const platMat = mat({ map: TEX.concrete([16, 5]), color: 0xc6cad1, roughness: .92 });
@@ -2191,10 +2363,7 @@ function buildPlatform(root, M, stoneBig) {
   pnumMesh.position.set(58, 3.3, -99.2); root.add(pnumMesh);
 
   // benches on the platform
-  for (const bx of [54, 84]) {
-    box(root, { x: bx, y: .48, z: -101, w: 2.6, h: .12, d: .6, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }) });
-    box(root, { x: bx, y: .86, z: -101.3, w: 2.6, h: .66, d: .1, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }), solid: false });
-  }
+  for (const bx of [54, 84]) bench(root, bx, -101, 0, M);
 
   /* ---------- the train ---------- */
   const train = new THREE.Group(); train.position.set(0, 0, -113); root.add(train);
@@ -2206,48 +2375,89 @@ function buildPlatform(root, M, stoneBig) {
   function carriage(px, isLoco) {
     const g = new THREE.Group(); g.position.x = px; train.add(g);
     const L = isLoco ? 9 : 13;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(L, 3.2, 3.1), bodyMat);
-    body.position.y = .95; g.add(body);
-    const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, L, 16, 1, false, 0, Math.PI), bodyMat);
-    roof.rotation.z = Math.PI / 2; roof.position.y = 2.55; g.add(roof);
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(L + .02, .34, 3.16), trimMat);
-    stripe.position.y = .1; g.add(stripe);
+    // body: rounded sides under a curved roof, not a slab
+    const body = new THREE.Mesh(roundedBoxGeo(L, 2.9, 3.05, .34), bodyMat);
+    body.position.y = 1.05; g.add(body);
+    const roof = new THREE.Mesh(
+      cached('trainroof' + L, () => new THREE.CylinderGeometry(1.56, 1.56, L, 22, 1, false, 0, Math.PI)), bodyMat);
+    roof.rotation.z = Math.PI / 2; roof.position.y = 2.42; g.add(roof);
+    const skirt = new THREE.Mesh(roundedBoxGeo(L - .3, .5, 2.8, .2),
+      mat({ color: 0x1b2028, roughness: .7, metalness: .4 }));
+    skirt.position.y = -.28; g.add(skirt);
+    const stripe = new THREE.Mesh(roundedBoxGeo(L + .04, .3, 3.12, .12), trimMat);
+    stripe.position.y = .12; g.add(stripe);
+    const waist = new THREE.Mesh(roundedBoxGeo(L + .02, .07, 3.1, .03),
+      mat({ color: 0xb9bec6, roughness: .35, metalness: .8 }));
+    waist.position.y = 2.06; g.add(waist);
+
     const wn = isLoco ? 3 : 5;
     for (let i = 0; i < wn; i++) {
-      const w = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1, 3.18), winMat);
-      w.position.set(-L / 2 + 1.8 + i * (L - 3.6) / (wn - 1), 1.45, 0); g.add(w);
+      const w = new THREE.Mesh(roundedBoxGeo(1.25, 1.02, 3.16, .22), winMat);
+      w.position.set(-L / 2 + 1.8 + i * (L - 3.6) / (wn - 1), 1.5, 0); g.add(w);
     }
-    if (!isLoco) {                               // open doors, warm light spilling out
+    if (!isLoco) {
       for (const dx of [-L / 2 + 2.2, L / 2 - 2.2]) {
-        const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.2, 3.2), doorMat);
-        door.position.set(dx, .9, 0); g.add(door);
+        const frame = new THREE.Mesh(roundedBoxGeo(1.7, 2.34, 3.14, .18), mat({ color: 0x191d24, roughness: .6 }));
+        frame.position.set(dx, .95, 0); g.add(frame);
+        const door = new THREE.Mesh(roundedBoxGeo(1.42, 2.1, 3.2, .14), doorMat);
+        door.position.set(dx, .95, 0); g.add(door);
         const spill = new THREE.PointLight(0xffc98a, 16, 11, 1.7);
         spill.position.set(px + dx, 1.2, -111.4); train.add(spill);
+        for (const sgn of [-1, 1]) {
+          g.add(tube([[dx + sgn * .9, .3, 1.58], [dx + sgn * .95, 1.3, 1.63], [dx + sgn * .9, 2.1, 1.58]],
+            .035, mat({ color: 0xc8cdd4, roughness: .3, metalness: .85 }), 10));
+        }
       }
     }
-    for (const bx of [-L / 2 + 2, L / 2 - 2]) for (const sgn of [-1, 1]) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .22, 16), mat({ color: 0x14161a, roughness: .5, metalness: .7 }));
-      wheel.rotation.x = Math.PI / 2; wheel.position.set(bx, -.75, sgn * 1.45); g.add(wheel);
+    for (const bx of [-L / 2 + 2, L / 2 - 2]) {
+      const bogie = new THREE.Mesh(roundedBoxGeo(2.4, .5, 2.4, .16), mat({ color: 0x14171c, roughness: .7 }));
+      bogie.position.set(bx, -.62, 0); g.add(bogie);
+      for (const sgn of [-1, 1]) {
+        const wheel = new THREE.Mesh(
+          cached('trainwheel', () => new THREE.CylinderGeometry(.56, .56, .2, 20)),
+          mat({ color: 0x1b1e23, roughness: .45, metalness: .7 }));
+        wheel.rotation.x = Math.PI / 2; wheel.position.set(bx, -.75, sgn * 1.4); g.add(wheel);
+        const hub = new THREE.Mesh(cached('trainhub', () => new THREE.CylinderGeometry(.18, .18, .24, 12)),
+          mat({ color: 0x9aa0a8, roughness: .35, metalness: .85 }));
+        hub.rotation.x = Math.PI / 2; hub.position.set(bx, -.75, sgn * 1.4); g.add(hub);
+      }
     }
     if (isLoco) {
-      const cabMat = mat({ color: 0x43506a, roughness: .45, metalness: .55 });
-      const nose = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.6, 2.9), cabMat);
-      nose.position.set(L / 2 + .9, 1.25, 0); g.add(nose);
-      const brow = new THREE.Mesh(new THREE.BoxGeometry(1, .9, 2.95), cabMat);
-      brow.position.set(L / 2 + 1.5, 2.1, 0); brow.rotation.z = -.42; g.add(brow);
-      const ws = new THREE.Mesh(new THREE.BoxGeometry(.12, .95, 2.3),
-        new THREE.MeshStandardMaterial({ color: 0x0d1118, emissive: 0x2a3a52, emissiveIntensity: .8, roughness: .15, metalness: .6 }));
-      ws.position.set(L / 2 + 1.72, 1.95, 0); ws.rotation.z = -.42; g.add(ws);
+      const cabMat = mat({ color: 0x43506a, roughness: .38, metalness: .6 });
+      // a nose that is actually curved, faired into the body
+      const nose = new THREE.Mesh(
+        cached('trainnose', () => new THREE.SphereGeometry(1.6, 24, 18, 0, Math.PI * 2, 0, Math.PI / 2)), cabMat);
+      nose.rotation.z = -Math.PI / 2;
+      nose.scale.set(1.9, 1.02, .95);
+      nose.position.set(L / 2 + .2, 1.2, 0); g.add(nose);
+      const cab = new THREE.Mesh(roundedBoxGeo(1.6, 2.5, 2.9, .5), cabMat);
+      cab.position.set(L / 2 + .2, 1.2, 0); g.add(cab);
+      const ws = new THREE.Mesh(
+        cached('trainws', () => new THREE.CylinderGeometry(1.34, 1.34, 1.05, 18, 1, true, -1.1, 2.2)),
+        new THREE.MeshStandardMaterial({ color: 0x0d1118, emissive: 0x2c3e58, emissiveIntensity: .7,
+          roughness: .1, metalness: .6, side: THREE.DoubleSide }));
+      ws.rotation.y = -Math.PI / 2; ws.rotation.x = .12; ws.position.set(L / 2 + .9, 2.0, 0); g.add(ws);
       const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff3d0, emissive: 0xfff0cc, emissiveIntensity: 7 });
       for (const sgn of [-1, 1]) {
-        const lamp = new THREE.Mesh(new THREE.SphereGeometry(.2, 12, 12), lampMat);
-        lamp.position.set(L / 2 + 1.92, .8, sgn * .72); g.add(lamp);
+        const lamp = new THREE.Mesh(cached('trainlamp', () => new THREE.SphereGeometry(.21, 14, 12)), lampMat);
+        lamp.position.set(L / 2 + 1.72, .78, sgn * .78); g.add(lamp);
+        const bezel = new THREE.Mesh(cached('trainbezel', () => new THREE.TorusGeometry(.24, .05, 8, 16)),
+          mat({ color: 0x2a2e35, roughness: .5, metalness: .6 }));
+        bezel.position.set(L / 2 + 1.74, .78, sgn * .78); bezel.rotation.y = Math.PI / 2; g.add(bezel);
+        const buf = new THREE.Mesh(cached('buffer', () => new THREE.CylinderGeometry(.2, .16, .42, 14)),
+          mat({ color: 0x1a1d22, roughness: .5, metalness: .7 }));
+        buf.rotation.z = Math.PI / 2; buf.position.set(L / 2 + 1.75, -.05, sgn * .92); g.add(buf);
       }
       const beam = new THREE.SpotLight(0xffe7bd, 60, 60, .38, .6, 1.3);
       beam.position.set(px + L / 2 + 2, .9, -113);
       beam.target.position.set(px + 60, -.4, -113);
       train.add(beam, beam.target);
       CITY.beam = beam;
+    } else {
+      for (const sgn of [-1, 1]) {
+        const bellows = new THREE.Mesh(roundedBoxGeo(.5, 2.1, 2.2, .18), mat({ color: 0x14161b, roughness: .95 }));
+        bellows.position.set(sgn * (L / 2 + .25), 1.05, 0); g.add(bellows);
+      }
     }
     return g;
   }
@@ -2654,14 +2864,15 @@ function speakLine(text, { who = '???', glitch = .5, rate = .84, pitch = .35, ho
 /* dev switches: index.html?skipintro=1&nogr() — handy while editing the flat */
 const DEV = {
   skipIntro: /[?&]skipintro/.test(location.search),
-  chapter2:  /[?&]chapter2/.test(location.search)
+  chapter2:  /[?&]chapter2/.test(location.search),
+  chapter3:  /[?&]chapter3/.test(location.search)
 };
 
 const GAME = {
   state: 'boot',          // boot | menu | play | end
   chapter: 1,
   paused: false, cutscene: false,
-  objective: '', glitchPulse: 0, phase: 'sleep',
+  objective: '', glitchPulse: 0, phase: 'sleep', dead: false,
   time: 0, ambience: {}, flags: {}, callTimer: 0, phoneMode: 'OFF',
   menuScene: null
 };
@@ -2669,7 +2880,8 @@ const GAME = {
 const EL = {
   menu: $('#menu'), settings: $('#settings'), pause: $('#pause'), hud: $('#hud'),
   boot: $('#boot'), black: $('#black'), lids: $('#lids'), wake: $('#wake'),
-  wakeInner: $('#wake-inner'), bars: $('#bars'), card: $('#title-card'), ring: $('#ringpulse'), dmg: $('#dmg')
+  wakeInner: $('#wake-inner'), bars: $('#bars'), card: $('#title-card'), ring: $('#ringpulse'),
+  dmg: $('#dmg'), death: $('#death')
 };
 const show = (el) => el.classList.remove('hidden');
 const hide = (el) => el.classList.add('hidden');
@@ -2701,8 +2913,9 @@ function startMenuAmbience() {
   setTimeout(() => { if (GAME.state === 'menu') Audio_.trainHorn(1.2); }, 2600);
 }
 function stopAmbience() {
-  for (const k of ['rain', 'hiss', 'room', 'drone']) { GAME.ambience[k]?.stop?.(.6); GAME.ambience[k] = null; }
+  for (const k of ['rain', 'hiss', 'room', 'drone', 'roll']) { GAME.ambience[k]?.stop?.(.6); GAME.ambience[k] = null; }
   clearInterval(GAME.ambience.hornTimer);
+  clearInterval(GAME.ambience.clatter);
   GAME.ambience.ring?.stop?.(); GAME.ambience.ring = null;
 }
 
@@ -2711,7 +2924,7 @@ function stopAmbience() {
 /* ------------------------------------------------------------------ */
 const fwd = new THREE.Vector3(), toObj = new THREE.Vector3();
 function currentInteractable() {
-  if (PL.locked || GAME.cutscene || GAME.paused) return null;
+  if (PL.locked || GAME.cutscene || GAME.paused || GAME.dead) return null;
   camera.getWorldDirection(fwd);
   let best = null, bestScore = -1;
   for (const it of WORLD.interactables) {
@@ -2761,6 +2974,10 @@ function interact(it) {
       break;
     case 'payphone': answerPayphone(); break;
     case 'train':    boardTrain(); break;
+    case 'cabdoor':  tryCabDoor(); break;
+    default:
+      if (it.id.startsWith('cardoor')) openCarDoor(it);
+      break;
   }
 }
 let flavourTimer = null;
@@ -3128,6 +3345,585 @@ async function chapterCard(c1, c2, c3, { next = null, hold = 2600 } = {}) {
 }
 
 /* ==================================================================== */
+/*  CHAPTER THREE — THE 02:14                                           */
+/*                                                                      */
+/*  Inside the moving train: three carriages and a cab, end to end      */
+/*  along +x. Something boards at the back and walks up the train. It   */
+/*  is slower than your run and faster than your walk, so the doors you */
+/*  have to stop and open are what make it dangerous.                   */
+/* ==================================================================== */
+
+const CAR_LEN = 13, CAR_GAP = 2.4, CAR_W = 2.8, CAR_H = 2.4;
+const carX = (i) => i * (CAR_LEN + CAR_GAP);
+
+const CH3 = {
+  stalker: null, doors: [], lights: [], straps: [], tunnel: null,
+  chase: false, checkpoint: { x: 1.5, yaw: -Math.PI / 2 }, deaths: 0, rock: 0, cab: null
+};
+
+function buildTrainInterior() {
+  disposeScene(WORLD.scene);
+  colliders = [];
+  CH3.doors = []; CH3.lights = []; CH3.straps = [];
+  const sc = new THREE.Scene();
+  sc.background = new THREE.Color(0x020305);
+  sc.fog = new THREE.FogExp2(0x05070c, .045);
+  const root = new THREE.Group(); sc.add(root);
+
+  const M = {
+    floor: mat({ map: TEX.tile([8, 2]), color: 0x6f757e, roughness: .86 }),
+    wall:  mat({ map: TEX.plaster([3, 1], '#4a515c'), color: 0x939aa4, roughness: .78 }),
+    panel: mat({ color: 0x79808b, roughness: .5, metalness: .3 }),
+    seat:  mat({ map: TEX.fabric([2, 2], '#33405a'), color: 0x7f8aa0, roughness: 1 }),
+    seat2: mat({ map: TEX.fabric([2, 2], '#4c3138'), color: 0x8f7680, roughness: 1 }),
+    metal: mat({ color: 0xb6bcc4, roughness: .28, metalness: .85 }),
+    dark:  mat({ color: 0x20242b, roughness: .7 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x0a0e14, roughness: .08, metalness: .4,
+             transparent: true, opacity: .4, side: THREE.DoubleSide })
+  };
+
+  /* ---------- the tunnel rushing past outside ---------- */
+  const tunnelTex = canvasTex('tunnelwall', 512, (g, sz) => {
+    g.fillStyle = '#0a0d13'; g.fillRect(0, 0, sz, sz);
+    for (let i = 0; i < 26; i++) {
+      const x = i * (sz / 26);
+      const v = 26 + Math.random() * 26 | 0;
+      g.fillStyle = `rgb(${v},${v + 2},${v + 8})`;
+      g.fillRect(x, 0, sz / 52, sz);
+    }
+    g.strokeStyle = 'rgba(70,76,88,.5)'; g.lineWidth = 3;
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(0, 120 + i * 70); g.lineTo(sz, 128 + i * 70); g.stroke(); }
+    for (let i = 0; i < 9; i++) {
+      g.fillStyle = Math.random() < .4 ? 'rgba(255,196,120,.85)' : 'rgb(38,42,50)';
+      g.fillRect(i * (sz / 9) + 20, 80, 16, 26);
+    }
+    grainOver(g, sz, 22);
+  }, { repeat: [16, 1] });
+  const tunnel = new THREE.Mesh(
+    new THREE.CylinderGeometry(7.5, 7.5, 260, 28, 1, true),
+    new THREE.MeshStandardMaterial({ map: tunnelTex, side: THREE.BackSide, roughness: 1,
+      emissive: 0x0b0f16, emissiveIntensity: .6 }));
+  tunnel.rotation.z = Math.PI / 2;
+  tunnel.position.set(carX(1), 1.2, 0);
+  sc.add(tunnel);
+  CH3.tunnel = { mesh: tunnel, tex: tunnelTex };
+
+  /* ---------- carriages ---------- */
+  for (let c = 0; c < 3; c++) {
+    const g = new THREE.Group(); root.add(g);
+    const cx = carX(c), half = CAR_LEN / 2;
+
+    plane(g, { x: cx, y: .01, z: 0, w: CAR_LEN, d: CAR_W, material: M.floor });
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(CAR_LEN, .9),
+      mat({ color: 0x3c424c, roughness: .95 }));
+    runner.rotation.x = -Math.PI / 2; runner.position.set(cx, .015, 0); g.add(runner);
+
+    const ceil = new THREE.Mesh(
+      cached('carceil', () => new THREE.CylinderGeometry(1.95, 1.95, CAR_LEN, 22, 1, true, Math.PI * .16, Math.PI * .68)),
+      M.panel);
+    ceil.rotation.z = Math.PI / 2; ceil.position.set(cx, .95, 0); g.add(ceil);
+
+    for (const sgn of [-1, 1]) {
+      // wall below and above the window band, so the windows are real holes
+      box(root, { x: cx, y: .44, z: sgn * (CAR_W / 2 + .1), w: CAR_LEN, h: .88, d: .2, material: M.wall, shadow: false });
+      box(root, { x: cx, y: 2.16, z: sgn * (CAR_W / 2 + .1), w: CAR_LEN, h: .5, d: .2, material: M.wall, shadow: false });
+      for (let i = 0; i < 5; i++) {
+        const wx = cx - half + 1.6 + i * 2.45;
+        const pier = new THREE.Mesh(roundedBoxGeo(.42, 1.1, .22, .07), M.wall);
+        pier.position.set(wx - 1.22, 1.45, sgn * (CAR_W / 2 + .1)); g.add(pier);
+        if (i === 4) continue;
+        const pane = new THREE.Mesh(roundedBoxGeo(2.0, 1.0, .07, .12), M.glass);
+        pane.position.set(wx, 1.45, sgn * (CAR_W / 2 + .05)); g.add(pane);
+        const surround = new THREE.Mesh(roundedBoxGeo(2.2, 1.2, .1, .14), M.dark);
+        surround.position.set(wx, 1.45, sgn * (CAR_W / 2 + .12)); g.add(surround);
+      }
+      g.add(tube([[cx - half + .6, 2.0, sgn * (CAR_W / 2 - .22)],
+                  [cx + half - .6, 2.0, sgn * (CAR_W / 2 - .22)]], .028, M.metal, 8));
+      g.add(tube([[cx - half + .8, 1.98, sgn * .78], [cx + half - .8, 1.98, sgn * .78]], .026, M.metal, 8));
+      for (let i = 0; i < 6; i++) {
+        const strap = new THREE.Mesh(cached('strap', () => new THREE.TorusGeometry(.11, .022, 6, 14)),
+          mat({ color: 0x2a2e36, roughness: .9 }));
+        strap.position.set(cx - half + 1.4 + i * 2, 1.82, sgn * .78);
+        strap.userData.phase = Math.random() * 6;
+        g.add(strap); CH3.straps.push(strap);
+      }
+    }
+
+    // seat bays, facing each other across a table
+    for (let b = 0; b < 3; b++) {
+      const bx = cx - half + 2.7 + b * 3.9;
+      for (const sgn of [-1, 1]) for (const face of [-1, 1]) {
+        const sxx = bx + face * .75;
+        const seatMat = (b + c) % 2 ? M.seat : M.seat2;
+        rbox(g, { x: sxx, y: .45, z: sgn * .95, w: .95, h: .13, d: .95, r: .07, material: seatMat, solid: true });
+        const back = new THREE.Mesh(roundedBoxGeo(.17, .8, .95, .1), seatMat);
+        back.position.set(sxx + face * .41, .87, sgn * .95); back.rotation.z = face * .09; g.add(back);
+        const head = new THREE.Mesh(roundedBoxGeo(.19, .27, .86, .11), seatMat);
+        head.position.set(sxx + face * .44, 1.32, sgn * .95); g.add(head);
+      }
+      rbox(g, { x: bx, y: .66, z: 0, w: 1.05, h: .06, d: 1.95, r: .04, material: M.panel, solid: true });
+      const leg = new THREE.Mesh(cached('tableleg', () => new THREE.CylinderGeometry(.05, .07, .66, 10)), M.metal);
+      leg.position.set(bx, .33, 0); g.add(leg);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const lx = cx - half + 2.6 + i * 4;
+      const panel = new THREE.Mesh(roundedBoxGeo(2.8, .08, 1.0, .05),
+        new THREE.MeshStandardMaterial({ color: 0xdfe6f2, emissive: 0xc3d6ee, emissiveIntensity: .85 }));
+      panel.position.set(lx, 2.28, 0); g.add(panel);
+      const light = new THREE.PointLight(0xb9cfe6, 6.5, 8, 1.7);
+      light.position.set(lx, 2.08, 0); g.add(light);
+      CH3.lights.push({ panel, light, on: true, x: lx, base: 6.5 });
+    }
+
+    // litter, so it reads as a train people were on
+    if (c < 2) {
+      const paper = new THREE.Mesh(new THREE.PlaneGeometry(.34, .24),
+        mat({ color: 0xcfc9b8, roughness: 1, side: THREE.DoubleSide }));
+      paper.rotation.set(-Math.PI / 2, 0, rand(0, 3)); paper.position.set(cx + rand(-4, 4), .02, rand(-1, 1));
+      g.add(paper);
+      const cup = new THREE.Mesh(cached('cup', () => new THREE.CylinderGeometry(.04, .033, .11, 10)),
+        mat({ color: 0xd8d2c6, roughness: .8 }));
+      cup.position.set(cx + rand(-4, 4), .055, rand(-1.1, 1.1)); cup.rotation.z = 1.5; g.add(cup);
+    }
+    // walls at the extreme ends of the train
+    if (c === 0) box(root, { x: cx - half - .3, y: CAR_H / 2, z: 0, w: .4, h: CAR_H + .3, d: CAR_W + .4, material: M.dark });
+  }
+
+  /* ---------- gangways with the doors you have to open ---------- */
+  for (let d = 0; d < 2; d++) {
+    const gx = carX(d) + CAR_LEN / 2 + CAR_GAP / 2;
+    for (const sgn of [-1, 1])
+      box(root, { x: gx, y: CAR_H / 2, z: sgn * (CAR_W / 2 + .1), w: CAR_GAP + .6, h: CAR_H, d: .2,
+                  material: M.dark, shadow: false });
+    plane(root, { x: gx, y: .01, z: 0, w: CAR_GAP + .6, d: CAR_W, material: mat({ color: 0x2b2f36, roughness: .95 }) });
+    const bellows = new THREE.Mesh(
+      cached('bellows', () => new THREE.CylinderGeometry(1.7, 1.7, CAR_GAP, 18, 1, true, Math.PI * .08, Math.PI * .84)),
+      mat({ color: 0x15171c, roughness: 1 }));
+    bellows.rotation.z = Math.PI / 2; bellows.position.set(gx, 1.0, 0); root.add(bellows);
+
+    const doorX = gx - CAR_GAP / 2 - .2;
+    const frame = new THREE.Mesh(roundedBoxGeo(.26, CAR_H, CAR_W + .3, .07), M.dark);
+    frame.position.set(doorX, CAR_H / 2, 0); root.add(frame);
+    const leaves = [];
+    for (const sgn of [-1, 1]) {
+      const leaf = new THREE.Mesh(roundedBoxGeo(.13, 2.12, 1.2, .06), M.panel);
+      leaf.position.set(doorX, 1.06, sgn * .62); root.add(leaf);
+      const win = new THREE.Mesh(roundedBoxGeo(.17, .92, .56, .09), M.glass);
+      win.position.set(doorX, 1.46, sgn * .62); root.add(win);
+      leaves.push({ leaf, win, sgn, home: sgn * .62 });
+    }
+    const col = addCollider(null, .34, 2.2, CAR_W, doorX, 1.06, 0, 0);
+    CH3.doors.push({ x: doorX, leaves, collider: col, open: false, opening: false, index: d });
+  }
+
+  /* ---------- the cab door at the front ---------- */
+  const endX = carX(2) + CAR_LEN / 2 + .5;
+  box(root, { x: endX, y: CAR_H / 2, z: 0, w: .5, h: CAR_H + .2, d: CAR_W + .4, material: M.panel });
+  const cabDoor = new THREE.Mesh(roundedBoxGeo(.18, 2.05, 1.05, .07),
+    mat({ color: 0x7d8792, roughness: .45, metalness: .45 }));
+  cabDoor.position.set(endX - .3, 1.02, 0); root.add(cabDoor);
+  const cabWin = new THREE.Mesh(roundedBoxGeo(.2, .52, .52, .08),
+    new THREE.MeshStandardMaterial({ color: 0x0b1018, emissive: 0x2a4464, emissiveIntensity: 1, roughness: .2 }));
+  cabWin.position.set(endX - .32, 1.5, 0); root.add(cabWin);
+  const cabSign = new THREE.Mesh(new THREE.PlaneGeometry(.78, .2),
+    new THREE.MeshStandardMaterial({ color: 0x14171d, emissive: 0xd04a3a, emissiveIntensity: 1.3 }));
+  cabSign.position.set(endX - .41, 1.88, 0); cabSign.rotation.y = -Math.PI / 2; root.add(cabSign);
+  CH3.cab = { x: endX, door: cabDoor };
+
+  sc.add(new THREE.HemisphereLight(0x3f4d63, 0x17191f, .75));
+
+  CH3.stalker = makeStalker();
+  CH3.stalker.group.position.set(carX(0) - CAR_LEN / 2, 0, 0);
+  CH3.stalker.group.visible = false;
+  CH3.stalker.x = carX(0) - CAR_LEN / 2;
+  sc.add(CH3.stalker.group);
+
+  sc.add(camera);
+  if (WORLD.arms) camera.remove(WORLD.arms.group);
+  WORLD.arms = makeArms();
+  camera.add(WORLD.arms.group);
+
+  sc.userData.tick = () => {};
+  WORLD.scene = sc;
+  WORLD.phone = null; WORLD.tv = null; WORLD.lamp = null; WORLD.door = null; WORLD.corridor = null;
+  WORLD.interactables = [];
+  return sc;
+}
+
+/* Taller than you, and it does not hurry. */
+function makeStalker() {
+  const g = new THREE.Group();
+  const black = new THREE.MeshBasicMaterial({ color: 0x010203, transparent: true, opacity: .99 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.3, 1.15, 6, 14), black);
+  body.position.y = 1.16; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.22, 16, 14), black);
+  head.position.y = 1.98; g.add(head);
+  const limbs = [];
+  for (const sgn of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(.085, .82, 5, 10), black);
+    arm.position.set(0, 1.18, sgn * .34); g.add(arm); limbs.push(arm);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(.11, .8, 5, 10), black);
+    leg.position.set(0, .45, sgn * .16); g.add(leg); limbs.push(leg);
+  }
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(.035, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffdcc0 }));
+  eye.position.set(-.19, 1.99, 0); g.add(eye);
+  return { group: g, material: black, limbs, speed: 1.95, x: 0 };
+}
+
+/* ------------------------------------------------------------------ */
+/*  CHAPTER THREE — SEQUENCE                                           */
+/* ------------------------------------------------------------------ */
+function startTrainAmbience() {
+  Audio_.init(); Audio_.resume();
+  stopAmbience();
+  GAME.ambience.roll = Audio_.bed({ type: 'brown', freq: 320, gain: .17, filter: 'lowpass' });
+  GAME.ambience.room = Audio_.bed({ type: 'brown', freq: 90, gain: .1, filter: 'lowpass' });
+  GAME.ambience.hiss = Audio_.bed({ type: 'white', freq: 4200, q: .4, gain: .022, filter: 'highpass' });
+  GAME.ambience.drone = Audio_.drone(34, .05);
+  clearInterval(GAME.ambience.clatter);
+  GAME.ambience.clatter = setInterval(() => {
+    if (GAME.chapter !== 3 || GAME.paused) return;
+    Audio_.burst({ dur: .09, freq: rand(90, 190), q: 1.1, gain: .07, type: 'lowpass' });
+    setTimeout(() => Audio_.burst({ dur: .08, freq: rand(90, 190), q: 1.1, gain: .055, type: 'lowpass' }), 150);
+  }, 1150);
+}
+
+async function startChapter3({ fromChapterTwo = false } = {}) {
+  GAME.state = 'play'; GAME.chapter = 3; GAME.paused = false; GAME.cutscene = true;
+  GAME.phase = 'seated'; GAME.flags = {}; GAME.glitchPulse = 0;
+  CH3.chase = false; CH3.deaths = 0; CH3.checkpoint = { x: 1.5, yaw: -Math.PI / 2 };
+  TUT.clear(); HUD.clearSay(); HUD.hidePrompt(); HUD.setObjective('');
+
+  if (!fromChapterTwo) await fadeTo(1, 800);
+
+  const sc = buildTrainInterior();
+  scene = sc; renderPass.scene = sc;
+  renderer.toneMappingExposure = 1.0;
+  GU.uDesat.value = .05; GU.uVignette.value = 1.15; GU.uAberr.value = .0016;
+
+  // you come round in a seat, facing the back of the train
+  PL.pos.set(1.5, 0, .95); PL.vel.set(0, 0, 0);
+  PL.yaw = Math.PI / 2; PL.pitch = -.25; PL.locked = true;
+  camera.position.set(1.5, 1.25, .95);
+  camera.rotation.set(-.25, Math.PI / 2, .06, 'YXZ');
+
+  startTrainAmbience();
+  show(EL.hud); EL.hud.style.opacity = 0;
+  buildChapter3Beats();
+
+  await fadeTo(0, 2200);
+  await wait(900);
+  HUD.say('', 'You do not remember sitting down.');
+  await wait(2600);
+  HUD.clearSay();
+
+  // stand up out of the seat
+  Audio_.breath(1, true);
+  await camTo({ pos: [2.1, 1.62, .55], rot: [-.05, Math.PI / 2 - .5, 0] }, 1.8);
+  await camTo({ pos: [2.1, 1.62, 0], rot: [0, -Math.PI / 2, 0] }, 1.5);
+
+  GAME.cutscene = false; PL.locked = false;
+  PL.pos.set(2.1, 0, 0); PL.yaw = -Math.PI / 2; PL.pitch = 0;
+  GAME.phase = 'walk';
+  EL.hud.style.transition = 'opacity 1s'; EL.hud.style.opacity = 1;
+  HUD.setObjective('Get to the front of the train');
+  TUT.add('run', 'SHIFT', 'run');
+  lockPointer();
+  await wait(1400);
+  HUD.say('', 'Every seat is empty. The train is not slowing down.');
+  setTimeout(() => HUD.clearSay(), 4200);
+}
+
+function buildChapter3Beats() {
+  CH3.triggers = [];
+  const t3 = (x, r, fn) => CH3.triggers.push({ x, r, fn, done: false });
+
+  // the doors are interactable as you reach them
+  CH3.doors.forEach((d, i) => {
+    WORLD.interactables.push({ id: 'cardoor' + i, pos: new THREE.Vector3(d.x, 1.3, 0),
+      r: 2.6, label: 'Open the door', key: 'E', enabled: true, door: d });
+  });
+  WORLD.interactables.push({ id: 'cabdoor', pos: new THREE.Vector3(CH3.cab.x - .4, 1.3, 0),
+    r: 2.6, label: 'Try the cab door', key: 'E', enabled: true });
+
+  // halfway down the first carriage: the intercom
+  t3(carX(0) + 3, 2.5, () => {
+    Audio_.glitch(.4, .12);
+    setTimeout(() => speakLine('This is the two fourteen. All stations. No stops.', {
+      who: 'INTERCOM', glitch: .55, rate: .8, pitch: .35, glitchWords: ['fourteen', 'stops'] }), 400);
+  });
+
+  // the far end of the first carriage: it gets on behind you
+  t3(carX(0) + CAR_LEN / 2 - 1, 2, () => {
+    CH3.checkpoint = { x: carX(0) + CAR_LEN / 2 - 2, yaw: -Math.PI / 2 };
+    startChase();
+  });
+
+  // each carriage entered: a checkpoint, and the lights behind you fail
+  t3(carX(1), 3, () => {
+    CH3.checkpoint = { x: carX(1) - 2, yaw: -Math.PI / 2 };
+    HUD.setObjective('Keep moving — do not let it reach you');
+  });
+  t3(carX(2), 3, () => {
+    CH3.checkpoint = { x: carX(2) - 2, yaw: -Math.PI / 2 };
+    GAME.ambience.drone?.to(.13, 2);
+    HUD.say('', 'The cab is at the end of this carriage.');
+    setTimeout(() => HUD.clearSay(), 3800);
+  });
+}
+
+function startChase() {
+  if (CH3.chase) return;
+  CH3.chase = true;
+  GAME.phase = 'chase';
+  const st = CH3.stalker;
+  st.group.visible = true;
+  st.x = PL.pos.x - 11;
+  st.group.position.set(st.x, 0, 0);
+  st.material.opacity = .99;
+  Audio_.glitch(.6, .22);
+  Audio_.thud(.3);
+  GAME.glitchPulse = 1.4;
+  GAME.ambience.drone?.to(.14, 1.5);
+  HUD.say('', 'Something just came through the door behind you.');
+  setTimeout(() => HUD.clearSay(), 4000);
+  // the lights fail from the back forwards
+  CH3.lights.forEach((l) => {
+    const delay = Math.max(0, (l.x - (PL.pos.x - 14)) * 320);
+    setTimeout(() => { if (l.x < PL.pos.x + 6) l.on = false; }, delay);
+  });
+}
+
+/* Sliding a gangway door open takes time you may not have. */
+async function openCarDoor(it) {
+  const d = it.door;
+  if (d.open || d.opening) return;
+  d.opening = true;
+  it.enabled = false;
+  HUD.hidePrompt();
+  Audio_.click(1200, .12);
+  Audio_.burst({ dur: 1.1, freq: 420, q: 2.5, gain: .09, type: 'bandpass' });
+  await tween(1.15, (k) => {
+    const e = smooth(k);
+    for (const lf of d.leaves) {
+      lf.leaf.position.z = lf.home + lf.sgn * e * .62;
+      lf.win.position.z = lf.home + lf.sgn * e * .62;
+    }
+  });
+  const idx = colliders.indexOf(d.collider);
+  if (idx >= 0) colliders.splice(idx, 1);
+  d.open = true; d.opening = false;
+  Audio_.thud(.1);
+}
+
+/* It does not open doors so much as get through them. */
+function forceDoor(d) {
+  if (d.open) return;
+  d.open = true; d.opening = false;
+  const idx = colliders.indexOf(d.collider);
+  if (idx >= 0) colliders.splice(idx, 1);
+  const it = WORLD.interactables.find(i => i.id === 'cardoor' + d.index);
+  if (it) it.enabled = false;
+  Audio_.thud(.34);
+  Audio_.burst({ dur: .5, freq: 900, q: 1.4, gain: .16 });
+  GAME.glitchPulse = 1.2;
+  tween(.35, (k) => {
+    for (const lf of d.leaves) {
+      lf.leaf.position.z = lf.home + lf.sgn * k * .62;
+      lf.win.position.z = lf.home + lf.sgn * k * .62;
+    }
+  });
+}
+
+/* The cab door is locked, and that is the end of the chapter. */
+async function tryCabDoor() {
+  if (GAME.flags.cabTried) return;
+  GAME.flags.cabTried = true;
+  PL.locked = true; GAME.cutscene = true;
+  HUD.hidePrompt(); HUD.setObjective('');
+  WORLD.interactables.forEach(i => i.enabled = false);
+  CH3.chase = false;
+  EL.bars.classList.add('on');
+  HUD.tips.style.opacity = 0;
+
+  Audio_.click(900, .16);
+  Audio_.burst({ dur: .5, freq: 260, q: 3, gain: .12, type: 'bandpass' });
+  await wait(700);
+  HUD.say('', 'Locked.');
+  await wait(1400);
+  HUD.clearSay();
+
+  // it stops coming, and speaks instead
+  const st = CH3.stalker;
+  st.group.visible = true;
+  st.x = PL.pos.x - 6.5;
+  st.group.position.set(st.x, 0, 0);
+  GAME.glitchPulse = 1.6;
+  Audio_.glitch(.7, .24);
+  await wait(900);
+  await speakLine('You were told to sit down.', {
+    who: '???', glitch: 1, rate: .7, pitch: .22, glitchWords: ['sit', 'down'] });
+
+  // the train brakes hard
+  Audio_.tone({ freq: 1800, slideTo: 140, type: 'sawtooth', dur: 2.4, gain: .1 });
+  Audio_.burst({ dur: 2.2, freq: 900, q: .6, gain: .16 });
+  GAME.ambience.roll?.to(.04, 2.2);
+  const t0 = performance.now();
+  await tween(2.4, () => {
+    const el = (performance.now() - t0) / 1000;
+    CH3.rock = 1;
+    camera.position.x += Math.sin(el * 48) * .035;
+    camera.rotation.z = Math.sin(el * 26) * .045;
+  });
+  CH3.lights.forEach(l => { l.on = false; });
+  GAME.glitchPulse = 2;
+  await fadeTo(1, 1800);
+  stopAmbience();
+  hide(EL.hud); TUT.clear();
+  EL.bars.classList.remove('on');
+  HUD.tips.style.opacity = 1;
+  await wait(600);
+  await chapterCard('Chapter Three', 'The 02:14', 'to be continued',
+                    { next: ['Next', 'The Last Stop', 'chapter four'] });
+  saveProgress(3);
+  toMenu();
+}
+
+/* ------------------------------------------------------------------ */
+/*  DYING                                                              */
+/* ------------------------------------------------------------------ */
+async function die(cause) {
+  if (GAME.dead) return;
+  GAME.dead = true;
+  CH3.deaths++;
+  PL.locked = true;
+  HUD.hidePrompt(); HUD.clearSay();
+  clearInterval(CH3.stepTimer); CH3.stepTimer = null;
+
+  Audio_.glitch(.9, .3);
+  Audio_.tone({ freq: 140, slideTo: 40, type: 'sawtooth', dur: 1.6, gain: .16 });
+  Audio_.thud(.4);
+  GAME.glitchPulse = 2.4;
+  EL.dmg.style.opacity = 1;
+
+  // it takes the camera
+  await tween(.9, (k) => {
+    GU.uDesat.value = k * .9;
+    camera.rotation.z = k * .55;
+    camera.position.y = lerp(PL.pos.y + PL.height - .1, PL.pos.y + .4, k);
+  });
+  await fadeTo(1, 900);
+
+  $('#death-why').textContent = cause;
+  show(EL.death);
+  requestAnimationFrame(() => EL.death.classList.add('show'));
+  EL.black.style.opacity = 0;
+  await wait(2600);
+  EL.death.classList.remove('show');
+  await wait(900);
+  hide(EL.death);
+  await fadeTo(1, 400);
+  respawn();
+  await fadeTo(0, 1200);
+}
+
+function respawn() {
+  GAME.dead = false;
+  EL.dmg.style.opacity = 0;
+  GU.uDesat.value = .05;
+  camera.rotation.z = 0;
+  PL.pos.set(CH3.checkpoint.x, 0, 0);
+  PL.vel.set(0, 0, 0);
+  PL.yaw = CH3.checkpoint.yaw; PL.pitch = 0;
+  PL.locked = false;
+  // push it back down the train and give the lights another go
+  const st = CH3.stalker;
+  if (st) { st.x = PL.pos.x - 13; st.group.position.x = st.x; }
+  CH3.lights.forEach(l => { if (l.x > PL.pos.x - 4) l.on = true; });
+  Audio_.heartbeat(.34);
+  setTimeout(() => Audio_.heartbeat(.3), 900);
+}
+
+/* ------------------------------------------------------------------ */
+/*  PER-FRAME — CHAPTER THREE                                          */
+/* ------------------------------------------------------------------ */
+function updateTrain(dt) {
+  const t = GAME.time, cam = camera.position;
+
+  // the tunnel streams past, and the carriage rolls with it
+  if (CH3.tunnel) {
+    CH3.tunnel.tex.offset.x -= dt * 2.4;
+    CH3.tunnel.mesh.position.x = cam.x;
+  }
+  if (!GAME.cutscene && !GAME.dead) {
+    const sway = Math.sin(t * 1.7) * .012 + Math.sin(t * 4.3) * .004;
+    const jolt = Math.sin(t * 9.1) * .006;
+    camera.position.y += jolt;
+    camera.position.z += sway;
+    camera.rotation.z += Math.sin(t * 1.3) * .006;
+  }
+  for (const s of CH3.straps) s.rotation.x = Math.sin(t * 2.1 + s.userData.phase) * .22;
+
+  // ceiling lights
+  for (const l of CH3.lights) {
+    const want = l.on ? (Math.random() < .015 ? .15 : 1) : 0;
+    l.light.intensity = lerp(l.light.intensity, l.base * want, 1 - Math.exp(-9 * dt));
+    l.panel.material.emissiveIntensity = .05 + (l.light.intensity / l.base) * .85;
+  }
+
+  // the thing walking up the train
+  const st = CH3.stalker;
+  if (st && CH3.chase && !GAME.dead && !GAME.cutscene) {
+    const ahead = PL.pos.x - st.x;
+    st.x += Math.sign(ahead) * Math.min(Math.abs(ahead), st.speed * dt);
+    st.group.position.x = st.x;
+    st.group.rotation.y = -Math.PI / 2;
+    for (let i = 0; i < st.limbs.length; i++)
+      st.limbs[i].rotation.z = Math.sin(t * 4.4 + i * 1.7) * .34;
+    // a closed door holds it, but only for a few seconds: then it comes through
+    let blocked = null;
+    for (const d of CH3.doors) {
+      if (!d.open && st.x < d.x && PL.pos.x > d.x) { blocked = d; st.x = Math.min(st.x, d.x - .7); }
+    }
+    if (blocked) {
+      st.blockTime = (st.blockTime || 0) + dt;
+      if (st.blockTime > 4.5) { st.blockTime = 0; forceDoor(blocked); }
+      else if (st.blockTime % 1.4 < dt) {                 // it tries the door
+        Audio_.thud(.18);
+        Audio_.burst({ dur: .2, freq: 380, q: 3, gain: .1, type: 'bandpass' });
+        GAME.glitchPulse = Math.max(GAME.glitchPulse, .5);
+      }
+    } else st.blockTime = 0;
+    const gap = Math.abs(PL.pos.x - st.x);
+    GU.uVignette.value = lerp(GU.uVignette.value, gap < 9 ? 1.65 : 1.2, dt * 1.5);
+    GAME.ambience.drone?.to(clamp(.3 - gap * .015, .06, .3), .6);
+    if (gap < 12 && !CH3.stepTimer) {
+      CH3.stepTimer = setInterval(() => {
+        if (!CH3.chase || GAME.dead) return;
+        const g2 = Math.abs(PL.pos.x - CH3.stalker.x);
+        Audio_.burst({ dur: .13, freq: rand(150, 240), q: 1, gain: clamp(.16 - g2 * .008, .02, .16), type: 'lowpass' });
+      }, 620);
+    }
+    if (gap < 1.25) die('It caught you between the carriages.');
+  }
+
+  // trigger points along the train
+  for (const tr of (CH3.triggers || [])) {
+    if (tr.done) continue;
+    if (Math.abs(PL.pos.x - tr.x) < tr.r) { tr.done = true; tr.fn(); }
+  }
+
+  const it = currentInteractable();
+  if (it) HUD.showPrompt(it.key, it.label); else HUD.hidePrompt();
+  $('#clicklook').classList.toggle('show', !pointerLocked && !PL.locked && !GAME.paused && !GAME.dead);
+
+  GAME.glitchPulse = Math.max(0, GAME.glitchPulse - dt * 1.9);
+  GU.uGlitch.value = Math.min(1, GAME.glitchPulse * .35);
+}
+
+/* ==================================================================== */
 /*  SEQUENCE: CHAPTER TWO — THE STATION                                 */
 /* ==================================================================== */
 
@@ -3351,10 +4147,9 @@ async function boardTrain() {
   EL.bars.classList.remove('on');
   HUD.tips.style.opacity = 1;
   await wait(500);
-  await chapterCard('Chapter Two', 'The Station', 'to be continued',
-                    { next: ['Next', 'The 02:14', 'chapter three'] });
+  await chapterCard('Chapter Two', 'The Station', '', { next: ['Chapter Three', 'The 02:14', ''] });
   saveProgress(2);
-  toMenu();
+  await startChapter3({ fromChapterTwo: true });
 }
 
 /* ------------------------------------------------------------------ */
@@ -3619,6 +4414,7 @@ function loop(now) {
       PL.vel.set(0, 0, 0);
     }
     if (scene.userData.tick) scene.userData.tick(dt, GAME.time);
+    GAME.chapter === 3 ? updateTrain(dt) :
     GAME.chapter === 2 ? updateCity(dt) : updateWorld(dt);
   } else if (GAME.state === 'play' && GAME.paused) {
     if (scene.userData.tick) scene.userData.tick(dt * .15, GAME.time);
@@ -3634,7 +4430,9 @@ function loop(now) {
 /*  MENU / PAUSE / SETTINGS                                            */
 /* ------------------------------------------------------------------ */
 function toMenu() {
-  GAME.state = 'menu'; GAME.chapter = 1; GAME.paused = false; GAME.cutscene = false;
+  GAME.state = 'menu'; GAME.chapter = 1; GAME.paused = false; GAME.cutscene = false; GAME.dead = false;
+  clearInterval(CH3.stepTimer); CH3.stepTimer = null; CH3.chase = false;
+  hide(EL.death); EL.dmg.style.opacity = 0;
   PL.locked = true;
   unlockPointer();
   hide(EL.hud); hide(EL.pause); hide(EL.settings); hide(EL.lids); hide(EL.wake);
@@ -3655,18 +4453,23 @@ function refreshSaveButton() {
   try { save = JSON.parse(localStorage.getItem('lasttrain.save') || 'null'); } catch {}
   const b = $('#btn-cont');
   const unlocked = save ? (save.unlocked || (save.done ? 2 : 1)) : 1;
-  if (unlocked >= 3) {
-    // chapter three does not exist yet, so Continue replays the latest chapter
+  if (unlocked >= 4) {
     b.disabled = false;
-    b.innerHTML = 'Continue<small>chapter two — the station</small>';
+    b.innerHTML = 'Continue<small>chapter three — the 02:14</small>';
+    GAME.continueChapter = 3;
+  } else if (unlocked >= 3) {
+    b.disabled = false;
+    b.innerHTML = 'Continue<small>chapter three — the 02:14</small>';
+    GAME.continueChapter = 3;
   } else if (unlocked >= 2) {
     b.disabled = false;
     b.innerHTML = 'Continue<small>chapter two — the station</small>';
+    GAME.continueChapter = 2;
   } else {
     b.disabled = true;
     b.innerHTML = 'Continue<small>no save found</small>';
+    GAME.continueChapter = 1;
   }
-  GAME.continueChapter = unlocked >= 2 ? 2 : 1;
 }
 function pauseGame() {
   if (GAME.state !== 'play' || GAME.cutscene) return;
@@ -3737,7 +4540,7 @@ $('#btn-cont').addEventListener('click', () => {
   if ($('#btn-cont').disabled) return;
   Audio_.init(); Audio_.resume(); Audio_.click(900, .12);
   hide(EL.menu);
-  startChapter2();
+  GAME.continueChapter === 3 ? startChapter3() : startChapter2();
 });
 $('#btn-set').addEventListener('click', () => { Audio_.init(); Audio_.click(1400, .08); hide(EL.menu); openSettings('menu'); });
 $('#btn-quit').addEventListener('click', async () => {
@@ -3762,8 +4565,10 @@ $('#p-quit').addEventListener('click', async () => {
   hide(EL.pause);
   await fadeTo(1, 700);
   stopAmbience();
-  GAME.flags = {}; GAME.phase = 'sleep'; GAME.phoneMode = 'OFF'; GAME.chapter = 1;
+  GAME.flags = {}; GAME.phase = 'sleep'; GAME.phoneMode = 'OFF'; GAME.chapter = 1; GAME.dead = false;
   clearInterval(CITY.followSteps); CITY.followSteps = null;
+  clearInterval(CH3.stepTimer); CH3.stepTimer = null; CH3.chase = false;
+  clearInterval(GAME.ambience.clatter);
   CITY.payphone?.handle?.stop();
   CITY.triggers = []; CITY.lamps = []; CITY.tunnelLights = []; CITY.roaming = [];
   WORLD.phone = null; WORLD.scene = null; WORLD.interactables = [];
@@ -3774,8 +4579,8 @@ $('#p-quit').addEventListener('click', async () => {
 /*  BOOT                                                               */
 /* ------------------------------------------------------------------ */
 // debug handle (handy for tweaking: LASTTRAIN.PL.pos, LASTTRAIN.GAME.phase, ...)
-window.LASTTRAIN = { GAME, PL, WORLD, CITY, S, Audio: Audio_, camera, armsTo, POSE,
-                     startChapter2, get scene() { return scene; } };
+window.LASTTRAIN = { GAME, PL, WORLD, CITY, CH3, S, Audio: Audio_, camera, armsTo, POSE,
+                     startChapter2, startChapter3, die, get scene() { return scene; } };
 
 (function boot() {
   syncSettingsUI();
@@ -3787,6 +4592,7 @@ window.LASTTRAIN = { GAME, PL, WORLD, CITY, S, Audio: Audio_, camera, armsTo, PO
   // warm one frame, then reveal the menu
   setTimeout(() => {
     hide(EL.boot);
+    if (DEV.chapter3) { Audio_.init(); startChapter3(); EL.black.style.opacity = 0; return; }
     if (DEV.chapter2) { Audio_.init(); startChapter2(); EL.black.style.opacity = 0; return; }
     toMenu();
     EL.black.style.transition = 'opacity 2s ease';
