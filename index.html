@@ -1730,7 +1730,8 @@ function drawPhoneScreen(x, s, mode, t = 0) {
 /* ==================================================================== */
 
 const CITY = {
-  lamps: [], triggers: [], roaming: [], tunnelLights: [], figure: null, train: null,
+  lamps: [], triggers: [], roaming: [], tunnelLights: [], signs: [], ripples: [], litter: [],
+  steam: null, figure: null, train: null,
   board: null, boardGlitch: 0, payphone: null, rain: null, beam: null,
   followSteps: null, deadLamps: new Set()
 };
@@ -1841,12 +1842,17 @@ function buildCity() {
       const win = new THREE.Mesh(new THREE.PlaneGeometry(sw, 2.4), M.glass);
       win.position.set(x + rand(-1, 1), 1.6, zf); win.rotation.y = faceZ > 0 ? Math.PI : 0;
       root.add(win);
-      if (Math.random() < .45) {                    // a sign that still works
+      if (Math.random() < .45) {                    // a sign that still works, mostly
         const col = [0xff3a63, 0x49d0ff, 0xffb13a][(Math.random() * 3) | 0];
-        const sign = new THREE.Mesh(new THREE.BoxGeometry(rand(1.6, 3), .5, .12),
+        const pivot = new THREE.Group();
+        pivot.position.set(x + rand(-2, 2), 3.9, zf + (faceZ > 0 ? -.1 : .1));
+        root.add(pivot);
+        const bracket = tube([[0, 0, 0], [0, -.18, 0]], .02, M.metal, 4); pivot.add(bracket);
+        const sign = new THREE.Mesh(roundedBoxGeo(rand(1.6, 3), .52, .14, .06),
           new THREE.MeshStandardMaterial({ color: 0x120c0c, emissive: col, emissiveIntensity: 1.6 }));
-        sign.position.set(x + rand(-2, 2), 3.5, zf + (faceZ > 0 ? -.1 : .1));
-        root.add(sign);
+        sign.position.y = -.5; pivot.add(sign);
+        pivot.userData = { phase: rand(0, 7), amp: rand(.02, .06), sign, base: 1.6 };
+        CITY.signs.push(pivot.userData && pivot);
       }
     }
   }
@@ -2228,6 +2234,43 @@ function buildCity() {
   /* ---------- rain ---------- */
   const rain = makeRainStreaks(3000, 26, 20); sc.add(rain);
   CITY.rain = rain;
+
+  /* ---------- rain hitting the road, litter, and a steaming vent ---------- */
+  const ringTex = canvasTex('ripple', 128, (g, sz) => {
+    g.clearRect(0, 0, sz, sz);
+    g.strokeStyle = 'rgba(190,214,240,.85)'; g.lineWidth = 6;
+    g.beginPath(); g.arc(sz / 2, sz / 2, sz / 2 - 8, 0, 7); g.stroke();
+    g.strokeStyle = 'rgba(190,214,240,.35)'; g.lineWidth = 3;
+    g.beginPath(); g.arc(sz / 2, sz / 2, sz / 2 - 22, 0, 7); g.stroke();
+  });
+  CITY.ripples = [];
+  for (let i = 0; i < 14; i++) {
+    const r = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, opacity: 0,
+        depthWrite: false, blending: THREE.AdditiveBlending }));
+    r.rotation.x = -Math.PI / 2; r.position.y = .02; r.visible = false;
+    sc.add(r); CITY.ripples.push({ mesh: r, t: 99 });
+  }
+  CITY.litter = [];
+  for (let i = 0; i < 5; i++) {
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(.3, .22),
+      mat({ color: 0xbdb7a8, roughness: 1, side: THREE.DoubleSide }));
+    l.position.set(rand(0, 60), .1, rand(-6, 6));
+    sc.add(l);
+    CITY.litter.push({ mesh: l, spin: rand(-3, 3), speed: rand(.8, 2.2), bob: rand(0, 7) });
+  }
+  // a vent breathing steam by the underpass mouth
+  const steamGeo = new THREE.BufferGeometry();
+  const SN = 90, sp = new Float32Array(SN * 3), sage = new Float32Array(SN);
+  for (let i = 0; i < SN; i++) { sp[i * 3] = 66 + rand(-.6, .6); sp[i * 3 + 1] = rand(0, 3); sp[i * 3 + 2] = -24 + rand(-.6, .6); sage[i] = Math.random(); }
+  steamGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  const steam = new THREE.Points(steamGeo, new THREE.PointsMaterial({
+    color: 0x9fb0c4, size: .55, transparent: true, opacity: .13, depthWrite: false,
+    blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  steam.frustumCulled = false; sc.add(steam);
+  CITY.steam = { geo: steamGeo, age: sage, n: SN };
+  const grate = new THREE.Mesh(roundedBoxGeo(1.4, .06, 1.0, .03), mat({ color: 0x33383f, roughness: .9, metalness: .5 }));
+  grate.position.set(66, .04, -24); root.add(grate);
 
   /* ---------- the figure that waits under the lamps ---------- */
   CITY.figure = makeFigure();
@@ -3372,14 +3415,16 @@ function buildTrainInterior() {
 
   const M = {
     floor: mat({ map: TEX.tile([8, 2]), color: 0x6f757e, roughness: .86 }),
-    wall:  mat({ map: TEX.plaster([3, 1], '#4a515c'), color: 0x939aa4, roughness: .78 }),
+    wall:  mat({ map: TEX.plaster([3, 1], '#3f4650'), color: 0x7b828c, roughness: .8 }),
     panel: mat({ color: 0x79808b, roughness: .5, metalness: .3 }),
-    seat:  mat({ map: TEX.fabric([2, 2], '#33405a'), color: 0x7f8aa0, roughness: 1 }),
-    seat2: mat({ map: TEX.fabric([2, 2], '#4c3138'), color: 0x8f7680, roughness: 1 }),
+    seat:  mat({ map: TEX.fabric([2, 2], '#2b3549'), color: 0x5e6a80, roughness: 1 }),
+    seat2: mat({ map: TEX.fabric([2, 2], '#3f282e'), color: 0x6d5860, roughness: 1 }),
     metal: mat({ color: 0xb6bcc4, roughness: .28, metalness: .85 }),
     dark:  mat({ color: 0x20242b, roughness: .7 }),
     glass: new THREE.MeshStandardMaterial({ color: 0x0a0e14, roughness: .08, metalness: .4,
-             transparent: true, opacity: .4, side: THREE.DoubleSide })
+             transparent: true, opacity: .4, side: THREE.DoubleSide }),
+    shell: mat({ color: 0x565c65, roughness: .85, side: THREE.BackSide }),
+    shellDark: mat({ color: 0x14161b, roughness: 1, side: THREE.BackSide })
   };
 
   /* ---------- the tunnel rushing past outside ---------- */
@@ -3419,9 +3464,12 @@ function buildTrainInterior() {
     runner.rotation.x = -Math.PI / 2; runner.position.set(cx, .015, 0); g.add(runner);
 
     const ceil = new THREE.Mesh(
-      cached('carceil', () => new THREE.CylinderGeometry(1.95, 1.95, CAR_LEN, 22, 1, true, Math.PI * .16, Math.PI * .68)),
-      M.panel);
-    ceil.rotation.z = Math.PI / 2; ceil.position.set(cx, .95, 0); g.add(ceil);
+      cached('carceil', () => new THREE.CylinderGeometry(1.62, 1.62, CAR_LEN, 22, 1, true, Math.PI * .1, Math.PI * .8)),
+      M.shell);
+    ceil.rotation.z = Math.PI / 2; ceil.position.set(cx, 1.1, 0); g.add(ceil);
+    // flat soffit down the middle, where the lights are mounted
+    const soffit = new THREE.Mesh(new THREE.PlaneGeometry(CAR_LEN, 1.5), M.panel);
+    soffit.rotation.x = Math.PI / 2; soffit.position.set(cx, 2.42, 0); g.add(soffit);
 
     for (const sgn of [-1, 1]) {
       // wall below and above the window band, so the windows are real holes
@@ -3469,11 +3517,11 @@ function buildTrainInterior() {
     for (let i = 0; i < 3; i++) {
       const lx = cx - half + 2.6 + i * 4;
       const panel = new THREE.Mesh(roundedBoxGeo(2.8, .08, 1.0, .05),
-        new THREE.MeshStandardMaterial({ color: 0xdfe6f2, emissive: 0xc3d6ee, emissiveIntensity: .85 }));
-      panel.position.set(lx, 2.28, 0); g.add(panel);
-      const light = new THREE.PointLight(0xb9cfe6, 6.5, 8, 1.7);
-      light.position.set(lx, 2.08, 0); g.add(light);
-      CH3.lights.push({ panel, light, on: true, x: lx, base: 6.5 });
+        new THREE.MeshStandardMaterial({ color: 0xaeb9c9, emissive: 0x9fb6d2, emissiveIntensity: .42 }));
+      panel.position.set(lx, 2.37, 0); g.add(panel);
+      const light = new THREE.PointLight(0xb9cfe6, 5.5, 7.5, 1.75);
+      light.position.set(lx, 2.2, 0); g.add(light);
+      CH3.lights.push({ panel, light, on: true, x: lx, base: 5.5 });
     }
 
     // litter, so it reads as a train people were on
@@ -3498,9 +3546,9 @@ function buildTrainInterior() {
                   material: M.dark, shadow: false });
     plane(root, { x: gx, y: .01, z: 0, w: CAR_GAP + .6, d: CAR_W, material: mat({ color: 0x2b2f36, roughness: .95 }) });
     const bellows = new THREE.Mesh(
-      cached('bellows', () => new THREE.CylinderGeometry(1.7, 1.7, CAR_GAP, 18, 1, true, Math.PI * .08, Math.PI * .84)),
-      mat({ color: 0x15171c, roughness: 1 }));
-    bellows.rotation.z = Math.PI / 2; bellows.position.set(gx, 1.0, 0); root.add(bellows);
+      cached('bellows', () => new THREE.CylinderGeometry(1.62, 1.62, CAR_GAP + .6, 18, 1, true, Math.PI * .06, Math.PI * .88)),
+      M.shellDark);
+    bellows.rotation.z = Math.PI / 2; bellows.position.set(gx, 1.1, 0); root.add(bellows);
 
     const doorX = gx - CAR_GAP / 2 - .2;
     const frame = new THREE.Mesh(roundedBoxGeo(.26, CAR_H, CAR_W + .3, .07), M.dark);
@@ -3531,7 +3579,7 @@ function buildTrainInterior() {
   cabSign.position.set(endX - .41, 1.88, 0); cabSign.rotation.y = -Math.PI / 2; root.add(cabSign);
   CH3.cab = { x: endX, door: cabDoor };
 
-  sc.add(new THREE.HemisphereLight(0x3f4d63, 0x17191f, .75));
+  sc.add(new THREE.HemisphereLight(0x36435a, 0x15171c, .45));
 
   CH3.stalker = makeStalker();
   CH3.stalker.group.position.set(carX(0) - CAR_LEN / 2, 0, 0);
@@ -3600,8 +3648,8 @@ async function startChapter3({ fromChapterTwo = false } = {}) {
 
   const sc = buildTrainInterior();
   scene = sc; renderPass.scene = sc;
-  renderer.toneMappingExposure = 1.0;
-  GU.uDesat.value = .05; GU.uVignette.value = 1.15; GU.uAberr.value = .0016;
+  renderer.toneMappingExposure = .95;
+  GU.uDesat.value = .05; GU.uVignette.value = 1.2; GU.uAberr.value = .0016;
 
   // you come round in a seat, facing the back of the train
   PL.pos.set(1.5, 0, .95); PL.vel.set(0, 0, 0);
@@ -3870,7 +3918,7 @@ function updateTrain(dt) {
   for (const l of CH3.lights) {
     const want = l.on ? (Math.random() < .015 ? .15 : 1) : 0;
     l.light.intensity = lerp(l.light.intensity, l.base * want, 1 - Math.exp(-9 * dt));
-    l.panel.material.emissiveIntensity = .05 + (l.light.intensity / l.base) * .85;
+    l.panel.material.emissiveIntensity = .04 + (l.light.intensity / l.base) * .42;
   }
 
   // the thing walking up the train
@@ -3946,7 +3994,8 @@ function trig(x, z, r, fn) { CITY.triggers.push({ x, z, r, fn, done: false }); }
 async function startChapter2({ fromChapterOne = false } = {}) {
   GAME.state = 'play'; GAME.chapter = 2; GAME.paused = false; GAME.cutscene = true;
   GAME.phase = 'street'; GAME.flags = {}; GAME.glitchPulse = 0;
-  CITY.lamps = []; CITY.triggers = []; CITY.deadLamps = new Set(); CITY.boardGlitch = 0;
+  CITY.lamps = []; CITY.triggers = []; CITY.signs = []; CITY.ripples = []; CITY.litter = [];
+  CITY.deadLamps = new Set(); CITY.boardGlitch = 0;
   TUT.clear(); HUD.clearSay(); HUD.hidePrompt(); HUD.setObjective('');
 
   if (!fromChapterOne) await fadeTo(1, 800);
@@ -4376,6 +4425,53 @@ function updateCity(dt) {
   const tight = GAME.phase === 'underpass' ? 1.45 : GAME.phase === 'platform' ? 1.3 : 1.08;
   GU.uVignette.value = lerp(GU.uVignette.value, tight, dt * .8);
   if (GAME.phase === 'underpass' && Math.random() < dt * .22) Audio_.heartbeat(.16);
+
+  /* --- rain bouncing off the road around you --- */
+  const coveredNow =
+    (cam.x > 61 && cam.x < 79 && cam.z < -25 && cam.z > -45) ||
+    (cam.x > 55 && cam.x < 89 && cam.z < -77 && cam.z > -99) ||
+    (cam.x > 42 && cam.x < 98 && cam.z < -97 && cam.z > -108);
+  for (const r of CITY.ripples || []) {
+    r.t += dt;
+    if (r.t > .9) {
+      if (coveredNow) { r.mesh.visible = false; continue; }
+      r.t = 0;
+      r.mesh.visible = true;
+      r.mesh.position.set(cam.x + rand(-9, 9), .02, cam.z + rand(-9, 9));
+    }
+    const k = r.t / .9;
+    r.mesh.scale.setScalar(.12 + k * .85);
+    r.mesh.material.opacity = (1 - k) * .4;
+  }
+  /* --- litter blowing up the street --- */
+  for (const l of CITY.litter || []) {
+    l.mesh.position.x += l.speed * dt;
+    l.mesh.position.y = .08 + Math.abs(Math.sin(GAME.time * 2 + l.bob)) * .22;
+    l.mesh.rotation.x += l.spin * dt; l.mesh.rotation.z += l.spin * .6 * dt;
+    if (l.mesh.position.x > cam.x + 26 || l.mesh.position.x < cam.x - 26)
+      l.mesh.position.set(cam.x - 22, .1, cam.z + rand(-6, 6));
+  }
+  /* --- the vent --- */
+  if (CITY.steam) {
+    const a = CITY.steam.geo.attributes.position.array;
+    for (let i = 0; i < CITY.steam.n; i++) {
+      CITY.steam.age[i] += dt * .22;
+      a[i * 3 + 1] += dt * (.5 + (i % 5) * .12);
+      a[i * 3] += dt * .12;
+      if (CITY.steam.age[i] > 1) {
+        CITY.steam.age[i] = 0;
+        a[i * 3] = 66 + rand(-.5, .5); a[i * 3 + 1] = 0; a[i * 3 + 2] = -24 + rand(-.5, .5);
+      }
+    }
+    CITY.steam.geo.attributes.position.needsUpdate = true;
+  }
+  /* --- shop signs swinging in the wind --- */
+  for (const sg of CITY.signs || []) {
+    const u = sg.userData;
+    sg.rotation.z = Math.sin(t * 1.1 + u.phase) * u.amp;
+    if (Math.random() < dt * .4) u.sign.material.emissiveIntensity = u.base * (Math.random() < .5 ? .25 : 1);
+    else u.sign.material.emissiveIntensity = lerp(u.sign.material.emissiveIntensity, u.base, dt * 4);
+  }
 
   /* --- no rain under the underpass, the concourse or the canopy --- */
   if (CITY.rain) {

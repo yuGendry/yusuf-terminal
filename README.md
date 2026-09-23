@@ -26,6 +26,8 @@ python3 -m http.server 8000     # then open http://localhost:8000
 | `Mouse` | Look (click the screen to capture the pointer) |
 | `Esc` | Pause / release the pointer |
 
+Chapter three is a chase: **run**. Walking is not fast enough.
+
 ## Chapter One — *The Call*
 
 1. **Main menu** — the last train idles at a rainswept platform.
@@ -49,7 +51,25 @@ Runs straight on from chapter one, or from **Continue** on the menu.
    departure board that starts to come apart as you read it.
 6. **Platform 1** — the 02:14 is waiting with its doors open.
 
-Chapter Three is not built yet — chapter two ends as the doors close.
+## Chapter Three — *The 02:14*
+
+Runs straight on from chapter two. **This is where the game can kill you.**
+
+1. **You come round in a seat** you don't remember taking, with the tunnel
+   streaming past the windows and the train not slowing down.
+2. **Get to the front.** Three carriages, every seat empty.
+3. **Something boards at the back** and walks up the train. It is slower than
+   your run and faster than your walk, so you cannot stroll and you cannot
+   stop.
+4. **The gangway doors** take a second to slide open, and only hold it for a
+   few before it comes through them. That second is the whole game.
+5. **The cab door is locked**, and that is as far as chapter three goes.
+
+If it reaches you, you die and wake up at the last carriage you passed
+through, with it pushed back down the train. Deaths are not punished beyond
+losing the ground you covered.
+
+Chapter Four is not built yet.
 
 ## What's in the box
 
@@ -71,8 +91,9 @@ bloom and subtitles. They persist in `localStorage`.
 ## Poking at it
 
 `index.html?skipintro=1` drops you straight into the flat with the phone
-already ringing, and `index.html?chapter2=1` starts on the street outside the
-block — both save replaying earlier beats while you edit.
+already ringing, `index.html?chapter2=1` starts on the street outside the
+block, and `index.html?chapter3=1` puts you on the train — all three save
+replaying earlier beats while you edit.
 
 `window.LASTTRAIN` exposes `{ GAME, PL, WORLD, S, Audio, camera, scene, armsTo, POSE }` in the
 console, which is the quickest way to teleport (`LASTTRAIN.PL.pos.set(9, 0, -3)`),
@@ -91,6 +112,9 @@ Useful anchors inside `index.html`:
 | `CHAPTER TWO — THE CITY` | streets, buildings, underpass, station, platform |
 | `SEQUENCE: CHAPTER TWO` | the walk's scripted beats and the ending |
 | `PER-FRAME — CHAPTER TWO` | lamps, triggers, rain cover, the figure |
+| `ROUNDED / CURVED GEOMETRY` | `rbox`, `tube`, `contactShadow` — the anti-Lego kit |
+| `CHAPTER THREE — THE 02:14` | the carriages, the tunnel, the thing that follows |
+| `DYING` | `die()` / `respawn()` and the checkpoints |
 
 The apartment footprint is `x[-6, 11] × z[-7, 1]` with the partition wall at
 `x = 0`; colliders are plain `THREE.Box3`s pushed by the `box()` helper, so new
