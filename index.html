@@ -3772,7 +3772,8 @@ $('#p-quit').addEventListener('click', async () => {
 /*  BOOT                                                               */
 /* ------------------------------------------------------------------ */
 // debug handle (handy for tweaking: LASTTRAIN.PL.pos, LASTTRAIN.GAME.phase, ...)
-window.LASTTRAIN = { GAME, PL, WORLD, S, Audio: Audio_, camera, armsTo, POSE, get scene() { return scene; } };
+window.LASTTRAIN = { GAME, PL, WORLD, CITY, S, Audio: Audio_, camera, armsTo, POSE,
+                     startChapter2, get scene() { return scene; } };
 
 (function boot() {
   syncSettingsUI();
