@@ -3656,8 +3656,9 @@ function refreshSaveButton() {
   const b = $('#btn-cont');
   const unlocked = save ? (save.unlocked || (save.done ? 2 : 1)) : 1;
   if (unlocked >= 3) {
-    b.disabled = true;
-    b.innerHTML = 'Continue<small>chapter three — not built yet</small>';
+    // chapter three does not exist yet, so Continue replays the latest chapter
+    b.disabled = false;
+    b.innerHTML = 'Continue<small>chapter two — the station</small>';
   } else if (unlocked >= 2) {
     b.disabled = false;
     b.innerHTML = 'Continue<small>chapter two — the station</small>';
