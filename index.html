@@ -793,6 +793,38 @@ function plane(parent, { x = 0, y = 0, z = 0, w = 1, d = 1, material, rx = -Math
 /* ------------------------------------------------------------------ */
 /*  RAIN                                                               */
 /* ------------------------------------------------------------------ */
+/* Out in the open, rain has to be streaks: points read as a starfield. */
+function makeRainStreaks(count = 3000, area = 28, height = 20) {
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 6), spd = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const x = rand(-area, area), y = rand(0, height), z = rand(-area, area), len = rand(.3, .75);
+    pos[i * 6] = x;      pos[i * 6 + 1] = y;       pos[i * 6 + 2] = z;
+    pos[i * 6 + 3] = x + .05; pos[i * 6 + 4] = y - len; pos[i * 6 + 5] = z;
+    spd[i] = rand(16, 30);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.LineBasicMaterial({ color: 0xa9bed6, transparent: true, opacity: .3, depthWrite: false });
+  const r = new THREE.LineSegments(g, m);
+  r.frustumCulled = false;
+  r.userData.tick = (dt, center) => {
+    const a = g.attributes.position.array;
+    for (let i = 0; i < count; i++) {
+      const drop = spd[i] * dt, o = i * 6;
+      a[o + 1] -= drop; a[o + 4] -= drop;
+      a[o] -= dt * 1.2; a[o + 3] -= dt * 1.2;
+      if (a[o + 4] < -1) {
+        const nx = (center ? center.x : 0) + rand(-area, area);
+        const nz = (center ? center.z : 0) + rand(-area, area);
+        const len = a[o + 1] - a[o + 4];
+        a[o] = nx; a[o + 1] = height; a[o + 2] = nz;
+        a[o + 3] = nx + .05; a[o + 4] = height - len; a[o + 5] = nz;
+      }
+    }
+    g.attributes.position.needsUpdate = true;
+  };
+  return r;
+}
 function makeRain(count = 2600, area = 34, height = 18) {
   const g = new THREE.BufferGeometry();
   const pos = new Float32Array(count * 3), spd = new Float32Array(count);
@@ -1597,6 +1629,667 @@ function drawPhoneScreen(x, s, mode, t = 0) {
 }
 
 
+/* ==================================================================== */
+/*  CHAPTER TWO — THE CITY                                              */
+/*                                                                      */
+/*  One seamless level: the street outside the flat, a junction, the    */
+/*  underpass, the station plaza, the concourse and the platform.       */
+/*                                                                      */
+/*  Layout (metres):                                                    */
+/*    Ardwick Row  road z[-5,5], pavements to z=±8, running x[-12,80]   */
+/*    Junction     x[62,78]                                             */
+/*    Station Rd   road x[64,76], running z[-8,-52]                     */
+/*    Underpass    z[-26,-44]                                           */
+/*    Plaza        x[52,92]  z[-52,-78]                                 */
+/*    Concourse    x[56,88]  z[-78,-98]                                 */
+/*    Platform     x[40,100] z[-98,-116], track bed at y=-1.2           */
+/* ==================================================================== */
+
+const CITY = {
+  lamps: [], triggers: [], roaming: [], tunnelLights: [], figure: null, train: null,
+  board: null, boardGlitch: 0, payphone: null, rain: null, beam: null,
+  followSteps: null, deadLamps: new Set()
+};
+
+/* A window-lit facade. Most flats are dark; this is a city at 2 a.m. */
+function facadeTex(key, cols, rows, litChance, tint) {
+  return canvasTex(key, 512, (x, s) => {
+    x.fillStyle = tint; x.fillRect(0, 0, s, s);
+    blotches(x, s, 30, ['0,0,0', '90,92,98'], 30, 140, .14);
+    const cw = s / cols, rh = s / rows;
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+      const px = c * cw + cw * .22, py = r * rh + rh * .18;
+      const ww = cw * .56, wh = rh * .58;
+      const lit = Math.random() < litChance;
+      if (lit) {
+        const warm = Math.random() < .78;
+        const g = x.createLinearGradient(px, py, px, py + wh);
+        g.addColorStop(0, warm ? '#ffd79a' : '#a9d8ff');
+        g.addColorStop(1, warm ? '#c98f45' : '#5f93c4');
+        x.fillStyle = g;
+      } else {
+        x.fillStyle = `rgba(8,10,14,${rand(.75, .95)})`;
+      }
+      x.fillRect(px, py, ww, wh);
+      x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 2;
+      x.strokeRect(px, py, ww, wh);
+      if (lit && Math.random() < .35) {          // a curtain, half drawn
+        x.fillStyle = 'rgba(20,18,16,.55)';
+        x.fillRect(px, py, ww * rand(.25, .5), wh);
+      }
+    }
+    grainOver(x, s, 16);
+  }, { repeat: [1, 1] });
+}
+
+function buildCity() {
+  disposeScene(WORLD.scene);
+  colliders = [];
+  const sc = new THREE.Scene();
+  sc.background = canvasTex('citysky', 256, (x, sz) => {
+    const g = x.createLinearGradient(0, 0, 0, sz);
+    g.addColorStop(0, '#04060b'); g.addColorStop(.62, '#0b1119'); g.addColorStop(1, '#241f1a');
+    x.fillStyle = g; x.fillRect(0, 0, sz, sz);
+  }, { repeat: [1, 1] });
+  sc.fog = new THREE.FogExp2(0x0c121b, .0235);
+  const root = new THREE.Group(); sc.add(root);
+
+  const M = {
+    road:   mat({ map: TEX.asphalt([26, 4]), color: 0x9aa0a8, roughness: .62 }),
+    roadX:  mat({ map: TEX.asphalt([4, 26]), color: 0x9aa0a8, roughness: .62 }),
+    pave:   mat({ map: TEX.concrete([20, 4]), color: 0xbfc4cb, roughness: .8 }),
+    paveX:  mat({ map: TEX.concrete([4, 20]), color: 0xbfc4cb, roughness: .8 }),
+    plaza:  mat({ map: TEX.concrete([16, 12]), color: 0xc2c7ce, roughness: .78 }),
+    kerb:   mat({ color: 0x8d939b, roughness: .85 }),
+    brick:  mat({ map: TEX.brick([4, 3]), color: 0xbda99a, roughness: .95 }),
+    stone:  mat({ map: TEX.concrete([3, 3]), color: 0xc9cdd3, roughness: .9 }),
+    metal:  mat({ color: 0x545b64, roughness: .45, metalness: .75 }),
+    dark:   mat({ color: 0x2b2f36, roughness: .8 }),
+    glass:  new THREE.MeshStandardMaterial({ color: 0x5f7488, roughness: .12, metalness: .3,
+              transparent: true, opacity: .22, depthWrite: false, side: THREE.DoubleSide })
+  };
+
+  /* ---------- ground: one big slab under everything, plus surfaces ---------- */
+  const groundY = -.02;
+  plane(root, { x: 34, y: groundY, z: 0, w: 120, d: 16, material: M.road });          // Ardwick Row
+  plane(root, { x: 70, y: groundY, z: -30, w: 16, d: 62, material: M.roadX });        // Station Road
+  plane(root, { x: 72, y: .14, z: -65, w: 44, d: 30, material: M.plaza });            // plaza
+
+  // pavements (raised 150mm, so they are boxes the player steps up onto)
+  const pav = (x, z, w, d, m) => box(root, { x, y: .075, z, w, h: .15, d, material: m, solid: false });
+  pav(28, -6.5, 84, 3, M.pave);  pav(28, 6.5, 84, 3, M.pave);
+  pav(62.5, -30, 3, 46, M.paveX); pav(77.5, -30, 3, 46, M.paveX);
+  // kerbs
+  const kerb = (x, z, w, d) => box(root, { x, y: .07, z, w, h: .16, d, material: M.kerb, solid: false });
+  kerb(28, -5.05, 84, .16); kerb(28, 5.05, 84, .16);
+  kerb(64.08, -30, .16, 46); kerb(75.92, -30, .16, 46);
+
+  /* ---------- the block you just walked out of ---------- */
+  const homeFacade = facadeTex('fac-home', 6, 7, .12, '#4a4038');
+  const homeBlock = box(root, { x: -4, y: 9, z: 16, w: 22, h: 18, d: 14,
+    material: mat({ map: homeFacade, color: 0xffffff, roughness: .95 }) });
+  // the doorway you came out of, with its light
+  box(root, { x: 3.2, y: 1.6, z: 9.1, w: 2.6, h: 3.2, d: .4, material: M.stone });
+  const homeDoor = box(root, { x: 3.2, y: 1.05, z: 8.92, w: 1.5, h: 2.1, d: .12,
+    material: mat({ map: TEX.wood([1, 2], true), color: 0x8c6a49 }), solid: false });
+  const homeLamp = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .2),
+    new THREE.MeshStandardMaterial({ color: 0xfff2d8, emissive: 0xffd9a0, emissiveIntensity: 2.4 }));
+  homeLamp.position.set(3.2, 2.5, 8.85); root.add(homeLamp);
+  const homeLight = new THREE.PointLight(0xffc98a, 14, 9, 1.7);
+  homeLight.position.set(3.2, 2.4, 8.4); root.add(homeLight);
+
+  /* ---------- buildings ---------- */
+  const facades = [
+    facadeTex('fac-a', 6, 8, .10, '#443a33'),
+    facadeTex('fac-b', 5, 6, .07, '#3b3f46'),
+    facadeTex('fac-c', 7, 9, .13, '#4c443c'),
+    facadeTex('fac-d', 4, 5, .05, '#3a3632')
+  ];
+  function block(x, z, w, d, h, faceZ) {
+    const m = mat({ map: facades[(Math.random() * facades.length) | 0], color: 0xffffff, roughness: .95 });
+    box(root, { x, y: h / 2, z, w, h, d, material: m });
+    // parapet
+    box(root, { x, y: h + .3, z, w: w + .3, h: .6, d: d + .3, material: M.stone, solid: false });
+    // ground-floor shopfront on the street side
+    if (Math.random() < .55) {
+      const zf = z + (faceZ > 0 ? -d / 2 - .06 : d / 2 + .06);
+      const sw = Math.min(w - 1.5, rand(4, 8));
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(sw, 2.4), M.glass);
+      win.position.set(x + rand(-1, 1), 1.6, zf); win.rotation.y = faceZ > 0 ? Math.PI : 0;
+      root.add(win);
+      if (Math.random() < .45) {                    // a sign that still works
+        const col = [0xff3a63, 0x49d0ff, 0xffb13a][(Math.random() * 3) | 0];
+        const sign = new THREE.Mesh(new THREE.BoxGeometry(rand(1.6, 3), .5, .12),
+          new THREE.MeshStandardMaterial({ color: 0x120c0c, emissive: col, emissiveIntensity: 1.6 }));
+        sign.position.set(x + rand(-2, 2), 3.5, zf + (faceZ > 0 ? -.1 : .1));
+        root.add(sign);
+      }
+    }
+  }
+  // north side of Ardwick Row
+  for (let x = -12, i = 0; x < 62; i++) { const w = rand(9, 16); block(x + w / 2, -16, w, 16, rand(10, 22), 1); x += w + rand(.4, 1.4); }
+  // south side (skipping the block you came from)
+  for (let x = 12, i = 0; x < 62; i++) { const w = rand(9, 16); block(x + w / 2, 16, w, 16, rand(9, 20), -1); x += w + rand(.4, 1.4); }
+  // along Station Road
+  for (let z = -10, i = 0; z > -52; i++) {
+    const d = rand(9, 15);
+    const m = mat({ map: facades[(Math.random() * facades.length) | 0], color: 0xffffff, roughness: .95 });
+    box(root, { x: 53, y: rand(8, 15) / 1, z: z - d / 2, w: 18, h: 26, d, material: m, solid: true });
+    box(root, { x: 87, y: rand(8, 15) / 1, z: z - d / 2, w: 18, h: 26, d, material: m, solid: true });
+    z -= d + rand(.4, 1.2);
+  }
+  // corner blocks at the junction, and the far side of the crossroads
+  block(40, -16, 16, 16, 18, 1);
+  block(90, 0, 18, 26, 20, -1);
+  block(90, -30, 18, 26, 16, -1);
+
+  /* ---------- street furniture ---------- */
+  // lamps: emissive head + a wet pool on the road; real lights are pooled (see cityLights)
+  const poolTex = canvasTex('pool', 128, (x, s) => {
+    const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, 'rgba(255,214,150,.75)'); g.addColorStop(.45, 'rgba(255,190,120,.24)');
+    g.addColorStop(1, 'rgba(255,170,90,0)');
+    x.fillStyle = g; x.fillRect(0, 0, s, s);
+  });
+  function streetLamp(x, z, rot = 0) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; root.add(g);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, 6.4, 10), M.metal);
+    post.position.y = 3.2; g.add(post);
+    const armG = new THREE.Mesh(new THREE.BoxGeometry(1.5, .1, .1), M.metal);
+    armG.position.set(.75, 6.3, 0); g.add(armG);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(.8, .22, .34),
+      new THREE.MeshStandardMaterial({ color: 0x20242a, emissive: 0xffbe72, emissiveIntensity: 3.2 }));
+    head.position.set(1.45, 6.18, 0); g.add(head);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(11, 11),
+      new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: .62,
+        depthWrite: false, blending: THREE.AdditiveBlending }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(x + Math.cos(rot) * 1.45, .05, z - Math.sin(rot) * 1.45);
+    root.add(pool);
+    const lamp = { head, pool, pos: new THREE.Vector3(x + Math.cos(rot) * 1.45, 6.1, z - Math.sin(rot) * 1.45),
+                   on: true, flick: Math.random() < .22, phase: rand(0, 9) };
+    CITY.lamps.push(lamp);
+    addCollider(null, .3, 6.4, .3, x, 3.2, z, 0);
+    return lamp;
+  }
+  for (let x = 11; x < 60; x += 13) { streetLamp(x, 7.2, -Math.PI / 2); streetLamp(x + 6.5, -7.2, Math.PI / 2); }
+  for (let z = -12; z > -52; z -= 13) { streetLamp(77, z, Math.PI); streetLamp(63, z - 6.5, 0); }
+  for (const [px, pz] of [[58, -56], [86, -56], [58, -72], [86, -72]]) streetLamp(px, pz, Math.atan2(-(pz + 64), -(px - 72)));
+
+  /* ---------- parked cars ---------- */
+  function car(x, z, rot, colour) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; root.add(g);
+    const body = mat({ color: colour, roughness: .35, metalness: .55 });
+    const b = new THREE.Mesh(new THREE.BoxGeometry(4.3, .82, 1.85), body); b.position.y = .72; g.add(b);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.3, .72, 1.72),
+      new THREE.MeshStandardMaterial({ color: 0x0d1016, roughness: .2, metalness: .5 }));
+    cab.position.set(-.15, 1.42, 0); g.add(cab);
+    for (const [wx, wz] of [[1.45, .92], [1.45, -.92], [-1.45, .92], [-1.45, -.92]]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .22, 14), mat({ color: 0x14161a, roughness: .7 }));
+      w.rotation.x = Math.PI / 2; w.position.set(wx, .34, wz); g.add(w);
+    }
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(.5, .13),
+      new THREE.MeshStandardMaterial({ color: 0xd8d4c6, roughness: .6 }));
+    plate.position.set(2.17, .6, 0); plate.rotation.y = Math.PI / 2; g.add(plate);
+    addCollider(null, 4.4, 1.8, 2, x, .9, z, rot);
+  }
+  const paint = [0x2a3d5c, 0x5c2a2a, 0x3a3a3f, 0x24452f, 0x6a5a2a, 0x1e1e22];
+  for (let x = 10; x < 58; x += rand(9, 16)) car(x, 4.1, 0, paint[(Math.random() * paint.length) | 0]);
+  for (let x = 16; x < 58; x += rand(11, 18)) car(x, -4.1, Math.PI, paint[(Math.random() * paint.length) | 0]);
+  for (let z = -14; z > -50; z -= rand(11, 17)) car(75, z, -Math.PI / 2, paint[(Math.random() * paint.length) | 0]);
+
+  /* ---------- bins, barriers, a bus stop, road markings ---------- */
+  const dash = mat({ color: 0xc9c2a8, roughness: .8, emissive: 0x2a2820, emissiveIntensity: .4 });
+  for (let x = -8; x < 78; x += 6) box(root, { x, y: .01, z: 0, w: 3, h: .02, d: .22, material: dash, solid: false });
+  for (let z = -10; z > -52; z -= 6) box(root, { x: 70, y: .01, z, w: .22, h: .02, d: 3, material: dash, solid: false });
+  for (let i = 0; i < 9; i++) {
+    const bx = rand(4, 58), bz = Math.random() < .5 ? 6.6 : -6.6;
+    const bin = new THREE.Mesh(new THREE.CylinderGeometry(.34, .3, 1.0, 10), M.dark);
+    bin.position.set(bx, .65, bz); root.add(bin);
+    addCollider(null, .7, 1, .7, bx, .65, bz, 0);
+  }
+  // bus stop
+  const stopG = new THREE.Group(); root.add(stopG);
+  box(stopG, { x: 30, y: 1.3, z: 7.4, w: 4, h: .12, d: 1.6, material: M.metal, solid: false });
+  box(stopG, { x: 30, y: .65, z: 8.1, w: 4, h: 1.3, d: .08, material: M.glass, solid: false });
+  const stopSign = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.3),
+    new THREE.MeshStandardMaterial({ color: 0x14202e, emissive: 0x2a5a8a, emissiveIntensity: .8 }));
+  stopSign.position.set(28.3, 1.6, 7.35); root.add(stopSign);
+
+  /* ---------- signs pointing the way ---------- */
+  function signpost(x, z, rotY, text, arrow) {
+    const t = screenTex('sign' + x + z, (g, s) => {
+      g.fillStyle = '#0d2a4a'; g.fillRect(0, 0, s, s);
+      g.strokeStyle = '#e8eef6'; g.lineWidth = 5; g.strokeRect(9, 9, s - 18, s - 18);
+      g.fillStyle = '#eef3f8'; g.textAlign = 'center';
+      g.font = 'bold 34px Inter, sans-serif'; g.fillText(text, s / 2, s / 2 - 4);
+      g.font = '46px Inter, sans-serif'; g.fillText(arrow, s / 2, s / 2 + 54);
+      g.textAlign = 'left';
+    }, 256);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.6, 8), M.metal);
+    post.position.set(x, 1.3, z); root.add(post);
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0),
+      new THREE.MeshStandardMaterial({ map: t.tex, roughness: .7 }));
+    panel.position.set(x, 2.3, z); panel.rotation.y = rotY; root.add(panel);
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), M.dark);
+    back.position.set(x, 2.3, z - .03); back.rotation.y = rotY + Math.PI; root.add(back);
+  }
+  signpost(20, 7.6, 0, 'STATION', '→');
+  signpost(59, 7.6, 0, 'STATION', '↗');
+  signpost(66.5, -14, Math.PI / 2, 'STATION', '↑');
+  signpost(66.5, -48, Math.PI / 2, 'PLATFORMS', '↑');
+
+  WORLD.city = { root, M, poolTex, streetLamp, signpost };
+
+  /* ---------- seals ----------
+     Buildings are placed with gaps between them; without these the player
+     can slip between two blocks and walk out of the level. */
+  const seal = (x, z, w, d) => addCollider(null, w, 6, d, x, 3, z, 0);
+  seal(25, -8.2, 74, .5);        // north side of Ardwick Row, up to the junction
+  seal(25, 8.2, 74, .5);         // south side
+  seal(70, 8.2, 16, .5);         // across the far side of the junction
+  seal(62.1, -30, .5, 46);       // Station Road, west
+  seal(77.9, -30, .5, 46);       // Station Road, east
+  seal(52, -65, .5, 28);         // plaza, west
+  seal(92, -65, .5, 28);         // plaza, east
+  seal(72, -52.2, 20, .5);       // plaza, the way you came in stays open either side
+  seal(58, -52.2, 12, .5);
+  seal(86, -52.2, 12, .5);
+  seal(88, 0, 24, .5);           // the road east of the crossroads is closed off
+  seal(88, -0.6, 24, .5);
+
+  /* ---------- the underpass ----------
+     A road bridge over Station Road. Its lights are the ones that fail. */
+  const tunnelMat = mat({ map: TEX.concrete([8, 3]), color: 0x9aa0a8, roughness: .95 });
+  box(root, { x: 70, y: 5.4, z: -35, w: 22, h: 1.6, d: 18, material: tunnelMat });      // deck
+  box(root, { x: 60.5, y: 2.3, z: -35, w: 3, h: 4.6, d: 18, material: tunnelMat });     // west wall
+  box(root, { x: 79.5, y: 2.3, z: -35, w: 3, h: 4.6, d: 18, material: tunnelMat });     // east wall
+  plane(root, { x: 70, y: 4.55, z: -35, w: 19, d: 18, material: mat({ map: TEX.concrete([6, 6]), color: 0x8a9098 }), rx: Math.PI / 2 });
+  // tiled skirting, the way underpasses always are
+  box(root, { x: 62.2, y: 1.1, z: -35, w: .12, h: 2.2, d: 18, material: mat({ map: TEX.tile([6, 1]), color: 0xc8ccd2 }), solid: false });
+  box(root, { x: 77.8, y: 1.1, z: -35, w: .12, h: 2.2, d: 18, material: mat({ map: TEX.tile([6, 1]), color: 0xc8ccd2 }), solid: false });
+  // strip lights along the soffit
+  CITY.tunnelLights = [];
+  for (let z = -28; z >= -42; z -= 3.5) {
+    const tube = new THREE.Mesh(new THREE.BoxGeometry(1.6, .1, .3),
+      new THREE.MeshStandardMaterial({ color: 0xe9f1ff, emissive: 0xcfe2ff, emissiveIntensity: 2.6 }));
+    tube.position.set(70, 4.42, z); root.add(tube);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 7),
+      new THREE.MeshBasicMaterial({ map: poolTexRef(), transparent: true, opacity: .3,
+        depthWrite: false, blending: THREE.AdditiveBlending, color: 0x9fc4f0 }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(70, .05, z); root.add(pool);
+    CITY.tunnelLights.push({ tube, pool, on: true });
+  }
+  function poolTexRef() { return poolTex; }
+
+  /* ---------- the plaza ---------- */
+  // low wall around the plaza edge, bollards, a dry fountain
+  for (let x = 54; x <= 90; x += 4) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.14, .17, 1.0, 8), M.metal);
+    b.position.set(x, .64, -53.5); root.add(b);
+    addCollider(null, .34, 1, .34, x, .64, -53.5, 0);
+  }
+  const fountain = new THREE.Group(); root.add(fountain);
+  box(fountain, { x: 60, y: .5, z: -63, w: 7, h: .7, d: 7, material: M.stone });
+  plane(fountain, { x: 60, y: .72, z: -63, w: 6.2, d: 6.2,
+    material: mat({ color: 0x1a2028, roughness: .2, metalness: .3 }) });
+  box(fountain, { x: 60, y: 1.5, z: -63, w: .9, h: 1.6, d: .9, material: M.stone });
+
+  /* ---------- the station ---------- */
+  const stoneBig = mat({ map: TEX.concrete([8, 4]), color: 0xd0cec6, roughness: .9 });
+  const facadeZ = -78;
+  // facade with a big arched opening (approximated with a lintel + piers)
+  box(root, { x: 60, y: 7, z: facadeZ, w: 16, h: 14, d: 2, material: stoneBig });
+  box(root, { x: 84, y: 7, z: facadeZ, w: 16, h: 14, d: 2, material: stoneBig });
+  box(root, { x: 72, y: 10.5, z: facadeZ, w: 8, h: 7, d: 2, material: stoneBig });      // above the doors
+  // columns
+  for (const cx of [65.5, 78.5]) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(.75, .85, 9, 16), stoneBig);
+    col.position.set(cx, 4.5, facadeZ + 1.8); root.add(col);
+    addCollider(null, 1.7, 9, 1.7, cx, 4.5, facadeZ + 1.8, 0);
+  }
+  box(root, { x: 72, y: 9.6, z: facadeZ + 1.8, w: 16, h: 1.2, d: 1.6, material: stoneBig, solid: false });
+  // STATION NAME
+  const nameTex = screenTex('stationname', (g, s) => {
+    g.fillStyle = '#10151c'; g.fillRect(0, 0, s, s);
+    g.fillStyle = '#f3e7cf'; g.textAlign = 'center';
+    g.font = 'bold 40px "Special Elite", monospace';
+    g.fillText('CENTRAL', s / 2, s / 2 - 6);
+    g.font = '22px Inter, sans-serif'; g.fillStyle = '#c0a878';
+    g.fillText('S T A T I O N', s / 2, s / 2 + 34);
+    g.textAlign = 'left';
+  }, 256);
+  const nameSign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.4),
+    new THREE.MeshStandardMaterial({ map: nameTex.tex, emissive: 0xffffff, emissiveMap: nameTex.tex, emissiveIntensity: .55, roughness: .7 }));
+  nameSign.position.set(72, 11.2, facadeZ + .02); root.add(nameSign);
+  const nameGlow = new THREE.PointLight(0xffd79a, 26, 18, 1.7); nameGlow.position.set(72, 10.4, facadeZ + 3.4); root.add(nameGlow);
+  for (const ux of [64, 80]) {                      // uplighters at the feet of the columns
+    const up = new THREE.PointLight(0xffca8a, 22, 16, 1.6);
+    up.position.set(ux, 1.2, facadeZ + 2.6); root.add(up);
+    const fitting = new THREE.Mesh(new THREE.BoxGeometry(.5, .18, .4),
+      new THREE.MeshStandardMaterial({ color: 0x23262c, emissive: 0xffc98a, emissiveIntensity: 2 }));
+    fitting.position.set(ux, .12, facadeZ + 2.6); root.add(fitting);
+  }
+
+  // the station clock: stopped at 2:14
+  const clockTex = screenTex('stclock', (g, s) => {
+    g.fillStyle = '#e9e3d4'; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 6, 0, 7); g.fill();
+    g.strokeStyle = '#1b1d22'; g.lineWidth = 9; g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 10, 0, 7); g.stroke();
+    g.fillStyle = '#1b1d22';
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      g.fillRect(s / 2 + Math.sin(a) * (s / 2 - 34) - 4, s / 2 - Math.cos(a) * (s / 2 - 34) - 4, 8, 8);
+    }
+    const hand = (ang, len, w) => { g.lineWidth = w; g.lineCap = 'round'; g.beginPath();
+      g.moveTo(s / 2, s / 2); g.lineTo(s / 2 + Math.sin(ang) * len, s / 2 - Math.cos(ang) * len); g.stroke(); };
+    g.strokeStyle = '#1b1d22';
+    hand((2 + 14 / 60) / 12 * Math.PI * 2, 54, 11);
+    hand(14 / 60 * Math.PI * 2, 80, 7);
+  }, 256);
+  const clockFace = new THREE.Mesh(new THREE.CircleGeometry(1.35, 32),
+    new THREE.MeshStandardMaterial({ map: clockTex.tex, emissive: 0xffffff, emissiveMap: clockTex.tex,
+      emissiveIntensity: .35, roughness: .6 }));
+  clockFace.position.set(72, 13.4, facadeZ + .05); root.add(clockFace);
+
+  /* ---------- concourse ---------- */
+  const concFloor = mat({ map: TEX.tile([10, 7]), color: 0xd2d6dc, roughness: .5 });
+  plane(root, { x: 72, y: .16, z: -88, w: 32, h: 1, d: 20, material: concFloor });
+  plane(root, { x: 72, y: 8.6, z: -88, w: 32, d: 20, material: mat({ map: TEX.concrete([6, 4]), color: 0x8e949c }), rx: Math.PI / 2 });
+  box(root, { x: 55.8, y: 4.3, z: -88, w: 1.6, h: 8.6, d: 20, material: stoneBig });   // west wall
+  box(root, { x: 88.2, y: 4.3, z: -88, w: 1.6, h: 8.6, d: 20, material: stoneBig });   // east wall
+  // back wall with the opening to the platform (gap x 66..78)
+  box(root, { x: 60.5, y: 4.3, z: -98, w: 10, h: 8.6, d: 1.2, material: stoneBig });
+  box(root, { x: 83.5, y: 4.3, z: -98, w: 10, h: 8.6, d: 1.2, material: stoneBig });
+  box(root, { x: 72, y: 7.2, z: -98, w: 13, h: 2.8, d: 1.2, material: stoneBig });
+  // and the front wall behind the entrance (gap x 68..76)
+  box(root, { x: 61.5, y: 4.3, z: facadeZ - .6, w: 12, h: 8.6, d: 1.2, material: stoneBig });
+  box(root, { x: 82.5, y: 4.3, z: facadeZ - .6, w: 12, h: 8.6, d: 1.2, material: stoneBig });
+  box(root, { x: 72, y: 7.4, z: facadeZ - .6, w: 9, h: 2.4, d: 1.2, material: stoneBig });
+
+  // ticket windows along the west wall
+  for (let i = 0; i < 4; i++) {
+    const zz = -82 - i * 3.4;
+    box(root, { x: 57.4, y: 1.4, z: zz, w: 1.4, h: 2.8, d: 2.6, material: M.dark });
+    const glassPane = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.4), M.glass);
+    glassPane.position.set(58.15, 1.9, zz); glassPane.rotation.y = Math.PI / 2; root.add(glassPane);
+    const num = new THREE.Mesh(new THREE.BoxGeometry(.06, .5, .5),
+      new THREE.MeshStandardMaterial({ color: 0x141820, emissive: 0x4aa0d0, emissiveIntensity: 1.1 }));
+    num.position.set(58.2, 3.1, zz); root.add(num);
+  }
+  // benches
+  for (const bz of [-84, -90]) for (const bx of [70, 76]) {
+    const g = new THREE.Group(); g.position.set(bx, 0, bz); root.add(g);
+    box(g, { x: bx, y: .48, z: bz, w: 2.8, h: .12, d: .6, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }) });
+    box(g, { x: bx, y: .86, z: bz - .28, w: 2.8, h: .66, d: .1, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }), solid: false });
+    for (const s2 of [-1, 1]) box(g, { x: bx + s2 * 1.2, y: .24, z: bz, w: .12, h: .48, d: .55, material: M.metal, solid: false });
+  }
+  // turnstiles between concourse and platform
+  for (let i = 0; i < 4; i++) {
+    const tx = 67 + i * 3;
+    box(root, { x: tx, y: .55, z: -96.5, w: .5, h: 1.1, d: 1.6, material: M.metal });
+    const armT = new THREE.Mesh(new THREE.BoxGeometry(.07, .07, 1.1), M.metal);
+    armT.position.set(tx + .4, .95, -96.5); armT.rotation.y = .5; root.add(armT);
+  }
+  // a suitcase nobody came back for
+  const caseM = mat({ map: TEX.fabric([1, 1], '#3a2b22'), color: 0xa98468, roughness: .9 });
+  const suitcase = new THREE.Mesh(new THREE.BoxGeometry(.8, .55, .3), caseM);
+  suitcase.position.set(74.6, .44, -87); suitcase.rotation.y = .4; root.add(suitcase);
+  addCollider(null, .9, .6, .5, 74.6, .44, -87, .4);
+
+  // departure board
+  const boardCv = screenTex('depboard', (g, s) => drawBoard(g, s, 0), 512);
+  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 3.2),
+    new THREE.MeshBasicMaterial({ map: boardCv.tex, toneMapped: false }));
+  boardMesh.position.set(72, 4.6, -97.3); root.add(boardMesh);
+  box(root, { x: 72, y: 4.6, z: -97.55, w: 7.6, h: 3.6, d: .3, material: M.dark, solid: false });
+  const boardLight = new THREE.PointLight(0xffb45c, 16, 14, 1.8); boardLight.position.set(72, 4.2, -95.6); root.add(boardLight);
+  CITY.board = boardCv;
+
+  // concourse lights (fluorescent rows) — two real, the rest emissive
+  for (let i = 0; i < 3; i++) {
+    const zz = -81 - i * 6;
+    const tube = new THREE.Mesh(new THREE.BoxGeometry(11, .16, .5),
+      new THREE.MeshStandardMaterial({ color: 0xeef4ff, emissive: 0xdcebff, emissiveIntensity: 2.2 }));
+    tube.position.set(72, 8.3, zz); root.add(tube);
+    const l = new THREE.PointLight(0xcfe0f5, 24, 22, 1.6);
+    l.position.set(72, 7.6, zz); root.add(l);
+  }
+
+  /* ---------- the platform ---------- */
+  buildPlatform(root, M, stoneBig);
+
+  /* ---------- lighting ----------
+     Every street lamp draws a pool on the wet road and glows, but only a
+     handful of real lights exist: they are moved to whichever lamps are
+     nearest the player each frame. A shader that evaluates forty point
+     lights per fragment is what kills a scene like this. */
+  sc.add(new THREE.HemisphereLight(0x46608c, 0x16181f, 2.1));
+  const moon = new THREE.DirectionalLight(0x9db7e0, 1.25);
+  moon.position.set(-40, 60, 30); sc.add(moon);
+  CITY.roaming = [];
+  for (let i = 0; i < 5; i++) {
+    const l = new THREE.PointLight(0xffbe78, 0, 17, 1.7);
+    l.position.set(0, -50, 0); sc.add(l); CITY.roaming.push(l);
+  }
+
+  /* ---------- rain ---------- */
+  const rain = makeRainStreaks(3000, 26, 20); sc.add(rain);
+  CITY.rain = rain;
+
+  /* ---------- the figure that waits under the lamps ---------- */
+  CITY.figure = makeFigure();
+  CITY.figure.group.visible = false;
+  sc.add(CITY.figure.group);
+
+  sc.add(camera);
+  if (WORLD.arms) camera.remove(WORLD.arms.group);
+  WORLD.arms = makeArms();
+  camera.add(WORLD.arms.group);
+
+  sc.userData.tick = (dt, t) => {
+    rain.userData.tick(dt, camera.position);
+    rain.position.set(camera.position.x, 0, camera.position.z);
+  };
+
+  WORLD.scene = sc;
+  WORLD.phone = null; WORLD.tv = null; WORLD.lamp = null; WORLD.door = null; WORLD.corridor = null;
+  WORLD.interactables = [];
+  return sc;
+}
+
+/* A person-shaped absence: no face, no detail, just a hole in the rain. */
+function makeFigure() {
+  const g = new THREE.Group();
+  const black = new THREE.MeshBasicMaterial({ color: 0x030406, transparent: true, opacity: .97 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.28, .95, 4, 12), black);
+  body.position.y = 1.02; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.21, 14, 12), black);
+  head.position.y = 1.78; g.add(head);
+  for (const sgn of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(.09, .62, 4, 8), black);
+    arm.position.set(sgn * .33, 1.06, 0); g.add(arm);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(.12, .72, 4, 8), black);
+    leg.position.set(sgn * .15, .4, 0); g.add(leg);
+  }
+  return { group: g, material: black };
+}
+
+/* Show the figure at a spot, facing the player, and let it go when approached. */
+function figureAppear(x, z, { vanishAt = 13, hold = 0 } = {}) {
+  const f = CITY.figure; if (!f) return;
+  f.group.position.set(x, 0, z);
+  f.group.visible = true;
+  f.material.opacity = 0;
+  f.vanishAt = vanishAt; f.alive = true;
+  tween(.9, k => { f.material.opacity = k * .97; });
+  if (hold) setTimeout(() => figureVanish(), hold);
+}
+function figureVanish() {
+  const f = CITY.figure; if (!f || !f.alive) return;
+  f.alive = false;
+  Audio_.glitch(.35, .16);
+  GAME.glitchPulse = Math.max(GAME.glitchPulse, .9);
+  tween(.45, k => { f.material.opacity = .97 * (1 - k); })
+    .then(() => { f.group.visible = false; });
+}
+
+/* Platform 1: slab, canopy, rails, and the 02:14 waiting with its doors open. */
+function buildPlatform(root, M, stoneBig) {
+  const platMat = mat({ map: TEX.concrete([16, 5]), color: 0xc6cad1, roughness: .92 });
+  // slab: top at y=0, ballast at y=-1.2
+  box(root, { x: 70, y: -.6, z: -104, w: 60, h: 1.2, d: 12, material: platMat, solid: false });
+  plane(root, { x: 70, y: -1.2, z: -114, w: 60, d: 12, material: mat({ map: TEX.asphalt([14, 4]), color: 0x8a8f96 }) });
+  // the drop to the track is a wall you cannot walk through
+  addCollider(null, 60, 2.4, .4, 70, 1.2, -110.1, 0);
+  // yellow line
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(60, .34),
+    new THREE.MeshStandardMaterial({ color: 0xc8a82e, roughness: .8, emissive: 0x2e2408, emissiveIntensity: .6 }));
+  line.rotation.x = -Math.PI / 2; line.position.set(70, .02, -109.2); root.add(line);
+  // platform walls left/right so you stay on it
+  addCollider(null, .6, 3, 14, 40.2, 1.5, -104, 0);
+  addCollider(null, .6, 3, 14, 99.8, 1.5, -104, 0);
+  box(root, { x: 40, y: 1.6, z: -104, w: .6, h: 3.2, d: 13, material: stoneBig, solid: false });
+  box(root, { x: 100, y: 1.6, z: -104, w: .6, h: 3.2, d: 13, material: stoneBig, solid: false });
+
+  // rails + sleepers
+  const railMat = mat({ color: 0xa8aeb8, roughness: .3, metalness: .9 });
+  for (const off of [-1.4, 1.4]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(62, .16, .12), railMat);
+    r.position.set(70, -1.05, -113 + off); root.add(r);
+  }
+  const sleeper = mat({ map: TEX.wood([1, 1], true), color: 0x8d7963, roughness: 1 });
+  for (let i = -13; i < 13; i++) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(.42, .14, 3.4), sleeper);
+    sl.position.set(70 + i * 2.4, -1.14, -113); root.add(sl);
+  }
+
+  // canopy + its lamps
+  box(root, { x: 70, y: 5.2, z: -103, w: 56, h: .35, d: 11, material: mat({ color: 0x3a3f46, roughness: .85, metalness: .25 }), solid: false });
+  for (let i = 0; i < 7; i++) {
+    const px = 46 + i * 8;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.12, .15, 5, 10), M.metal);
+    post.position.set(px, 2.5, -99.5); root.add(post);
+    addCollider(null, .35, 5, .35, px, 2.5, -99.5, 0);
+    const shade = new THREE.Mesh(new THREE.ConeGeometry(.6, .5, 14, 1, true),
+      mat({ color: 0x24282e, roughness: .7, side: THREE.DoubleSide }));
+    shade.position.set(px, 4.85, -103.5); root.add(shade);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 10),
+      new THREE.MeshStandardMaterial({ color: 0xfff1cf, emissive: 0xffd9a5, emissiveIntensity: 3.2 }));
+    bulb.position.set(px, 4.7, -103.5); root.add(bulb);
+    CITY.lamps.push({ head: bulb, pool: null, pos: new THREE.Vector3(px, 4.6, -103.5),
+                      on: true, flick: i === 3, phase: rand(0, 9), platform: true });
+  }
+  // platform number
+  const pnum = screenTex('pnum', (g, s) => {
+    g.fillStyle = '#0e141c'; g.fillRect(0, 0, s, s);
+    g.fillStyle = '#f0e6d2'; g.textAlign = 'center';
+    g.font = 'bold 150px Inter, sans-serif'; g.fillText('1', s / 2, s / 2 + 54);
+    g.textAlign = 'left';
+  }, 128);
+  const pnumMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2),
+    new THREE.MeshStandardMaterial({ map: pnum.tex, emissive: 0xffffff, emissiveMap: pnum.tex, emissiveIntensity: .5 }));
+  pnumMesh.position.set(58, 3.3, -99.2); root.add(pnumMesh);
+
+  // benches on the platform
+  for (const bx of [54, 84]) {
+    box(root, { x: bx, y: .48, z: -101, w: 2.6, h: .12, d: .6, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }) });
+    box(root, { x: bx, y: .86, z: -101.3, w: 2.6, h: .66, d: .1, material: mat({ map: TEX.wood([1, 1], true), color: 0xa88a68 }), solid: false });
+  }
+
+  /* ---------- the train ---------- */
+  const train = new THREE.Group(); train.position.set(0, 0, -113); root.add(train);
+  const bodyMat = mat({ color: 0x39465a, roughness: .5, metalness: .55 });
+  const trimMat = mat({ color: 0x8e2a1c, roughness: .55, metalness: .35 });
+  const winMat = new THREE.MeshStandardMaterial({ color: 0x241f18, emissive: 0xffd49a, emissiveIntensity: 1.25, roughness: .25 });
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x1a2028, emissive: 0xffe2b4, emissiveIntensity: .55, roughness: .3 });
+
+  function carriage(px, isLoco) {
+    const g = new THREE.Group(); g.position.x = px; train.add(g);
+    const L = isLoco ? 9 : 13;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(L, 3.2, 3.1), bodyMat);
+    body.position.y = .95; g.add(body);
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, L, 16, 1, false, 0, Math.PI), bodyMat);
+    roof.rotation.z = Math.PI / 2; roof.position.y = 2.55; g.add(roof);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(L + .02, .34, 3.16), trimMat);
+    stripe.position.y = .1; g.add(stripe);
+    const wn = isLoco ? 3 : 5;
+    for (let i = 0; i < wn; i++) {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1, 3.18), winMat);
+      w.position.set(-L / 2 + 1.8 + i * (L - 3.6) / (wn - 1), 1.45, 0); g.add(w);
+    }
+    if (!isLoco) {                               // open doors, warm light spilling out
+      for (const dx of [-L / 2 + 2.2, L / 2 - 2.2]) {
+        const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.2, 3.2), doorMat);
+        door.position.set(dx, .9, 0); g.add(door);
+        const spill = new THREE.PointLight(0xffc98a, 16, 11, 1.7);
+        spill.position.set(px + dx, 1.2, -111.4); train.add(spill);
+      }
+    }
+    for (const bx of [-L / 2 + 2, L / 2 - 2]) for (const sgn of [-1, 1]) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .22, 16), mat({ color: 0x14161a, roughness: .5, metalness: .7 }));
+      wheel.rotation.x = Math.PI / 2; wheel.position.set(bx, -.75, sgn * 1.45); g.add(wheel);
+    }
+    if (isLoco) {
+      const cabMat = mat({ color: 0x43506a, roughness: .45, metalness: .55 });
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.6, 2.9), cabMat);
+      nose.position.set(L / 2 + .9, 1.25, 0); g.add(nose);
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(1, .9, 2.95), cabMat);
+      brow.position.set(L / 2 + 1.5, 2.1, 0); brow.rotation.z = -.42; g.add(brow);
+      const ws = new THREE.Mesh(new THREE.BoxGeometry(.12, .95, 2.3),
+        new THREE.MeshStandardMaterial({ color: 0x0d1118, emissive: 0x2a3a52, emissiveIntensity: .8, roughness: .15, metalness: .6 }));
+      ws.position.set(L / 2 + 1.72, 1.95, 0); ws.rotation.z = -.42; g.add(ws);
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff3d0, emissive: 0xfff0cc, emissiveIntensity: 7 });
+      for (const sgn of [-1, 1]) {
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(.2, 12, 12), lampMat);
+        lamp.position.set(L / 2 + 1.92, .8, sgn * .72); g.add(lamp);
+      }
+      const beam = new THREE.SpotLight(0xffe7bd, 60, 60, .38, .6, 1.3);
+      beam.position.set(px + L / 2 + 2, .9, -113);
+      beam.target.position.set(px + 60, -.4, -113);
+      train.add(beam, beam.target);
+      CITY.beam = beam;
+    }
+    return g;
+  }
+  carriage(92, true); carriage(79, false); carriage(64.5, false); carriage(50, false);
+  CITY.train = train;
+  addCollider(null, 70, 4, 3.4, 70, 1.4, -113, 0);      // you cannot walk into the train
+}
+
+/* Departure board contents; `glitch` corrupts the rows as the chapter turns. */
+function drawBoard(g, s, glitch) {
+  g.fillStyle = '#05070a'; g.fillRect(0, 0, s, s);
+  g.font = 'bold 30px monospace'; g.fillStyle = '#ffb648';
+  g.fillText('DEPARTURES', 22, 46);
+  g.font = '20px monospace'; g.fillStyle = '#6d7683';
+  g.fillText('TIME   DESTINATION        PLATFORM   STATUS', 22, 82);
+  const rows = [
+    ['02:14', 'CENTRAL',    '1', 'BOARDING'],
+    ['02:48', 'HOLLOWAY',   '2', 'DELAYED'],
+    ['03:20', '————',  '-', 'CANCELLED'],
+    ['04:05', 'ASHGROVE',   '3', 'ON TIME'],
+    ['05:12', 'MARLOW END', '2', 'ON TIME']
+  ];
+  g.font = '24px monospace';
+  rows.forEach((r, i) => {
+    const y = 124 + i * 40;
+    let dest = r[1];
+    if (glitch > 0 && Math.random() < glitch) {
+      dest = dest.split('').map(c => Math.random() < .4 ? '█▓▒'[(Math.random() * 3) | 0] : c).join('');
+    }
+    g.fillStyle = '#e8c07a'; g.fillText(r[0], 22, y);
+    g.fillStyle = i === 0 ? '#ffffff' : '#c3cad3'; g.fillText(dest, 132, y);
+    g.fillStyle = '#8f98a4'; g.fillText(r[2], 400, y);
+    g.fillStyle = r[3] === 'ON TIME' ? '#79d38a' : r[3] === 'BOARDING' ? '#8ad0ff' : '#d8624a';
+    g.fillText(r[3], 470, y);
+  });
+  if (glitch > .5) {
+    g.fillStyle = '#ff5a5a'; g.font = 'bold 26px monospace';
+    g.fillText('YOU ARE LATE', 132, 124 + 5 * 40 + 16);
+  }
+  g.fillStyle = 'rgba(255,255,255,.045)';
+  for (let i = 0; i < s; i += 3) g.fillRect(0, i, s, 1);
+}
+
 /* ------------------------------------------------------------------ */
 /*  FIRST-PERSON ARMS                                                  */
 /*  Used for the stretch on waking and for holding the phone. They     */
@@ -1695,7 +2388,11 @@ document.addEventListener('pointerlockchange', () => {
 renderer.domElement.addEventListener('click', () => {
   if (GAME.state === 'play' && !pointerLocked && !GAME.paused) lockPointer();
 });
-function lockPointer() { renderer.domElement.requestPointerLock?.(); }
+function lockPointer() {
+  // Chrome returns a promise here and rejects it when the request did not
+  // follow a gesture; the click-to-look hint covers that case.
+  try { const r = renderer.domElement.requestPointerLock?.(); r?.catch?.(() => {}); } catch {}
+}
 function unlockPointer() { document.exitPointerLock?.(); }
 
 function playerBox(px = PL.pos.x, py = PL.pos.y, pz = PL.pos.z) {
@@ -1954,10 +2651,14 @@ function speakLine(text, { who = '???', glitch = .5, rate = .84, pitch = .35, ho
 /*  GAME STATE                                                         */
 /* ------------------------------------------------------------------ */
 /* dev switches: index.html?skipintro=1&nogr() — handy while editing the flat */
-const DEV = { skipIntro: /[?&]skipintro/.test(location.search) };
+const DEV = {
+  skipIntro: /[?&]skipintro/.test(location.search),
+  chapter2:  /[?&]chapter2/.test(location.search)
+};
 
 const GAME = {
   state: 'boot',          // boot | menu | play | end
+  chapter: 1,
   paused: false, cutscene: false,
   objective: '', glitchPulse: 0, phase: 'sleep',
   time: 0, ambience: {}, flags: {}, callTimer: 0, phoneMode: 'OFF',
@@ -2057,6 +2758,8 @@ function interact(it) {
       Audio_.burst({ dur: .35, freq: 220, q: .8, gain: .09, type: 'lowpass' });
       flavour('Half a carton of milk and a takeaway box. You are not hungry.');
       break;
+    case 'payphone': answerPayphone(); break;
+    case 'train':    boardTrain(); break;
   }
 }
 let flavourTimer = null;
@@ -2071,7 +2774,7 @@ function flavour(text) {
 /* ------------------------------------------------------------------ */
 async function startNewGame() {
   hide(EL.menu); hide(EL.settings);
-  GAME.state = 'play'; GAME.paused = false; GAME.cutscene = true;
+  GAME.state = 'play'; GAME.chapter = 1; GAME.paused = false; GAME.cutscene = true;
   GAME.phase = 'sleep'; GAME.flags = {}; GAME.glitchPulse = 0;
   TUT.clear(); HUD.clearSay(); HUD.hidePrompt(); HUD.setObjective('');
 
@@ -2384,30 +3087,272 @@ async function leaveHouse() {
   hide(EL.hud);
   TUT.clear();
   await wait(400);
-  await endCard();
+  await chapterCard('Chapter One', 'The Call', 'to be continued',
+                    { next: ['Next', 'The Station', 'chapter two'] });
+  saveProgress(1);
+  // straight down the stairs and out onto the street
+  await startChapter2({ fromChapterOne: true });
 }
 
-async function endCard() {
+function saveProgress(chapter) {
+  try {
+    localStorage.setItem('lasttrain.save',
+      JSON.stringify({ chapter, unlocked: Math.max(chapter + 1, 2), at: Date.now() }));
+  } catch {}
+}
+
+/* The card between chapters. `next` teases what is coming, if anything. */
+async function chapterCard(c1, c2, c3, { next = null, hold = 2600 } = {}) {
   GAME.state = 'end';
-  $('#tc1').textContent = 'Chapter One';
-  $('#tc2').textContent = 'The Call';
+  $('#tc1').textContent = c1;
+  $('#tc2').textContent = c2;
   $('#tc3').textContent = '';
   show(EL.card);
   requestAnimationFrame(() => EL.card.classList.add('show'));
   EL.black.style.opacity = 0;
   Audio_.init(); Audio_.resume();
-  await wait(2600);
+  await wait(hold);
   Audio_.trainHorn(0);
-  $('#tc3').textContent = 'to be continued';
-  await wait(3400);
-  $('#tc1').textContent = 'Next';
-  $('#tc2').textContent = 'The Station';
-  $('#tc3').textContent = 'chapter two';
+  $('#tc3').textContent = c3;
   await wait(3200);
+  if (next) {
+    $('#tc1').textContent = next[0];
+    $('#tc2').textContent = next[1];
+    $('#tc3').textContent = next[2];
+    await wait(3000);
+  }
   EL.card.classList.remove('show');
   await wait(1100);
   hide(EL.card);
-  try { localStorage.setItem('lasttrain.save', JSON.stringify({ chapter: 1, done: true, at: Date.now() })); } catch {}
+}
+
+/* ==================================================================== */
+/*  SEQUENCE: CHAPTER TWO — THE STATION                                 */
+/* ==================================================================== */
+
+function startCityAmbience() {
+  Audio_.init(); Audio_.resume();
+  stopAmbience();
+  GAME.ambience.rain  = Audio_.bed({ type: 'brown', freq: 2600, gain: .2, filter: 'lowpass' });
+  GAME.ambience.hiss  = Audio_.bed({ type: 'white', freq: 3200, q: .4, gain: .03, filter: 'highpass' });
+  GAME.ambience.room  = Audio_.bed({ type: 'brown', freq: 90, gain: .07, filter: 'lowpass' });
+  GAME.ambience.drone = Audio_.drone(38, .05);
+  clearInterval(GAME.ambience.hornTimer);
+  GAME.ambience.hornTimer = setInterval(() => {
+    if (GAME.chapter === 2 && !GAME.paused) Audio_.trainHorn(rand(0, 2));
+  }, 26000);
+}
+
+/* Trigger volumes: circles on the ground that fire once when entered. */
+function trig(x, z, r, fn) { CITY.triggers.push({ x, z, r, fn, done: false }); }
+
+async function startChapter2({ fromChapterOne = false } = {}) {
+  GAME.state = 'play'; GAME.chapter = 2; GAME.paused = false; GAME.cutscene = true;
+  GAME.phase = 'street'; GAME.flags = {}; GAME.glitchPulse = 0;
+  CITY.lamps = []; CITY.triggers = []; CITY.deadLamps = new Set(); CITY.boardGlitch = 0;
+  TUT.clear(); HUD.clearSay(); HUD.hidePrompt(); HUD.setObjective('');
+
+  if (!fromChapterOne) await fadeTo(1, 800);
+
+  const sc = buildCity();
+  scene = sc; renderPass.scene = sc;
+  renderer.toneMappingExposure = 1.3;
+  GU.uDesat.value = .04; GU.uVignette.value = 1.05; GU.uAberr.value = .0014;
+
+  // out of the front door of the block, facing up the street
+  PL.pos.set(3.2, 0, 7.2); PL.vel.set(0, 0, 0);
+  PL.yaw = -Math.PI / 2; PL.pitch = -.02; PL.locked = true;
+  camera.position.set(3.2, 1.62, 7.2);
+  camera.rotation.set(-.02, -Math.PI / 2, 0, 'YXZ');
+
+  startCityAmbience();
+  show(EL.hud); EL.hud.style.opacity = 0;
+
+  buildChapter2Beats();
+
+  await fadeTo(0, 1800);
+  GAME.cutscene = false; PL.locked = false;
+  EL.hud.style.transition = 'opacity 1s'; EL.hud.style.opacity = 1;
+  HUD.setObjective('Get to the train station');
+  TUT.add('run', 'SHIFT', 'run');
+  lockPointer();
+
+  await wait(1200);
+  HUD.say('', 'The street is empty. It should not be this empty.');
+  setTimeout(() => HUD.clearSay(), 4200);
+}
+
+/* Every scripted beat of the walk, in the order you meet them. */
+function buildChapter2Beats() {
+  /* --- a payphone that rings as you pass --- */
+  const boxMat = mat({ color: 0x7a1d18, roughness: .55, metalness: .25 });
+  for (const [ox, oz, w, d] of [[-.55, 0, .12, 1.1], [.55, 0, .12, 1.1], [0, -.55, 1.2, .12]]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 2.4, d), boxMat);
+    wall.position.set(41 + ox, 1.2, 7.4 + oz); WORLD.scene.add(wall);
+  }
+  const boxRoof = new THREE.Mesh(new THREE.BoxGeometry(1.3, .14, 1.3), boxMat);
+  boxRoof.position.set(41, 2.45, 7.4); WORLD.scene.add(boxRoof);
+  const boxGlow = new THREE.PointLight(0xffd9a0, 0, 7, 1.8);
+  boxGlow.position.set(41, 1.9, 7.4); WORLD.scene.add(boxGlow);
+  addCollider(null, 1.4, 2.4, 1.4, 41, 1.2, 7.4, 0);
+  CITY.payphone = { glow: boxGlow, ringing: false, answered: false };
+
+  trig(34, 6, 9, () => {
+    CITY.payphone.ringing = true;
+    CITY.payphone.handle = Audio_.ring();
+    CITY.payphone.handle.to(.42, .6);
+    WORLD.interactables.push({ id: 'payphone', pos: new THREE.Vector3(41, 1.5, 7.4),
+      r: 2.6, label: 'Answer', key: 'E', enabled: true });
+    HUD.say('', 'A payphone is ringing. Ahead of you, on the corner.');
+    setTimeout(() => HUD.clearSay(), 4000);
+  });
+
+  /* --- the lights ahead go out, and someone is standing in the last one --- */
+  trig(52, 4, 11, () => {
+    Audio_.burst({ dur: .5, freq: 120, q: .8, gain: .12, type: 'lowpass' });
+    const far = CITY.lamps.filter(l => l.pos.x > 56 && Math.abs(l.pos.z) < 12);
+    far.forEach((l, i) => setTimeout(() => { l.on = false; Audio_.click(500, .08); }, i * 260));
+    GAME.ambience.drone?.to(.1, 2);
+    setTimeout(() => figureAppear(69, -6, { vanishAt: 14 }), 1400);
+    HUD.say('', 'Something is standing at the crossing.');
+    setTimeout(() => HUD.clearSay(), 4200);
+  });
+
+  /* --- turning the corner --- */
+  trig(70, -4, 11, () => {
+    HUD.setObjective('Follow Station Road to the underpass');
+    CITY.lamps.forEach(l => { if (l.pos.x > 56 && Math.abs(l.pos.z) < 12) l.on = true; });
+  });
+
+  /* --- the underpass: the lights die behind you, and something follows --- */
+  trig(70, -26, 10, () => {
+    GAME.phase = 'underpass';
+    HUD.setObjective('Get through the underpass');
+    GAME.ambience.rain?.to(.06, 1.4);
+    GAME.ambience.room?.to(.12, 1.2);
+    GAME.ambience.drone?.to(.12, 2);
+    let i = 0;
+    const killer = setInterval(() => {
+      const t = CITY.tunnelLights[i++];
+      if (!t) { clearInterval(killer); return; }
+      t.on = false;
+      Audio_.burst({ dur: .14, freq: 2600, q: 3, gain: .1 });
+    }, 700);
+    let n = 0;
+    CITY.followSteps = setInterval(() => {
+      if (++n > 14) { clearInterval(CITY.followSteps); CITY.followSteps = null; return; }
+      Audio_.burst({ dur: .12, freq: rand(200, 320), q: .9, gain: .05, type: 'lowpass' });
+    }, 780);
+    Audio_.heartbeat(.3);
+  });
+
+  trig(70, -44, 10, () => {
+    clearInterval(CITY.followSteps); CITY.followSteps = null;
+    GAME.phase = 'plaza';
+    GAME.ambience.rain?.to(.2, 1.6);
+    GAME.ambience.drone?.to(.06, 3);
+    Audio_.trainHorn(.5);
+    HUD.setObjective('Cross the plaza to the station');
+    CITY.tunnelLights.forEach((t, i) => setTimeout(() => { t.on = true; }, 900 + i * 90));
+  });
+
+  /* --- the plaza, the facade, the clock --- */
+  trig(72, -58, 12, () => {
+    HUD.say('', 'Central Station. The clock above the doors has stopped at 2:14.');
+    setTimeout(() => HUD.clearSay(), 5000);
+    figureAppear(72, -76, { vanishAt: 16 });
+  });
+
+  /* --- inside the concourse --- */
+  trig(72, -80, 11, () => {
+    GAME.phase = 'concourse';
+    HUD.setObjective('Find Platform 1');
+    GAME.ambience.rain?.to(.05, 1.6);
+    GAME.ambience.room?.to(.14, 1.5);
+    Audio_.burst({ dur: 1.2, freq: 400, q: .5, gain: .05, type: 'lowpass' });
+    HUD.say('', 'No queues. No staff. The board still knows your train.');
+    setTimeout(() => HUD.clearSay(), 4600);
+  });
+
+  /* --- the board corrupts as you reach it --- */
+  trig(72, -93, 6, () => {
+    CITY.boardGlitch = 1;
+    Audio_.glitch(.6, .2);
+    GAME.glitchPulse = 1.2;
+    setTimeout(() => speakLine('You are late.', { who: '???', glitch: .9, rate: .72, pitch: .25, glitchWords: ['late'] }), 900);
+    setTimeout(() => { CITY.boardGlitch = .25; }, 4000);
+  });
+
+  /* --- onto the platform --- */
+  trig(72, -100, 10, () => {
+    GAME.phase = 'platform';
+    HUD.setObjective('Board the 02:14');
+    GAME.ambience.rain?.to(.16, 1.5);
+    GAME.ambience.room?.to(.1, 1.5);
+    Audio_.trainHorn(.2);
+    WORLD.interactables.push({ id: 'train', pos: new THREE.Vector3(72, 1.2, -110.5),
+      r: 5, label: 'Board the train', key: 'E', enabled: true });
+  });
+}
+
+/* Answering the payphone on the corner. */
+async function answerPayphone() {
+  const pp = CITY.payphone;
+  if (!pp || pp.answered) return;
+  pp.answered = true;
+  const it = WORLD.interactables.find(i => i.id === 'payphone');
+  if (it) it.enabled = false;
+  PL.locked = true; HUD.hidePrompt();
+  pp.handle?.stop(); pp.ringing = false; pp.glow.intensity = 2;
+  Audio_.click(2600, .14);
+  EL.bars.classList.add('on');
+  await wait(700);
+  await speakLine('You are walking.', { who: '???', glitch: .7, rate: .78, pitch: .3, glitchWords: ['walking'] });
+  await wait(300);
+  await speakLine('It leaves at two fourteen. With or without you.', {
+    who: '???', glitch: .9, rate: .74, pitch: .26, glitchWords: ['fourteen', 'without'] });
+  await wait(400);
+  Audio_.tone({ freq: 425, type: 'sine', dur: 1.4, gain: .07 });
+  HUD.clearSay();
+  EL.bars.classList.remove('on');
+  PL.locked = false;
+  GAME.ambience.drone?.to(.09, 3);
+}
+
+/* The end of the chapter: you get on. */
+async function boardTrain() {
+  if (GAME.flags.boarding) return;
+  GAME.flags.boarding = true;
+  PL.locked = true; GAME.cutscene = true;
+  HUD.hidePrompt(); HUD.setObjective('');
+  WORLD.interactables.forEach(i => i.enabled = false);
+  EL.bars.classList.add('on');
+  HUD.tips.style.opacity = 0;
+
+  const camStart = { pos: camera.position.clone(),
+                     rot: new THREE.Vector3(camera.rotation.x, camera.rotation.y, camera.rotation.z) };
+  await tween(2.4, (k) => {
+    const e = smooth(k);
+    camera.position.set(lerp(camStart.pos.x, 72, e), 1.62, lerp(camStart.pos.z, -109.2, e));
+    camera.rotation.set(lerp(camStart.rot.x, -.03, e), lerp(camStart.rot.y, 0, e), 0, 'YXZ');
+  });
+  Audio_.footstep(false);
+  await wait(500);
+  await speakLine('Good. Sit anywhere.', { who: '???', glitch: .85, rate: .74, pitch: .24, glitchWords: ['anywhere'] });
+  await wait(600);
+
+  Audio_.burst({ dur: .8, freq: 300, q: 2, gain: .12, type: 'bandpass' });
+  Audio_.thud(.22);
+  GAME.glitchPulse = 1.6;
+  await fadeTo(1, 2200);
+  stopAmbience();
+  hide(EL.hud); TUT.clear();
+  EL.bars.classList.remove('on');
+  HUD.tips.style.opacity = 1;
+  await wait(500);
+  await chapterCard('Chapter Two', 'The Station', 'to be continued',
+                    { next: ['Next', 'The 02:14', 'chapter three'] });
+  saveProgress(2);
   toMenu();
 }
 
@@ -2554,6 +3499,104 @@ function updateWorld(dt) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  PER-FRAME — CHAPTER TWO                                            */
+/* ------------------------------------------------------------------ */
+const _lampSort = [];
+function updateCity(dt) {
+  const t = GAME.time, cam = camera.position;
+
+  /* --- lamps: glow, flicker, and lend their position to a real light --- */
+  _lampSort.length = 0;
+  for (const l of CITY.lamps) {
+    let level = l.on ? 1 : 0;
+    if (l.on && l.flick) {
+      const f = Math.sin(t * 17 + l.phase) * .5 + .5;
+      level = Math.random() < .05 ? .1 : .45 + f * .55;
+    }
+    l.level = level;
+    l.head.material.emissiveIntensity = .12 + level * 3.2;
+    if (l.pool) l.pool.material.opacity = .06 + level * .58;
+    const d2 = (l.pos.x - cam.x) ** 2 + (l.pos.z - cam.z) ** 2;
+    if (level > .05 && d2 < 900) _lampSort.push([d2, l]);
+  }
+  _lampSort.sort((a, b) => a[0] - b[0]);
+  for (let i = 0; i < CITY.roaming.length; i++) {
+    const rl = CITY.roaming[i], entry = _lampSort[i];
+    if (entry) {
+      const l = entry[1];
+      rl.position.copy(l.pos);
+      rl.color.setHex(l.platform ? 0xffc98a : 0xffbe78);
+      rl.intensity = 26 * l.level;
+      rl.distance = l.platform ? 14 : 17;
+    } else rl.intensity = 0;
+  }
+
+  /* --- the underpass strips --- */
+  for (const tl of CITY.tunnelLights) {
+    const on = tl.on ? (Math.random() < .03 ? .2 : 1) : 0;
+    tl.tube.material.emissiveIntensity = .1 + on * 2.6;
+    tl.pool.material.opacity = on * .3;
+  }
+
+  /* --- the payphone on the corner --- */
+  if (CITY.payphone && CITY.payphone.ringing) {
+    const cyc = t % 2.6;
+    const active = cyc < .36 || (cyc > .42 && cyc < .78);
+    CITY.payphone.glow.intensity = active ? 9 : 2.5;
+    const d = Math.hypot(cam.x - 41, cam.z - 7.4);
+    CITY.payphone.handle?.to(clamp(6 / Math.max(2, d), .1, 1) * .5, .3);
+  }
+
+  /* --- the departure board decaying --- */
+  if (CITY.board && CITY.boardGlitch) {
+    if (!CITY.boardAcc || t - CITY.boardAcc > .12) {
+      CITY.boardAcc = t;
+      drawBoard(CITY.board.ctx, CITY.board.size, CITY.boardGlitch);
+      CITY.board.tex.needsUpdate = true;
+    }
+  }
+
+  /* --- the figure watches, then is not there --- */
+  const f = CITY.figure;
+  if (f && f.alive) {
+    f.group.lookAt(cam.x, 0, cam.z);
+    const d = Math.hypot(cam.x - f.group.position.x, cam.z - f.group.position.z);
+    if (d < f.vanishAt) figureVanish();
+  }
+
+  /* --- trigger volumes --- */
+  for (const tr of CITY.triggers) {
+    if (tr.done) continue;
+    if (Math.hypot(cam.x - tr.x, cam.z - tr.z) < tr.r) { tr.done = true; tr.fn(); }
+  }
+
+  /* --- prompts, glitch, dread --- */
+  const it = currentInteractable();
+  if (it) HUD.showPrompt(it.key, it.label); else HUD.hidePrompt();
+  $('#clicklook').classList.toggle('show', !pointerLocked && !PL.locked && !GAME.paused);
+
+  GAME.glitchPulse = Math.max(0, GAME.glitchPulse - dt * 1.9);
+  GU.uGlitch.value = Math.min(1, GAME.glitchPulse * .35);
+  const tight = GAME.phase === 'underpass' ? 1.45 : GAME.phase === 'platform' ? 1.3 : 1.08;
+  GU.uVignette.value = lerp(GU.uVignette.value, tight, dt * .8);
+  if (GAME.phase === 'underpass' && Math.random() < dt * .22) Audio_.heartbeat(.16);
+
+  /* --- no rain under the underpass, the concourse or the canopy --- */
+  if (CITY.rain) {
+    const covered =
+      (cam.x > 61 && cam.x < 79 && cam.z < -25 && cam.z > -45) ||
+      (cam.x > 55 && cam.x < 89 && cam.z < -77 && cam.z > -99) ||
+      (cam.x > 42 && cam.x < 98 && cam.z < -97 && cam.z > -108);
+    const want = covered ? .02 : .3;
+    CITY.rain.material.opacity = lerp(CITY.rain.material.opacity, want, 1 - Math.exp(-3 * dt));
+    if (GAME.ambience.rain) GAME.ambience.rain.to(covered ? .06 : .2, .8);
+  }
+
+  /* --- the train's headlight breathes --- */
+  if (CITY.beam) CITY.beam.intensity = 55 + Math.sin(t * 6.1) * 8;
+}
+
+/* ------------------------------------------------------------------ */
 /*  MAIN LOOP                                                          */
 /* ------------------------------------------------------------------ */
 let last = performance.now(), fpsAcc = 0, fpsN = 0;
@@ -2575,7 +3618,7 @@ function loop(now) {
       PL.vel.set(0, 0, 0);
     }
     if (scene.userData.tick) scene.userData.tick(dt, GAME.time);
-    updateWorld(dt);
+    GAME.chapter === 2 ? updateCity(dt) : updateWorld(dt);
   } else if (GAME.state === 'play' && GAME.paused) {
     if (scene.userData.tick) scene.userData.tick(dt * .15, GAME.time);
   }
@@ -2590,7 +3633,7 @@ function loop(now) {
 /*  MENU / PAUSE / SETTINGS                                            */
 /* ------------------------------------------------------------------ */
 function toMenu() {
-  GAME.state = 'menu'; GAME.paused = false; GAME.cutscene = false;
+  GAME.state = 'menu'; GAME.chapter = 1; GAME.paused = false; GAME.cutscene = false;
   PL.locked = true;
   unlockPointer();
   hide(EL.hud); hide(EL.pause); hide(EL.settings); hide(EL.lids); hide(EL.wake);
@@ -2610,11 +3653,18 @@ function refreshSaveButton() {
   let save = null;
   try { save = JSON.parse(localStorage.getItem('lasttrain.save') || 'null'); } catch {}
   const b = $('#btn-cont');
-  if (save && save.done) {
-    b.disabled = false;
-    b.innerHTML = 'Continue<small>chapter two — locked</small>';
+  const unlocked = save ? (save.unlocked || (save.done ? 2 : 1)) : 1;
+  if (unlocked >= 3) {
     b.disabled = true;
+    b.innerHTML = 'Continue<small>chapter three — not built yet</small>';
+  } else if (unlocked >= 2) {
+    b.disabled = false;
+    b.innerHTML = 'Continue<small>chapter two — the station</small>';
+  } else {
+    b.disabled = true;
+    b.innerHTML = 'Continue<small>no save found</small>';
   }
+  GAME.continueChapter = unlocked >= 2 ? 2 : 1;
 }
 function pauseGame() {
   if (GAME.state !== 'play' || GAME.cutscene) return;
@@ -2681,6 +3731,12 @@ $('#set-back').addEventListener('click', () => { Audio_.click(1400, .08); closeS
 
 /* --- menu buttons --- */
 $('#btn-new').addEventListener('click', () => { Audio_.init(); Audio_.resume(); Audio_.click(900, .12); startNewGame(); });
+$('#btn-cont').addEventListener('click', () => {
+  if ($('#btn-cont').disabled) return;
+  Audio_.init(); Audio_.resume(); Audio_.click(900, .12);
+  hide(EL.menu);
+  startChapter2();
+});
 $('#btn-set').addEventListener('click', () => { Audio_.init(); Audio_.click(1400, .08); hide(EL.menu); openSettings('menu'); });
 $('#btn-quit').addEventListener('click', async () => {
   Audio_.click(700, .12);
@@ -2704,7 +3760,10 @@ $('#p-quit').addEventListener('click', async () => {
   hide(EL.pause);
   await fadeTo(1, 700);
   stopAmbience();
-  GAME.flags = {}; GAME.phase = 'sleep'; GAME.phoneMode = 'OFF';
+  GAME.flags = {}; GAME.phase = 'sleep'; GAME.phoneMode = 'OFF'; GAME.chapter = 1;
+  clearInterval(CITY.followSteps); CITY.followSteps = null;
+  CITY.payphone?.handle?.stop();
+  CITY.triggers = []; CITY.lamps = []; CITY.tunnelLights = []; CITY.roaming = [];
   WORLD.phone = null; WORLD.scene = null; WORLD.interactables = [];
   toMenu();
 });
@@ -2725,6 +3784,7 @@ window.LASTTRAIN = { GAME, PL, WORLD, S, Audio: Audio_, camera, armsTo, POSE, ge
   // warm one frame, then reveal the menu
   setTimeout(() => {
     hide(EL.boot);
+    if (DEV.chapter2) { Audio_.init(); startChapter2(); EL.black.style.opacity = 0; return; }
     toMenu();
     EL.black.style.transition = 'opacity 2s ease';
     EL.black.style.opacity = 0;
