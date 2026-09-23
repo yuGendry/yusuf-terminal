@@ -1801,7 +1801,7 @@ function buildCity() {
       new THREE.MeshStandardMaterial({ color: 0x20242a, emissive: 0xffbe72, emissiveIntensity: 3.2 }));
     head.position.set(1.45, 6.18, 0); g.add(head);
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(11, 11),
-      new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: .62,
+      new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: .72,
         depthWrite: false, blending: THREE.AdditiveBlending }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(x + Math.cos(rot) * 1.45, .05, z - Math.sin(rot) * 1.45);
     root.add(pool);
@@ -1812,8 +1812,9 @@ function buildCity() {
     return lamp;
   }
   for (let x = 11; x < 60; x += 13) { streetLamp(x, 7.2, -Math.PI / 2); streetLamp(x + 6.5, -7.2, Math.PI / 2); }
-  for (let z = -12; z > -52; z -= 13) { streetLamp(77, z, Math.PI); streetLamp(63, z - 6.5, 0); }
-  for (const [px, pz] of [[58, -56], [86, -56], [58, -72], [86, -72]]) streetLamp(px, pz, Math.atan2(-(pz + 64), -(px - 72)));
+  for (let z = -11; z > -52; z -= 9) { streetLamp(77, z, Math.PI); streetLamp(63, z - 4.5, 0); }
+  for (const [px, pz] of [[58, -55], [86, -55], [58, -64], [86, -64], [58, -73], [86, -73]])
+    streetLamp(px, pz, px < 72 ? 0 : Math.PI);
 
   /* ---------- parked cars ---------- */
   function car(x, z, rot, colour) {
@@ -2062,12 +2063,12 @@ function buildCity() {
      handful of real lights exist: they are moved to whichever lamps are
      nearest the player each frame. A shader that evaluates forty point
      lights per fragment is what kills a scene like this. */
-  sc.add(new THREE.HemisphereLight(0x46608c, 0x16181f, 2.1));
+  sc.add(new THREE.HemisphereLight(0x46608c, 0x16181f, 2.45));
   const moon = new THREE.DirectionalLight(0x9db7e0, 1.25);
   moon.position.set(-40, 60, 30); sc.add(moon);
   CITY.roaming = [];
-  for (let i = 0; i < 5; i++) {
-    const l = new THREE.PointLight(0xffbe78, 0, 17, 1.7);
+  for (let i = 0; i < 6; i++) {
+    const l = new THREE.PointLight(0xffbe78, 0, 18, 1.65);
     l.position.set(0, -50, 0); sc.add(l); CITY.roaming.push(l);
   }
 
@@ -3284,14 +3285,14 @@ function buildChapter2Beats() {
   });
 
   /* --- onto the platform --- */
-  trig(72, -100, 10, () => {
+  trig(72, -101.5, 6, () => {
     GAME.phase = 'platform';
     HUD.setObjective('Board the 02:14');
     GAME.ambience.rain?.to(.16, 1.5);
     GAME.ambience.room?.to(.1, 1.5);
     Audio_.trainHorn(.2);
-    WORLD.interactables.push({ id: 'train', pos: new THREE.Vector3(72, 1.2, -110.5),
-      r: 5, label: 'Board the train', key: 'E', enabled: true });
+    WORLD.interactables.push({ id: 'train', pos: new THREE.Vector3(72, 1.2, -110.2),
+      r: 8, label: 'Board the train', key: 'E', enabled: true });
   });
 }
 
