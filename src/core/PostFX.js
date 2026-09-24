@@ -25,6 +25,7 @@ import { TAAShader, JITTER } from './shaders/TAAShader.js';
 import {
   BloomPrefilterShader, BloomDownShader, BloomUpShader, BloomCombineShader,
 } from './shaders/BloomShader.js';
+import { VolumetricShader, VolumetricCombineShader } from './shaders/VolumetricShader.js';
 import { Settings } from './Settings.js';
 import { clamp, damp } from '../util/MathUtil.js';
 
@@ -126,6 +127,20 @@ export class PostFX {
     this.bloomUpMat.blending = THREE.AdditiveBlending;
     this.bloomUpMat.transparent = true;
 
+    // ---- volumetrics -------------------------------------------------------
+    this.volumeMat = makePassMaterial(VolumetricShader);
+    this.volumeCombineMat = makePassMaterial(VolumetricCombineShader);
+    this.volumeRT = new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false });
+    /**
+     * The light the beam is marched from — the player's torch.
+     *
+     * One light, not all of them. Raymarching every practical in a room would
+     * cost a multiple of the whole frame for something nobody looks at; the
+     * torch is the one the player is aiming, the one that moves, and the only
+     * one whose beam they are ever looking down.
+     */
+    this.volumetricLight = null;
+
     /** Six levels, allocated in setSize. The chain stops early on small windows. */
     this.bloomMips = [];
     this.BLOOM_LEVELS = 6;
@@ -157,6 +172,9 @@ export class PostFX {
     this._prevCamDir = new THREE.Vector3(0, 0, -1);
     this._camPos = new THREE.Vector3();
     this._camDir = new THREE.Vector3();
+    this._lightPos = new THREE.Vector3();
+    this._lightTarget = new THREE.Vector3();
+    this._lightDir = new THREE.Vector3();
 
     /**
      * Effect state the game drives directly. Held separately from the shader
@@ -218,6 +236,16 @@ export class PostFX {
     // TAA supersedes the spatial filters rather than stacking with them:
     // running SMAA over an already-resolved image only softens it.
     this.enableTAA = s.antialias === 'taa';
+    this.enableVolumetrics = !!s.godRays;
+    // Note the shape: 'low' is the special case and everything else falls
+    // through to the high branch. Touching any slider sets the preset to
+    // 'custom', so a ternary that tests for 'high' by name silently drops a
+    // custom-quality player to the cheapest setting in the game.
+    this.volumeMat.uniforms.uSteps.value =
+      s.preset === 'low' ? 16 : s.preset === 'ultra' ? 40 : 28;
+    // Half resolution normally; a quarter on low, where it is still readable
+    // because the upsample tent hides the grid.
+    this._volumeScale = s.preset === 'low' ? 0.25 : 0.5;
     this.taaMat.uniforms.uBlend.value = s.preset === 'low' ? 0.82 : 0.92;
 
     this.bloomCombineMat.uniforms.uStrength.value = s.bloomIntensity;
@@ -263,6 +291,12 @@ export class PostFX {
     // A resize invalidates every pixel of history.
     this._taaReset = true;
     this.ldrRT.setSize(w, h);
+
+    const vw = Math.max(1, Math.floor(w * (this._volumeScale ?? 0.5)));
+    const vh = Math.max(1, Math.floor(h * (this._volumeScale ?? 0.5)));
+    this.volumeRT.setSize(vw, vh);
+    this.volumeMat.uniforms.uResolution.value = [vw, vh];
+    this.volumeCombineMat.uniforms.uTexel.value = [1 / vw, 1 / vh];
 
     const aow = Math.max(1, Math.floor(w * (this._aoScale ?? 0.5)));
     const aoh = Math.max(1, Math.floor(h * (this._aoScale ?? 0.5)));
@@ -428,6 +462,52 @@ export class PostFX {
       swap(spare);
     }
 
+    // ---- 2.5 volumetrics --------------------------------------------------
+    //
+    // Before TAA on purpose: the march is deliberately under-sampled and
+    // dithered, and the temporal filter cleans up what is left for free. That
+    // is what lets the step count be as low as it is.
+    const vl = this.volumetricLight;
+    if (this.enableVolumetrics && vl && vl.visible && vl.intensity > 0.001) {
+      vl.updateMatrixWorld();
+      vl.target.updateMatrixWorld();
+
+      const u = this.volumeMat.uniforms;
+      u.tDepth.value = this.sceneRT.depthTexture;
+      u.uInvViewProj.value = this.invViewProj;
+
+      this._camPos.setFromMatrixPosition(camera.matrixWorld);
+      u.uCameraPos.value = [this._camPos.x, this._camPos.y, this._camPos.z];
+
+      this._lightPos.setFromMatrixPosition(vl.matrixWorld);
+      this._lightTarget.setFromMatrixPosition(vl.target.matrixWorld);
+      this._lightDir.subVectors(this._lightTarget, this._lightPos).normalize();
+
+      u.uLightPos.value = [this._lightPos.x, this._lightPos.y, this._lightPos.z];
+      u.uLightDir.value = [this._lightDir.x, this._lightDir.y, this._lightDir.z];
+      u.uLightColor.value = [vl.color.r, vl.color.g, vl.color.b];
+      u.uLightIntensity.value = vl.intensity;
+      u.uLightRange.value = vl.distance || 26;
+
+      // three stores the half-angle; penumbra widens the inner cone inward.
+      const outer = Math.cos(vl.angle);
+      u.uCosOuter.value = outer;
+      u.uCosInner.value = Math.cos(vl.angle * (1 - (vl.penumbra ?? 0.4) * 0.9));
+
+      const shadowMap = vl.shadow?.map?.texture ?? null;
+      u.tShadow.value = shadowMap;
+      u.uShadowMatrix.value = vl.shadow?.matrix ?? null;
+      u.uHasShadow.value = shadowMap && vl.castShadow ? 1 : 0;
+      u.uTime.value = this.engine.elapsed;
+
+      this._blit(this.volumeMat, this.volumeRT);
+
+      this.volumeCombineMat.uniforms.tDiffuse.value = current.texture;
+      this.volumeCombineMat.uniforms.tVolume.value = this.volumeRT.texture;
+      this._blit(this.volumeCombineMat, spare);
+      swap(spare);
+    }
+
     // ---- 3. temporal resolve ---------------------------------------------
     //
     // Before motion blur and bloom, so the history stays the clean image.
@@ -531,12 +611,12 @@ export class PostFX {
 
   dispose() {
     for (const rt of [this.sceneRT, this.rtA, this.rtB, this.histA, this.histB,
-                      this.aoRT, this.aoBlurRT, this.ldrRT]) {
+                      this.aoRT, this.aoBlurRT, this.ldrRT, this.volumeRT]) {
       rt.dispose();
     }
     this.sceneRT.depthTexture?.dispose();
     for (const m of [this.finalMat, this.motionMat, this.ssaoMat, this.ssaoBlurMat,
-                     this.fxaaMat, this.taaMat]) {
+                     this.fxaaMat, this.taaMat, this.volumeMat, this.volumeCombineMat]) {
       m.dispose();
     }
     this.smaaPass.dispose?.();

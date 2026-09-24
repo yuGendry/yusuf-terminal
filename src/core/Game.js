@@ -98,6 +98,11 @@ export class Game extends EventBus {
       audio: this.audio,
     });
 
+    // The torch is the light the volumetric pass marches. It is the one the
+    // player aims, the one that moves, and the only one they are ever looking
+    // straight down the beam of.
+    this.engine.postfx.volumetricLight = this.flashlight.light;
+
     // --- build the level ----------------------------------------------------
     const build = await CHAPTER_LOADERS[chapterId]?.();
     if (!build) throw new Error(`Chapter ${chapterId} is not available yet`);

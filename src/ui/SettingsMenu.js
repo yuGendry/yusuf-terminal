@@ -270,8 +270,8 @@ export class SettingsMenu {
       label: 'Vignette', key: 'vignetteIntensity', min: 0, max: 1, step: 0.05, format: PCT,
     }));
     frag.appendChild(makeToggle({
-      label: 'God rays & dust',
-      description: 'Light shafts through windows and floating dust motes.',
+      label: 'Volumetric light',
+      description: 'Raymarches the torch beam against its own shadow map, so the air in front of you is lit and the things standing in the beam cut shadows through it. Also covers the daylight shafts through the boarded windows and the floating dust. The most expensive option here and the one that changes the mood most.',
       key: 'godRays',
     }));
     frag.appendChild(makeSlider({
