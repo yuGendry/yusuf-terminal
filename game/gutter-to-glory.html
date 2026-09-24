@@ -1,0 +1,794 @@
+<title>Gutter to Glory</title>
+<meta name="description" content="Start homeless in Los Angeles and climb to a billion — work, hustle, play football, run businesses, marry, and move abroad.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Chivo:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --asphalt:#111418; --panel:#191d23; --panel2:#21262e; --line:#2d343e;
+  --ink:#ece6d9; --mute:#8f959d; --dim:#5d646d;
+  --sodium:#f2a33a; --sodium-ink:#1a1206;
+  --cash:#74d39a; --heat:#ff5d4d; --energy:#6bb3ff; --happy:#c7a2ff;
+  --display:"Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body:"Chivo", "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(900px 500px at 8% -10%, rgba(242,163,58,.16), transparent 60%),
+    radial-gradient(700px 400px at 100% 110%, rgba(107,179,255,.07), transparent 60%),
+    var(--asphalt);
+  color:var(--ink); font:14px/1.5 var(--body);
+  padding-inline:16px; padding-block:14px;
+}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--sodium);outline-offset:2px}
+.app{max-width:1380px;margin:0 auto;display:grid;gap:14px;
+  grid-template-columns:190px minmax(0,1fr) 310px;
+  grid-template-areas:"top top top" "nav main log";}
+
+/* ---------- header ---------- */
+.top{grid-area:top;display:grid;gap:14px 22px;align-items:center;
+  grid-template-columns:auto auto 1fr auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 18px}
+.brand .logo{font:900 34px/0.9 var(--display);letter-spacing:.01em;text-transform:uppercase;color:var(--sodium)}
+.brand .logo em{font-style:normal;color:var(--ink);font-weight:600;font-size:.55em;margin-inline:6px;vertical-align:.35em;letter-spacing:.12em}
+.brand .where{margin-top:6px;color:var(--mute);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.money{display:flex;gap:20px;flex-wrap:wrap}
+.money div{display:grid}
+.money small,.lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.money b{font:800 30px/1 var(--display);color:var(--cash);font-variant-numeric:tabular-nums}
+.money .nw b{color:var(--ink)}
+.money .bank b{font-size:22px;color:var(--cash);opacity:.8;margin-top:auto}
+.bars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 14px}
+.bar small{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.bar small span{font-family:var(--mono);letter-spacing:0;color:var(--ink)}
+.bar i{display:block;height:7px;border-radius:2px;background:var(--panel2);overflow:hidden;margin-top:3px}
+.bar i u{display:block;height:100%;background:var(--c);transition:width .35s}
+.skills{grid-column:1 / 4;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute)}
+.skills b{font-family:var(--mono);color:var(--ink);font-weight:500}
+.sleep{grid-row:1 / span 2;grid-column:4;background:var(--sodium);color:var(--sodium-ink);border:0;border-radius:4px;
+  padding:12px 18px;cursor:pointer;text-align:left;display:grid;gap:2px;min-width:170px}
+.sleep b{font:800 22px/1 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.sleep span{font-size:12px;opacity:.8}
+.sleep:hover{filter:brightness(1.08)}
+
+/* ---------- nav ---------- */
+.tabs{grid-area:nav;display:flex;flex-direction:column;gap:4px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.tab{background:transparent;border:1px solid transparent;border-radius:4px;padding:9px 12px;text-align:left;cursor:pointer;display:grid}
+.tab b{font:800 20px/1.05 var(--display);text-transform:uppercase;letter-spacing:.03em}
+.tab span{font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab:hover{background:var(--panel)}
+.tab[aria-current="true"]{background:var(--panel);border-color:var(--line);box-shadow:inset 3px 0 0 var(--sodium)}
+.tab[aria-current="true"] b{color:var(--sodium)}
+
+/* ---------- main ---------- */
+main{grid-area:main;display:grid;gap:14px;align-content:start;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.card h2{margin:0;font:800 22px/1.1 var(--display);text-transform:uppercase;letter-spacing:.03em;text-wrap:balance}
+.card h2 small{font:600 11px var(--body);letter-spacing:.14em;color:var(--mute);margin-left:8px;vertical-align:middle}
+.card p{margin:0;color:var(--mute);max-width:68ch}
+.card p b{color:var(--ink);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.act{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:10px 12px;text-align:left;cursor:pointer;display:grid;gap:3px;transition:border-color .15s, transform .1s}
+.act b{font-weight:700;font-size:14px}
+.act span{font-size:12px;color:var(--mute)}
+.act:hover:not(:disabled){border-color:var(--sodium)}
+.act:active:not(:disabled){transform:translateY(1px)}
+.act:disabled{cursor:not-allowed;opacity:.5}
+.act:disabled span{color:var(--heat)}
+.act.hot{border-color:rgba(242,163,58,.55)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mini{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:5px 10px;font-size:12.5px;cursor:pointer;font-weight:600}
+.mini:hover:not(:disabled){border-color:var(--sodium)}
+.mini:disabled{opacity:.4;cursor:not-allowed}
+.mini.sell{color:var(--cash)}
+.mini.on{background:var(--sodium);color:var(--sodium-ink);border-color:var(--sodium)}
+.chip{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:3px;margin:2px 4px 0 0;border:1px solid var(--line)}
+.chip.ok{color:var(--cash);border-color:rgba(116,211,154,.35)}
+.chip.no{color:var(--heat);border-color:rgba(255,93,77,.35)}
+.list{display:grid;gap:8px}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.item .t{font-weight:700}
+.item .s{font-size:12px;color:var(--mute)}
+.item .p{font:800 20px/1 var(--display);color:var(--cash);font-variant-numeric:tabular-nums;text-align:right}
+.item .btns{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.item.mine{border-color:rgba(242,163,58,.45)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);font-weight:600}
+th.here,td.here{background:rgba(242,163,58,.09)}
+th.here{color:var(--sodium)}
+td .num{color:var(--cash)}
+.banner{border-radius:6px;padding:14px 18px;background:repeating-linear-gradient(90deg,#2a1714 0 14px,#231311 14px 28px);border:1px solid rgba(255,93,77,.5)}
+.banner h2{margin:0;font:900 26px/1 var(--display);text-transform:uppercase;color:var(--heat)}
+.banner p{margin:6px 0 10px;color:var(--ink)}
+.ladder{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.rung{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:8px 10px;display:grid;gap:2px}
+.rung b{font:800 16px/1.1 var(--display);text-transform:uppercase}
+.rung span{font-size:11.5px;color:var(--mute)}
+.rung.done{border-color:rgba(116,211,154,.45)}
+.rung.done b{color:var(--cash)}
+.rung.next{border-color:var(--sodium)}
+.subtabs{display:flex;flex-wrap:wrap;gap:6px}
+.goals{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
+.goal{font-size:13px;padding:7px 10px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);color:var(--mute)}
+.goal.got{color:var(--ink);border-color:rgba(116,211,154,.45)}
+.goal.got::before{content:"✓ ";color:var(--cash);font-weight:700}
+.stat{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.stat div{display:grid}
+.stat b{font:800 22px/1.1 var(--display);font-variant-numeric:tabular-nums}
+
+/* ---------- log ---------- */
+.log{grid-area:log;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;align-self:start;
+  position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 40px);display:grid;grid-template-rows:auto 1fr;gap:8px}
+.log h3{margin:0;font:800 18px var(--display);text-transform:uppercase;letter-spacing:.04em}
+.log ol{list-style:none;margin:0;padding:0;overflow-y:auto;display:grid;gap:6px;align-content:start;font-size:13px}
+.log li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;padding-bottom:6px;border-bottom:1px dashed var(--line)}
+.log li .d{font:500 11px var(--mono);color:var(--dim);padding-top:2px}
+.log li.money{color:var(--cash)} .log li.bad{color:#ff8b7e} .log li.good{color:var(--sodium)}
+.log li.new{animation:flash 1s}
+@keyframes flash{from{background:rgba(242,163,58,.18)}to{background:transparent}}
+
+/* ---------- modal ---------- */
+.overlay[hidden]{display:none!important}
+.overlay{position:fixed;inset:0;background:rgba(6,8,10,.72);display:grid;place-items:center;padding:16px;z-index:10}
+.modal{background:var(--panel);border:1px solid var(--sodium);border-radius:6px;padding:22px;max-width:440px;width:100%;display:grid;gap:12px}
+.modal h2{margin:0;font:900 34px/1 var(--display);text-transform:uppercase;color:var(--sodium);text-wrap:balance}
+.modal p{margin:0;color:var(--ink)}
+.modal .row{justify-content:flex-end}
+
+@media (max-width:1080px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-areas:"top" "nav" "main" "log"}
+  .tabs{flex-direction:row;overflow-x:auto;position:static;padding-bottom:4px}
+  .tab{flex:0 0 auto}
+  .tab[aria-current="true"]{box-shadow:inset 0 -3px 0 var(--sodium)}
+  .log{position:static;max-height:360px}
+  .top{grid-template-columns:1fr auto}
+  .money{grid-column:1 / -1}
+  .bars,.skills{grid-column:1 / -1}
+  .sleep{grid-row:1;grid-column:2}
+}
+@media (max-width:560px){
+  .bars{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ladder{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .brand .logo{font-size:26px}
+  .sleep{min-width:0;padding:10px 12px}
+  .sleep b{font-size:18px}
+  .money b{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><div class="logo">Gutter<em>to</em>Glory</div><div class="where" id="where"></div></div>
+    <div class="money" id="money"></div>
+    <div class="bars" id="bars"></div>
+    <button class="sleep" id="sleepBtn" data-a="sleep"></button>
+    <div class="skills" id="skills"></div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+  <main id="main"></main>
+  <aside class="log"><h3>Street log</h3><ol id="log"></ol></aside>
+</div>
+<div class="overlay" id="overlay" hidden><div class="modal" id="modal"></div></div>
+
+<script>
+/* ================= DATA ================= */
+const COUNTRIES={
+  us:{name:'United States',city:'Los Angeles',wage:1,cost:1,tax:.25,police:1,visa:0,fb:.8,fbReq:1,
+      d:['Skid Row','San Pedro Docks','Downtown','Hollywood'],clubs:['Eastside Sunday XI','Harbor City SC','Pacific Coast FC','Los Angeles Comets']},
+  uk:{name:'United Kingdom',city:'London',wage:1.1,cost:1.25,tax:.3,police:1.15,visa:12000,fb:1.3,fbReq:1.05,
+      d:['Hackney','Docklands','Soho','Croydon'],clubs:['Hackney Marshes FC','Thames Valley Town','Southbank Athletic','London Royals']},
+  es:{name:'Spain',city:'Madrid',wage:.85,cost:.9,tax:.28,police:.9,visa:9000,fb:1.25,fbReq:1,
+      d:['Lavapiés','Vallecas','Malasaña','Usera'],clubs:['Barrio Vallecas CF','Castilla B','Atlético Meseta','Madrid Imperial']},
+  tr:{name:'Turkey',city:'Istanbul',wage:.55,cost:.5,tax:.2,police:.85,visa:4500,fb:.9,fbReq:.95,
+      d:['Tarlabaşı','Karaköy','Beyoğlu','Esenyurt'],clubs:['Kasımpaşa Mahalle SK','Boğaziçi Spor','Anadolu Kartalları','İstanbul Aslanları']},
+  br:{name:'Brazil',city:'Rio de Janeiro',wage:.5,cost:.45,tax:.22,police:.7,visa:3500,fb:.7,fbReq:.88,
+      d:['Lapa','Porto Maravilha','Copacabana','Centro'],clubs:['Várzea da Lapa','Tijuca FC','Guanabara EC','Rio Imperial']},
+  ae:{name:'UAE',city:'Dubai',wage:1.45,cost:1.6,tax:0,police:2.2,visa:45000,fb:1,fbReq:1.05,
+      d:['Deira','Jebel Ali Port','Dubai Marina','Al Quoz'],clubs:['Al Quoz Community','Creek United','Gulf Falcons','Dubai Royals']},
+};
+const JOBS=[
+  {id:'dish',name:'Dishwasher',pay:70,e:30,req:{},gain:{fit:.3}},
+  {id:'pack',name:'Warehouse packer',pay:100,e:35,req:{fit:15},gain:{fit:.6}},
+  {id:'rider',name:'Delivery rider',pay:125,e:30,req:{vehicle:1,phone:1},gain:{fit:.4,charm:.2}},
+  {id:'build',name:'Construction worker',pay:165,e:40,req:{fit:25,address:1},gain:{fit:.8}},
+  {id:'sales',name:'Car salesperson',pay:210,e:30,req:{charm:20,address:1,suit:1},gain:{charm:.8,biz:.3}},
+  {id:'office',name:'Office assistant',pay:240,e:30,req:{biz:12,address:1,phone:1,clean:1},gain:{biz:.8}},
+  {id:'mgr',name:'Sales manager',pay:520,e:35,req:{biz:30,charm:30,address:1,suit:1,clean:1},gain:{biz:1,charm:.6}},
+  {id:'analyst',name:'Investment analyst',pay:900,e:40,req:{biz:50,laptop:1,address:1,clean:1},gain:{biz:1.2}},
+  {id:'exec',name:'Company executive',pay:2600,e:40,req:{biz:75,charm:45,car:1,suit:1,address:1,clean:1},gain:{biz:1,charm:.8}},
+];
+const ITEMS={
+  phone:{name:'Used smartphone',price:120,note:'Needed for delivery and office jobs'},
+  bike:{name:'Second-hand bike',price:180,note:'Counts as a vehicle for delivery work'},
+  suit:{name:'Interview suit',price:320,note:'Needed for sales and management jobs'},
+  laptop:{name:'Refurbished laptop',price:420,note:'Unlocks the Computer: homes, cars, bank, dating'},
+};
+const SHOP={
+  ring:{name:'Engagement ring',price:4500,note:'You need one to propose'},
+  wardrobe:{name:'Designer wardrobe',price:6000,note:'+8 charm, once'},
+};
+const HOMES=[
+  {id:'studio',name:'Studio apartment',price:65000,comfort:2},
+  {id:'condo',name:'Two-bed condo',price:240000,comfort:3},
+  {id:'house',name:'Family house',price:650000,comfort:4},
+  {id:'villa',name:'Hillside villa',price:2800000,comfort:5},
+  {id:'pent',name:'Skyline penthouse',price:12000000,comfort:6},
+  {id:'estate',name:'Estate mansion',price:60000000,comfort:7},
+];
+const RENTALS=[
+  {name:'Shared room',daily:22,comfort:1.6},
+  {name:'One-bed apartment',daily:60,comfort:2.5},
+  {name:'Luxury apartment',daily:420,comfort:4},
+];
+const CARS=[
+  {id:'beater',name:'Rusty 2004 sedan',price:2500,happy:2,rep:1},
+  {id:'hatch',name:'Hatchback',price:19000,happy:4,rep:2},
+  {id:'pickup',name:'Pickup truck',price:42000,happy:5,rep:3},
+  {id:'lux',name:'Luxury sedan',price:95000,happy:7,rep:5},
+  {id:'sport',name:'Sports coupe',price:240000,happy:9,rep:8},
+  {id:'super',name:'Supercar',price:650000,happy:12,rep:12},
+  {id:'hyper',name:'Hypercar',price:3200000,happy:15,rep:18},
+  {id:'jet',name:'Private jet',price:45000000,happy:20,rep:30},
+];
+const BIZ=[
+  {id:'cart',name:'Hot dog cart',cost:900,profit:45,req:0},
+  {id:'wash',name:'Car wash',cost:15000,profit:420,req:12},
+  {id:'shop',name:'Clothing store',cost:80000,profit:1900,req:25},
+  {id:'rest',name:'Restaurant',cost:320000,profit:6800,req:38},
+  {id:'club',name:'Nightclub',cost:1200000,profit:24000,req:50},
+  {id:'dev',name:'Property developer',cost:8000000,profit:150000,req:65},
+  {id:'tech',name:'Tech company',cost:40000000,profit:700000,req:80},
+  {id:'bank',name:'Private bank',cost:250000000,profit:4000000,req:92},
+];
+const PRODUCTS=[
+  {id:'weed',name:'Weed',base:12,vol:.35,heat:.35},
+  {id:'pills',name:'Pills',base:45,vol:.45,heat:.7},
+  {id:'powder',name:'Powder',base:140,vol:.5,heat:1.4},
+];
+const FB=[
+  {name:'Nobody',wage:0},
+  {name:'Sunday league',wage:60,req:{ball:15,fit:20,goals:0}},
+  {name:'Semi-pro',wage:900,req:{ball:35,fit:38,goals:6}},
+  {name:'Pro club',wage:12000,req:{ball:55,fit:55,goals:18}},
+  {name:'Top flight',wage:95000,req:{ball:72,fit:68,goals:40}},
+  {name:'World-class star',wage:450000,req:{ball:88,fit:80,goals:80}},
+];
+const NAMES=['Maya','Leila','Sofia','Amara','Elif','Jade','Zeynep','Luca','Diego','Noah','Priya','Inès','Kemal','Camila','Yara','Daniel','Aisha','Mateo','Hana','Omar','Chloe','Rafael'];
+const GUNBUYERS=['a biker crew','a guy called Tiny','an out-of-town cartel rep','a nervous militia type','a crew from the port','a club owner'];
+const CONTRACT_T=['Supply deal with {c}','Catering contract for {c}','Distribution deal with {c}','Franchise license from {c}','City tender via {c}','Marketing partnership with {c}'];
+const COMPANIES=['Northwind Foods','Kestrel Logistics','Blue Harbor Group','Atlas Retail','Ferrum Holdings','Solace Hotels','Vantage Media','Orbit Motors'];
+const ACH=[
+  ['k1','Hold $1,000'],['job','Get a legal job'],['roof','Sleep under your own roof'],['car','Buy a car'],
+  ['boss','Own a business'],['house','Buy a home'],['pro','Go pro in football'],['wed','Get married'],
+  ['abroad','Move to another country'],['mil','Net worth $1M'],['bil','Net worth $1B'],
+];
+
+/* ================= HELPERS ================= */
+const $=s=>document.querySelector(s);
+const R=(a,b)=>a+Math.random()*(b-a);
+const RI=(a,b)=>Math.floor(R(a,b+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function money(n){const s=n<0?'-':'';n=Math.abs(n);
+  if(n>=1e9)return s+'$'+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return s+'$'+(n/1e6).toFixed(2)+'M';
+  if(n>=1e5)return s+'$'+Math.round(n/1e3)+'K';
+  return s+'$'+Math.round(n).toLocaleString('en-US');}
+let S, confirmReset=false;
+const C=()=>COUNTRIES[S.country];
+const P=n=>Math.round(n*C().cost);          // local price
+const age=()=>22+Math.floor((S.day-1)/120);
+const total=()=>S.cash+S.bank;
+const has=k=>!!S.items[k];
+const hasCar=()=>S.cars.some(c=>c.id!=='jet');
+const hasVehicle=()=>hasCar()||has('bike');
+function pay(n){if(S.cash>=n){S.cash-=n;return}n-=S.cash;S.cash=0;S.bank-=n;}
+function addSk(k,v){S.sk[k]=Math.min(100,S.sk[k]+v*Math.max(.15,1.15-S.sk[k]/100));}
+function propHere(){return S.props.find(p=>p.uid===S.homeId&&p.country===S.country&&!p.rented)}
+function lodging(){
+  const h=propHere(); if(h)return{name:h.name,comfort:h.comfort,kind:'home'};
+  if(S.rent&&S.rent.country===S.country)return{name:S.rent.name,comfort:S.rent.comfort,kind:'rent'};
+  if(S.motel)return{name:'Motel room',comfort:1.3,kind:'motel'};
+  if(S.shelter)return{name:'Shelter bed',comfort:.8,kind:'shelter'};
+  return{name:'The street',comfort:0,kind:'street'};
+}
+const hasAddress=()=>['home','rent'].includes(lodging().kind);
+const bizValue=b=>Math.round(b.invested*.7);
+const stashCap=()=>25+(hasCar()?75:0)+(S.props.length?200:0);
+const stashCount=()=>PRODUCTS.reduce((a,p)=>a+S.stash[p.id],0);
+const crateCap=()=>2+(hasCar()?2:0)+(S.props.length?4:0);
+function netWorth(){return S.cash+S.bank+S.props.reduce((a,p)=>a+p.value,0)+S.cars.reduce((a,c)=>a+c.value,0)
+  +S.biz.reduce((a,b)=>a+bizValue(b),0)+S.contracts.reduce((a,c)=>a+c.cost,0);}
+function rank(){const n=netWorth();
+  return n<500?'Homeless':n<5e3?'Scraping by':n<5e4?'Working stiff':n<5e5?'Comfortable':n<5e6?'Rich':n<1e8?'Mogul':n<1e9?'Tycoon':'Billionaire';}
+function club(){const st=S.fb.stage;return st?C().clubs[Math.min(3,st-1)]:'—';}
+function log(t,k='info'){S.log.unshift({d:S.day,t,k,n:1});S.log=S.log.slice(0,80);}
+function need(e,cost=0,cashOnly=false){
+  if(S.over)return'Game over';
+  if(S.jail>0)return'You are in jail';
+  if(S.energy<e)return`Too tired (needs ${e} energy)`;
+  if(cost>0&&(cashOnly?S.cash:total())<cost)return`Need ${money(cost)}${cashOnly?' in cash':''}`;
+  return'';
+}
+function spend(e,cost=0,cashOnly=false){const r=need(e,cost,cashOnly);if(r){log(r+'.','bad');return false}
+  S.energy-=e;if(cost>0){if(cashOnly)S.cash-=cost;else pay(cost)}return true;}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function btn(a,x,label,meta,dis,cls=''){
+  return `<button class="act ${cls}" data-a="${a}" data-x="${x??''}" ${dis?'disabled':''}><b>${label}</b><span>${dis||meta}</span></button>`;}
+function mini(a,x,label,dis,cls=''){return `<button class="mini ${cls}" data-a="${a}" data-x="${x??''}" ${dis?'disabled':''}>${label}</button>`;}
+const card=(h,body,sub='')=>`<section class="card"><h2>${h}${sub?`<small>${sub}</small>`:''}</h2>${body}</section>`;
+function reqList(req){const L={fit:'Fitness',ball:'Football',biz:'Business',charm:'Charm'},out=[];
+  for(const k in req){const v=req[k];
+    if(L[k])out.push([`${L[k]} ${v}`,S.sk[k]>=v]);
+    else if(k==='address')out.push(['Home address',hasAddress()]);
+    else if(k==='vehicle')out.push(['Bike or car',hasVehicle()]);
+    else if(k==='car')out.push(['Car',hasCar()]);
+    else if(ITEMS[k])out.push([ITEMS[k].name,has(k)]);
+    else if(k==='clean')out.push(['Heat under 40',S.heat<40]);
+    else if(k==='goals'&&v>0)out.push([`${v} career goals`,S.fb.goals>=v]);}
+  return out;}
+const chips=l=>l.map(([t,ok])=>`<span class="chip ${ok?'ok':'no'}">${ok?'✓':'✗'} ${t}</span>`).join('');
+
+/* ================= STATE ================= */
+function fresh(){return{
+  day:1,cash:3,bank:0,health:62,energy:100,happy:22,heat:0,rep:0,fed:false,
+  sk:{fit:8,ball:6,biz:0,charm:6},
+  country:'us',district:0,rent:null,motel:false,shelter:false,homeId:null,
+  props:[],cars:[],items:{},job:null,
+  stash:{weed:0,pills:0,powder:0},crates:0,buyers:[],lawyer:false,jail:0,
+  fb:{stage:0,goals:0,apps:0,retired:false},biz:[],contracts:[],offers:[],managed:false,
+  match:null,spouse:null,prices:null,log:[],ach:{},won:false,over:false,
+  tab:'street',ctab:'homes',uid:1};}
+function save(){try{localStorage.setItem('gtg-save-v1',JSON.stringify(S))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem('gtg-save-v1'));return s&&s.day?s:null}catch(e){return null}}
+
+function newPrices(){
+  const c=C().cost;
+  S.prices=C().d.map(()=>{const o={};PRODUCTS.forEach(p=>o[p.id]=Math.max(1,Math.round(p.base*c*R(1-p.vol,1+p.vol*1.4))));return o;});
+  if(Math.random()<.3){const d=RI(0,3),p=pick(PRODUCTS),up=Math.random()<.5;
+    S.prices[d][p.id]=Math.max(1,Math.round(S.prices[d][p.id]*(up?R(2,3):R(.3,.5))));
+    log(`Word on the street: ${p.name.toLowerCase()} ${up?'shortage in':'flooding'} ${C().d[d]}. Prices ${up?'are through the roof':'crashed'}.`,'info');}
+  S.buyers=S.rep>=25?Array.from({length:RI(1,3)},()=>({uid:S.uid++,name:pick(GUNBUYERS),price:Math.round(R(4200,8200)*c),risk:R(.04,.18)})):[];
+}
+
+/* ================= ACTIONS ================= */
+const A={};
+A.tab=x=>{S.tab=x};
+A.ctab=x=>{S.ctab=x};
+A.sleep=()=>endDay();
+
+// street
+A.beg=()=>{if(netWorth()>5000){log('Nobody believes you need the change anymore.','bad');return}
+  if(!spend(10))return;const g=Math.round(R(1,6)+S.sk.charm*.25);S.cash+=g;S.happy=clamp(S.happy-2,0,100);addSk('charm',.3);log(`You held out a cup for an hour. +${money(g)}.`,'money');};
+A.cans=()=>{if(!spend(20))return;const g=RI(6,18);S.cash+=g;addSk('fit',.2);log(`Hauled a bag of cans to the recycler. +${money(g)}.`,'money');};
+A.labor=()=>{if(!spend(35))return;if(Math.random()<.35){log('Waited at the hardware store lot all morning. No truck picked you.','bad');return}
+  const g=Math.round(R(55,90)*C().wage);S.cash+=g;addSk('fit',.6);log(`Day labor hauling drywall. +${money(g)} cash.`,'money');};
+A.dumpster=()=>{if(!spend(10))return;S.fed=true;if(Math.random()<.15){S.health=clamp(S.health-12,0,100);log('Found food behind a diner. It was bad. -12 health.','bad')}else{S.health=clamp(S.health+4,0,100);log('Found a half-decent meal behind a diner.','info')}};
+A.meal=()=>{if(!spend(0,P(8)))return;S.fed=true;S.health=clamp(S.health+6,0,100);S.happy=clamp(S.happy+2,0,100);log(`Bought a hot meal. -${money(P(8))}.`,'info');};
+A.dinner=()=>{if(!spend(0,P(70)))return;S.fed=true;S.health=clamp(S.health+8,0,100);S.happy=clamp(S.happy+8,0,100);log('Sat down for a proper restaurant dinner.','info');};
+A.shelter=()=>{if(!spend(5))return;if(Math.random()<.65){S.shelter=true;log('Got a bed at the shelter for tonight.','good')}else log('The shelter was full. Try again or find another spot.','bad');};
+A.motel=()=>{if(!spend(0,P(28)))return;S.motel=true;log('Booked a motel room for tonight.','good');};
+A.hospital=()=>{if(!spend(10,P(180)))return;S.health=clamp(S.health+45,0,100);log('Got patched up at the clinic. +45 health.','good');};
+A.gym=()=>{if(!spend(25,P(15)))return;addSk('fit',1.6);S.health=clamp(S.health+2,0,100);log('Pushed weights at the gym. Fitness up.','info');};
+A.run=()=>{if(!spend(20))return;addSk('fit',1);S.happy=clamp(S.happy+1,0,100);log('Ran laps around the park.','info');};
+A.park=()=>{if(!spend(20))return;addSk('ball',1.3);addSk('fit',.4);log('Played pickup football in the park. Your touch is improving.','info');
+  if(S.fb.stage===0&&S.sk.ball>=15&&Math.random()<.12){log('A Sunday league coach watched you play. He says come to a trial.','good')}};
+A.library=()=>{if(!spend(20))return;addSk('biz',1);log('Read business books at the public library.','info');};
+A.course=()=>{if(!spend(40,P(600)))return;addSk('biz',4.5);log('Finished a night-school business course.','good');};
+A.speak=()=>{if(!spend(25,P(200)))return;addSk('charm',3);log('Took a public speaking class. More confident already.','good');};
+A.barber=()=>{if(!spend(5,P(25)))return;addSk('charm',.8);S.happy=clamp(S.happy+4,0,100);log('Shower, shave and a haircut. You look like a new person.','info');};
+A.buyItem=k=>{const it=ITEMS[k]||SHOP[k];if(has(k)&&k!=='ring')return;if(!spend(0,P(it.price)))return;S.items[k]=true;
+  if(k==='wardrobe')addSk('charm',8);log(`Bought ${it.name.toLowerCase()} for ${money(P(it.price))}.`,'good');};
+
+// jobs
+A.apply=id=>{const j=JOBS.find(x=>x.id===id);if(!spend(10))return;
+  const ok=reqList(j.req).every(r=>r[1]);if(!ok){log(`${j.name}: you don't meet the requirements.`,'bad');return}
+  if(Math.random()<.25&&S.job!==null){log(`The ${j.name.toLowerCase()} interview went badly. Try again tomorrow.`,'bad');return}
+  S.job=id;log(`Hired as ${j.name}! ${money(j.pay*C().wage)} per shift before tax.`,'good');};
+A.work=()=>{const j=JOBS.find(x=>x.id===S.job);if(!j)return;if(S.worked){log('You already worked a shift today.','bad');return}
+  if(!spend(j.e))return;S.worked=true;const gross=j.pay*C().wage*R(.95,1.1),net=Math.round(gross*(1-C().tax));S.cash+=net;
+  for(const k in j.gain)addSk(k,j.gain[k]);log(`Worked a shift as ${j.name.toLowerCase()}. +${money(net)} after tax.`,'money');};
+A.quit=()=>{if(!S.job)return;log(`You quit your job as ${JOBS.find(x=>x.id===S.job).name.toLowerCase()}.`,'info');S.job=null;};
+
+// hustle
+A.district=x=>{if(+x===S.district)return;if(!spend(5))return;S.district=+x;log(`You walked over to ${C().d[S.district]}.`,'info');};
+A.buyP=x=>{const[id,q]=x.split(':');const p=PRODUCTS.find(y=>y.id===id),price=S.prices[S.district][id];
+  let n=q==='max'?Math.min(Math.floor(S.cash/price),stashCap()-stashCount()):+q;n=Math.min(n,stashCap()-stashCount());
+  if(n<=0){log(stashCount()>=stashCap()?'Your stash is full. A car or a home gives you more room.':'Not enough cash.','bad');return}
+  if(!spend(5,n*price,true))return;S.stash[id]+=n;S.heat=clamp(S.heat+n*p.heat*.08,0,100);
+  log(`Bought ${n} × ${p.name.toLowerCase()} at ${money(price)} each.`,'info');};
+A.sellP=x=>{const[id,q]=x.split(':');const p=PRODUCTS.find(y=>y.id===id),price=S.prices[S.district][id];
+  const n=q==='all'?S.stash[id]:Math.min(+q,S.stash[id]);if(n<=0)return;if(!spend(5))return;
+  S.heat=clamp(S.heat+n*p.heat*.35*C().police,0,100);
+  const bustP=clamp((S.heat-12)/100,0,.9)*.28*C().police;
+  if(Math.random()<bustP){bust(`Undercover cops in ${C().d[S.district]} grabbed you mid-deal.`);return}
+  S.stash[id]-=n;S.cash+=n*price;S.rep=Math.min(100,S.rep+n*p.heat*.06);
+  log(`Sold ${n} × ${p.name.toLowerCase()} for ${money(n*price)} cash.`,'money');};
+A.buyCrate=()=>{const cost=P(3000);if(S.crates>=crateCap()){log('Nowhere to hide another crate.','bad');return}
+  if(!spend(10,cost,true))return;S.crates++;S.heat=clamp(S.heat+4*C().police,0,100);log(`Picked up a crate of hardware for ${money(cost)} cash. Keep it quiet.`,'info');};
+A.sellCrate=uid=>{const b=S.buyers.find(y=>y.uid==uid);if(!b||S.crates<1)return;if(!spend(15))return;
+  S.heat=clamp(S.heat+14*C().police,0,100);
+  if(Math.random()<b.risk*C().police+S.heat/450){S.buyers=S.buyers.filter(y=>y!==b);bust(`The buyer, ${b.name}, was wired. ATF was waiting.`,true);return}
+  S.crates--;S.cash+=b.price;S.rep=Math.min(100,S.rep+3);S.buyers=S.buyers.filter(y=>y!==b);
+  log(`Moved a crate to ${b.name} for ${money(b.price)}.`,'money');};
+A.lawyer=()=>{S.lawyer=!S.lawyer;log(S.lawyer?`Put a defense lawyer on retainer (${money(P(300))}/night).`:'Dropped your lawyer.','info');};
+A.dump=()=>{if(!spend(5))return;PRODUCTS.forEach(p=>S.stash[p.id]=0);S.crates=0;S.heat=clamp(S.heat-10,0,100);log('You dumped everything in a storm drain. Clean hands, empty pockets.','info');};
+function bust(why,guns=false){
+  const fine=Math.round(S.cash*.3);S.cash-=fine;PRODUCTS.forEach(p=>S.stash[p.id]=0);S.crates=0;
+  let days=RI(2,4)+Math.floor(S.heat/12)+(guns?6:0);if(S.lawyer)days=Math.max(1,Math.round(days*.35));
+  S.jail=days;S.heat=25;S.rep=Math.min(100,S.rep+2);
+  if(S.job){log(`Your employer fired you after the arrest.`,'bad');S.job=null}
+  if(S.spouse)S.spouse.love-=15;
+  log(`${why} Stash seized, ${money(fine)} fine, ${days} days in jail.`,'bad');
+  modal('Busted',`${esc(why)} They took everything you were holding and ${money(fine)} in cash. You're doing <b>${days} days</b>${S.lawyer?' — your lawyer cut it down':''}.`);
+}
+A.yard=()=>{if(S.jail<=0||S.energy<20)return;S.energy-=20;addSk('fit',1.2);log('Worked out in the yard.','info');};
+
+// football
+A.teamTrain=()=>{if(!spend(30))return;addSk('ball',2.2);addSk('fit',1);log(`Trained with ${club()}.`,'info');};
+A.trial=()=>{const nx=FB[S.fb.stage+1];if(!nx)return;if(!spend(30))return;
+  const m=Math.min(...['ball','fit'].map(k=>(S.sk[k]-Math.round(nx.req[k]*C().fbReq))/100));
+  let ch=clamp(.5+m*2.5,.1,.95);if(age()>33&&S.fb.stage>=2)ch*=.3;
+  if(!reqList(fbReq(S.fb.stage+1)).every(r=>r[1]))ch=0;
+  if(Math.random()<ch){S.fb.stage++;log(`Signed with ${club()} (${nx.name}). ${money(nx.wage*C().fb)} a week before tax.`,'good');
+    modal('Contract signed',`You're now playing for <b>${club()}</b> — ${nx.name}. Matches are every 7th day. Keep scoring to climb.`);}
+  else log('The trial didn’t go your way. The coach says come back sharper.','bad');};
+function fbReq(st){const r=FB[st].req,o={};for(const k in r)o[k]=k==='goals'?r[k]:Math.round(r[k]*C().fbReq);return o;}
+function match(){
+  const st=S.fb.stage,rating=S.sk.ball*.7+S.sk.fit*.3;let g=0;for(let i=0;i<4;i++)if(Math.random()<rating/270)g++;
+  S.fb.goals+=g;S.fb.apps++;const wage=Math.round(FB[st].wage*C().fb*(1-C().tax));S.cash+=wage;
+  let end=0;if(st>=4){end=Math.round(FB[st].wage*.6*C().fb);S.cash+=end}
+  S.happy=clamp(S.happy+g*3,0,100);
+  log(`Matchday with ${club()}: you scored ${g}. Wage ${money(wage)}${end?`, endorsements ${money(end)}`:''}.`,'money');
+  if(Math.random()<.05){S.health=clamp(S.health-20,0,100);log('Took a bad tackle. Injured, -20 health.','bad')}
+}
+
+// business
+A.startBiz=id=>{const d=BIZ.find(x=>x.id===id),cost=P(d.cost);if(S.sk.biz<d.req)return;if(!spend(20,cost))return;
+  S.biz.push({uid:S.uid++,id,lvl:1,invested:cost,country:S.country,last:0});log(`Opened a ${d.name.toLowerCase()} in ${C().city} for ${money(cost)}.`,'good');};
+A.upBiz=uid=>{const b=S.biz.find(x=>x.uid==uid);if(!b||b.lvl>=5)return;const d=BIZ.find(x=>x.id===b.id),cost=Math.round(d.cost*COUNTRIES[b.country].cost*.6*b.lvl);
+  if(!spend(15,cost))return;b.lvl++;b.invested+=cost;log(`Expanded your ${d.name.toLowerCase()} to level ${b.lvl}.`,'good');};
+A.sellBiz=uid=>{const b=S.biz.find(x=>x.uid==uid);if(!b)return;const v=bizValue(b);S.cash+=v;S.biz=S.biz.filter(x=>x!==b);log(`Sold your ${BIZ.find(x=>x.id===b.id).name.toLowerCase()} for ${money(v)}.`,'money');};
+A.manage=()=>{if(S.managed)return;if(!spend(25))return;S.managed=true;addSk('biz',1.5);log('You spent the day on the floor managing staff. Profits up 20% tonight.','info');};
+A.sign=uid=>{const o=S.offers.find(x=>x.uid==uid);if(!o)return;if(!spend(10,o.cost))return;
+  S.offers=S.offers.filter(x=>x!==o);S.contracts.push({...o,due:S.day+o.days});log(`Signed: ${o.title}. ${money(o.cost)} in, ${money(o.payout)} due on day ${S.day+o.days}.`,'good');};
+A.negotiate=uid=>{const o=S.offers.find(x=>x.uid==uid);if(!o||o.negotiated)return;if(!spend(10))return;o.negotiated=true;
+  if(Math.random()<.35+S.sk.charm/200){o.payout=Math.round(o.payout*1.15);o.risk*=.8;log(`You talked them up. New payout ${money(o.payout)}.`,'good')}
+  else if(Math.random()<.35){S.offers=S.offers.filter(x=>x!==o);log('You pushed too hard. They walked away from the deal.','bad')}
+  else log('They held firm on the terms.','info');};
+
+// computer
+A.rent=i=>{const r=RENTALS[+i];if(!spend(5,P(r.daily)))return;S.rent={name:r.name,daily:r.daily,comfort:r.comfort,country:S.country};
+  log(`Signed a lease on a ${r.name.toLowerCase()} in ${C().city}. ${money(P(r.daily))} a night.`,'good');};
+A.endRent=()=>{if(!S.rent)return;log(`Ended your lease on the ${S.rent.name.toLowerCase()}.`,'info');S.rent=null;};
+A.buyHome=id=>{const h=HOMES.find(x=>x.id===id),cost=P(h.price);if(!spend(5,cost))return;
+  const p={uid:S.uid++,id,name:h.name,comfort:h.comfort,value:cost,country:S.country,rented:false};S.props.push(p);
+  if(!propHere()||h.comfort>propHere().comfort)S.homeId=p.uid;log(`Bought a ${h.name.toLowerCase()} in ${C().city} for ${money(cost)}.`,'good');};
+A.liveIn=uid=>{S.homeId=+uid;const p=S.props.find(x=>x.uid==uid);p.rented=false;log(`You moved into your ${p.name.toLowerCase()}.`,'info');};
+A.rentOut=uid=>{const p=S.props.find(x=>x.uid==uid);p.rented=!p.rented;if(p.rented&&S.homeId===p.uid)S.homeId=null;
+  log(p.rented?`Listed your ${p.name.toLowerCase()} for tenants.`:`Took your ${p.name.toLowerCase()} off the rental market.`,'info');};
+A.sellHome=uid=>{const p=S.props.find(x=>x.uid==uid);const v=Math.round(p.value*.94);S.cash+=v;S.props=S.props.filter(x=>x!==p);if(S.homeId===p.uid)S.homeId=null;
+  log(`Sold your ${p.name.toLowerCase()} for ${money(v)} after fees.`,'money');};
+A.buyCar=id=>{const c=CARS.find(x=>x.id===id),cost=P(c.price);if(!spend(0,cost))return;
+  S.cars.push({uid:S.uid++,id,name:c.name,value:cost,happy:c.happy,rep:c.rep});S.happy=clamp(S.happy+c.happy,0,100);log(`Bought a ${c.name.toLowerCase()} for ${money(cost)}.`,'good');};
+A.sellCar=uid=>{const c=S.cars.find(x=>x.uid==uid);const v=Math.round(c.value*.85);S.cash+=v;S.cars=S.cars.filter(x=>x!==c);log(`Sold the ${c.name.toLowerCase()} for ${money(v)}.`,'money');};
+A.dep=x=>{const n=x==='all'?S.cash:Math.min(+x,S.cash);if(n<=0)return;S.cash-=n;S.bank+=n;log(`Deposited ${money(n)}.`,'info');};
+A.wd=x=>{const n=x==='all'?S.bank:Math.min(+x,S.bank);if(n<=0)return;S.bank-=n;S.cash+=n;log(`Withdrew ${money(n)} in cash.`,'info');};
+A.swipe=()=>{if(S.match){return}if(!spend(5))return;
+  const p=.18+S.sk.charm/250+S.happy/500+(hasAddress()?.15:0)+(hasCar()?.05:0);
+  if(Math.random()<p){S.match={name:pick(NAMES),love:10};log(`It's a match with ${S.match.name}!`,'good')}else log('Swiped for an hour. No matches.','bad');};
+const DATES={coffee:{label:'Coffee',cost:15,e:10,love:[5,10]},dinner:{label:'Dinner out',cost:120,e:15,love:[10,18]},trip:{label:'Weekend trip',cost:2500,e:35,love:[22,32]}};
+A.date=k=>{const d=DATES[k];if(!S.match)return;if(!spend(d.e,P(d.cost)))return;
+  const g=Math.round(R(...d.love)*(1+S.sk.charm/200)*(hasAddress()?1:.6));S.match.love=Math.min(120,S.match.love+g);S.happy=clamp(S.happy+4,0,100);
+  log(`${d.label} with ${S.match.name}. It went well (+${g} love).`,'good');};
+A.propose=()=>{if(!S.match||!has('ring'))return;if(!spend(10))return;S.items.ring=false;
+  const ch=clamp(.35+S.match.love/300+S.sk.charm/300+(hasAddress()?.15:-.3),.05,.95);
+  if(S.match.love>=100&&Math.random()<ch){const w=Math.min(P(15000),Math.round(total()*.2));pay(w);S.spouse={name:S.match.name,love:85};
+    log(`${S.match.name} said yes! Wedding cost ${money(w)}.`,'good');modal('Just married',`You and <b>${esc(S.match.name)}</b> tied the knot. Keep them happy — spend time together and stay out of jail.`);S.match=null;S.happy=clamp(S.happy+25,0,100);}
+  else{S.match.love-=30;log(`${S.match.name} said no. The ring is gone and things are awkward.`,'bad');if(S.match.love<=0){log(`${S.match.name} stopped replying.`,'bad');S.match=null}}};
+A.breakup=()=>{if(!S.match)return;log(`You ended things with ${S.match.name}.`,'info');S.match=null;};
+A.together=()=>{if(!S.spouse)return;if(!spend(15))return;S.spouse.love=Math.min(100,S.spouse.love+8);S.happy=clamp(S.happy+5,0,100);log(`Quiet evening with ${S.spouse.name}.`,'info');};
+A.gift=()=>{if(!S.spouse)return;if(!spend(0,P(600)))return;S.spouse.love=Math.min(100,S.spouse.love+12);log(`Bought ${S.spouse.name} a gift.`,'info');};
+
+// life
+A.move=k=>{const c=COUNTRIES[k];const cost=c.visa+Math.round(900*c.cost);if(k===S.country)return;if(!spend(40,cost))return;
+  const from=C().city;S.country=k;S.job=null;S.rent=null;S.motel=false;S.shelter=false;S.district=0;S.heat=Math.round(S.heat*.3);
+  PRODUCTS.forEach(p=>S.stash[p.id]=0);S.crates=0;
+  const own=S.props.find(p=>p.country===k&&!p.rented);S.homeId=own?own.uid:S.homeId;newPrices();
+  log(`Flew from ${from} to ${c.city}. Visa and flight: ${money(cost)}.${S.spouse?` ${S.spouse.name} came with you.`:''}`,'good');
+  modal(`Welcome to ${c.city}`,`New country, fresh start. Your old job is gone and your heat has cooled. Businesses and property back home keep earning.${S.fb.stage?` Your football level carries over — you now play for <b>${club()}</b>.`:''}`);};
+A.reset=()=>{if(!confirmReset){confirmReset=true;return}confirmReset=false;S=fresh();newPrices();intro();closeModal();};
+A.closeModal=()=>closeModal();
+A.newgame=()=>{S=fresh();newPrices();intro();closeModal();};
+
+/* ================= NIGHT ================= */
+function endDay(){
+  if(S.over)return;
+  const c=C(),lg=lodging();
+  if(S.rent&&S.rent.country===S.country){const r=P(S.rent.daily);if(total()>=r)pay(r);else{log('You couldn’t make rent. Evicted.','bad');S.rent=null}}
+  if(S.lawyer){const f=P(300);if(total()>=f)pay(f);else{S.lawyer=false;log('Your lawyer dropped you for not paying.','bad')}}
+  let dh=-4+lg.comfort*3.5,dp=-2+lg.comfort*1.4;
+  if(S.jail>0){dh=-1;dp=-5}
+  else if(!S.fed){dh-=10;dp-=4;log('You went to sleep hungry. -10 health.','bad')}
+  dp+=Math.min(5,S.cars.reduce((a,x)=>a+x.happy,0)*.12);
+  if(S.spouse)dp+=S.spouse.love>50?3:-2;
+  S.health=clamp(S.health+dh,0,100);S.happy=clamp(S.happy+dp,0,100);
+
+  // businesses
+  if(S.biz.length){let net=0;S.biz.forEach(b=>{const d=BIZ.find(x=>x.id===b.id),bc=COUNTRIES[b.country];
+      let p=d.profit*(1+.5*(b.lvl-1))*bc.wage*R(.65,1.35)*(1+S.sk.biz/200);if(Math.random()<.08)p=-p*.4;if(S.managed)p*=1.2;
+      p=p>0?p*(1-bc.tax):p;b.last=Math.round(p);net+=b.last;});
+    S.cash+=net;log(`Your businesses ${net>=0?'cleared':'lost'} ${money(Math.abs(net))} after tax.`,net>=0?'money':'bad');}
+  // property
+  let rentInc=0;S.props.forEach(p=>{p.value=Math.round(p.value*(1+R(-.0012,.0026)));if(p.rented)rentInc+=p.value*.0005*(1-COUNTRIES[p.country].tax)});
+  if(rentInc>0){S.cash+=Math.round(rentInc);log(`Tenants paid ${money(rentInc)} in rent.`,'money')}
+  S.cars.forEach(x=>x.value=Math.round(x.value*.999));
+  // contracts
+  S.contracts=S.contracts.filter(k=>{if(k.due>S.day)return true;
+    if(Math.random()<k.risk){const back=Math.round(k.cost*.3);S.cash+=back;log(`${k.title} fell through. You recovered only ${money(back)}.`,'bad')}
+    else{const prof=k.payout-k.cost,got=Math.round(k.cost+prof*(1-c.tax));S.cash+=got;log(`${k.title} paid out ${money(got)} after tax.`,'money')}
+    return false;});
+  S.bank=Math.round(S.bank*1.0003);
+  // football
+  if(S.fb.stage>0&&!S.fb.retired&&S.day%7===0&&S.jail===0)match();
+  // heat
+  S.heat=clamp(S.heat-(S.lawyer?10:6),0,100);
+  // spouse / match
+  if(S.spouse){S.spouse.love-=S.heat>60?4:1.5;if(S.jail>0)S.spouse.love-=3;
+    if(S.spouse.love<=0){const half=Math.round(total()/2);pay(half);log(`${S.spouse.name} filed for divorce and took ${money(half)}.`,'bad');
+      modal('Divorced',`${esc(S.spouse.name)} had enough. The settlement cost you ${money(half)}.`);S.spouse=null;}}
+  if(S.match){S.match.love-=1;if(S.match.love<=0){log(`${S.match.name} lost interest.`,'bad');S.match=null}}
+
+  // random events
+  const r=Math.random();
+  if(lg.kind==='street'&&S.cash>150&&r<.2){const l=Math.round(S.cash*R(.4,.8));S.cash-=l;log(`Someone robbed you in your sleep. Lost ${money(l)}. Keep money in a bank.`,'bad')}
+  else if(r<.23){const f=RI(20,200);S.cash+=f;log(`Found a wallet with ${money(f)} in it.`,'money')}
+  else if(r<.28+(lg.kind==='street'?.06:0)){S.health=clamp(S.health-15,0,100);log('You came down with something. -15 health.','bad')}
+  if(S.heat>60&&S.jail===0&&Math.random()<.14*c.police){bust('Police raided where you were sleeping.')}
+  if(netWorth()>5e6&&Math.random()<.03){const f=Math.round(S.bank*(S.heat>30?.08:.03));S.bank-=f;log(`Tax audit. You paid ${money(f)} in back taxes.`,'bad')}
+
+  // day rollover
+  const oldAge=age();
+  S.day++;
+  if(age()!==oldAge){log(`Happy birthday. You're ${age()}.`,'info');
+    if(age()>=36&&S.fb.stage>0&&!S.fb.retired){S.fb.retired=true;log(`You retired from football after ${S.fb.goals} career goals.`,'good')}}
+  if(S.jail>0){S.jail--;if(S.jail===0)log('You walked out of jail.','good')}
+  S.energy=S.jail>0?60:clamp(Math.round(55+lg.comfort*12)-(S.health<25?15:0)-(S.happy<10?10:0),30,100);
+  S.fed=false;S.motel=false;S.shelter=false;S.managed=false;S.worked=false;
+  newPrices();
+  if(S.biz.length&&Math.random()<.4&&S.offers.length<3){const top=Math.max(...S.biz.map(b=>b.invested)),cost=Math.round(top*R(.08,.4));
+    S.offers.push({uid:S.uid++,title:pick(CONTRACT_T).replace('{c}',pick(COMPANIES)),cost,payout:Math.round(cost*R(1.2,1.85)),days:RI(3,10),risk:clamp(R(.06,.32)-S.sk.biz/500,.02,.4)});}
+  if(Math.random()<.25&&S.offers.length)S.offers.shift();
+  if(S.health<=0){gameOver();}
+}
+function gameOver(){S.over=true;S.health=0;log('You died.','bad');
+  modal('Game over',`You died on day ${S.day}, age ${age()}. Net worth at death: <b>${money(netWorth())}</b>. Rank: ${rank()}.`,[['New game','newgame']]);}
+
+/* ================= ACHIEVEMENTS ================= */
+function checkAch(){
+  const n=netWorth(),got={k1:total()>=1000,job:!!S.job,roof:hasAddress(),car:hasCar(),boss:S.biz.length>0,house:S.props.length>0,
+    pro:S.fb.stage>=3,wed:!!S.spouse,abroad:S.country!=='us',mil:n>=1e6,bil:n>=1e9};
+  for(const [k,label] of ACH)if(got[k]&&!S.ach[k]){S.ach[k]=S.day;log(`Goal reached: ${label}.`,'good');
+    if(k==='bil'&&!S.won){S.won=true;modal('Billionaire',`From a park bench to ${money(n)} in ${S.day} days. You made it. Keep playing as long as you like.`)}}
+}
+
+/* ================= MODAL ================= */
+function modal(title,body,btns=[['Continue','closeModal']]){
+  $('#modal').innerHTML=`<h2>${esc(title)}</h2><p>${body}</p><div class="row">${btns.map(([l,a])=>`<button class="mini on" data-a="${a}">${l}</button>`).join('')}</div>`;
+  $('#overlay').hidden=false;}
+function closeModal(){$('#overlay').hidden=true;}
+
+/* ================= RENDER ================= */
+const TABS=[['street','Street'],['jobs','Jobs'],['hustle','Hustle'],['football','Football'],['business','Business'],['computer','Computer'],['life','Life']];
+function tabHint(k){switch(k){
+  case'street':return lodging().name;
+  case'jobs':return S.job?JOBS.find(j=>j.id===S.job).name:'Unemployed';
+  case'hustle':return`Heat ${Math.round(S.heat)} · Rep ${Math.round(S.rep)}`;
+  case'football':return S.fb.retired?'Retired':FB[S.fb.stage].name;
+  case'business':return S.biz.length?`${S.biz.length} owned`:'None yet';
+  case'computer':return has('laptop')?'Online':'Needs a laptop';
+  case'life':return S.spouse?`Married to ${S.spouse.name}`:S.match?`Dating ${S.match.name}`:'Single';}}
+
+function render(){
+  checkAch();
+  const lg=lodging();
+  $('#where').textContent=`Day ${S.day} · Age ${age()} · ${C().city} · ${rank()}`;
+  $('#money').innerHTML=`<div><small>Cash</small><b>${money(S.cash)}</b></div><div class="bank"><small>Bank</small><b>${money(S.bank)}</b></div><div class="nw"><small>Net worth</small><b>${money(netWorth())}</b></div>`;
+  const bar=(l,v,c)=>`<div class="bar" style="--c:${c}"><small>${l}<span>${Math.round(v)}</span></small><i><u style="width:${clamp(v,0,100)}%"></u></i></div>`;
+  $('#bars').innerHTML=bar('Health',S.health,'var(--cash)')+bar('Energy',S.energy,'var(--energy)')+bar('Happiness',S.happy,'var(--happy)')+bar('Heat',S.heat,'var(--heat)');
+  $('#skills').innerHTML=`<span>Fitness <b>${Math.floor(S.sk.fit)}</b></span><span>Football <b>${Math.floor(S.sk.ball)}</b></span><span>Business <b>${Math.floor(S.sk.biz)}</b></span><span>Charm <b>${Math.floor(S.sk.charm)}</b></span><span>Street rep <b>${Math.floor(S.rep)}</b></span><span>${S.fed?'Fed today':'<b style="color:var(--heat)">Hungry</b>'}</span>`;
+  $('#sleepBtn').innerHTML=S.over?'<b>Game over</b><span>Start a new game in Life</span>':`<b>${S.jail?'Serve a day':'Sleep'} → Day ${S.day+1}</b><span>Tonight: ${lg.name}</span>`;
+  $('#sleepBtn').disabled=S.over;
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-a="tab" data-x="${k}" aria-current="${S.tab===k}"><b>${l}</b><span>${esc(tabHint(k))}</span></button>`).join('');
+  let h='';
+  if(S.jail>0)h+=`<div class="banner"><h2>County jail · ${S.jail} day${S.jail>1?'s':''} left</h2><p>Everything outside is on hold. Rent and your lawyer still bill you. Sleep to serve time.</p><div class="row">${mini('yard','','Work out in the yard (−20 energy, +fitness)',S.energy<20)}</div></div>`;
+  h+=VIEWS[S.tab]();
+  $('#main').innerHTML=h;
+  $('#log').innerHTML=S.log.map(e=>`<li class="${e.k}${e.n?' new':''}"><span class="d">D${e.d}</span><span>${esc(e.t)}</span></li>`).join('');
+  S.log.forEach(e=>e.n=0);
+  save();
+}
+
+const VIEWS={
+street(){
+  const lg=lodging();
+  let h=card('Survive',`<p>You sleep at <b>${lg.name}</b> tonight. ${lg.kind==='street'?'Sleeping rough costs health and anyone can rob you. A motel, shelter bed or a lease fixes that.':''} Eat something every day or you lose 10 health overnight.</p>
+  <div class="grid">
+    ${btn('beg','','Panhandle','−10 energy · +$2–8',need(10))}
+    ${btn('cans','','Collect cans','−20 energy · +$6–18',need(20))}
+    ${btn('labor','','Day labor lot','−35 energy · +$55–90 cash, if picked',need(35))}
+    ${btn('dumpster','','Dumpster dive','−10 energy · food, might be bad',need(10))}
+    ${btn('meal','','Buy a hot meal',`${money(P(8))} · fed, +6 health`,need(0,P(8)),S.fed?'':'hot')}
+    ${btn('dinner','','Restaurant dinner',`${money(P(70))} · fed, +8 happiness`,need(0,P(70)))}
+  </div>`);
+  h+=card('Tonight’s bed',`<div class="grid">
+    ${btn('shelter','','Line up at the shelter','−5 energy · free, 65% chance of a bed',need(5)||(S.shelter?'Bed booked':'')||(lg.kind!=='street'?'You have a better bed':''))}
+    ${btn('motel','','Motel room',`${money(P(28))} · safe night`,need(0,P(28))||(S.motel?'Booked':'')||(['home','rent'].includes(lg.kind)?'You have a better bed':''))}
+    ${btn('hospital','','Walk-in clinic',`${money(P(180))} · +45 health`,need(10,P(180)))}
+  </div><p>Want an address? Rent or buy a place from the Computer tab.</p>`);
+  h+=card('Get better',`<div class="grid">
+    ${btn('run','','Run in the park','−20 energy · +fitness',need(20))}
+    ${btn('park','','Pickup football','−20 energy · +football',need(20))}
+    ${btn('gym','','Gym session',`${money(P(15))} · −25 energy · +fitness`,need(25,P(15)))}
+    ${btn('library','','Public library','−20 energy · +business',need(20))}
+    ${btn('barber','','Shower & haircut',`${money(P(25))} · +charm, +happiness`,need(5,P(25)))}
+    ${btn('speak','','Public speaking class',`${money(P(200))} · −25 energy · +3 charm`,need(25,P(200)))}
+    ${btn('course','','Night-school business course',`${money(P(600))} · −40 energy · +4.5 business`,need(40,P(600)))}
+  </div>`);
+  h+=card('Pawn shop',`<div class="grid">${Object.entries(ITEMS).map(([k,it])=>btn('buyItem',k,it.name,has(k)?'Owned':`${money(P(it.price))} · ${it.note}`,has(k)?'Owned':need(0,P(it.price)))).join('')}</div>`);
+  return h;},
+
+jobs(){
+  const cur=JOBS.find(j=>j.id===S.job);
+  let h=card('Your job',cur?`<p>You work as <b>${cur.name}</b>. One shift a day pays about <b>${money(cur.pay*C().wage*(1-C().tax))}</b> after ${Math.round(C().tax*100)}% tax in ${C().name}.</p>
+    <div class="row">${btn('work','',`Work a shift`,`−${cur.e} energy`,S.worked?'Already worked today':need(cur.e),'hot')}${mini('quit','','Quit')}</div>`
+    :`<p>You're unemployed. Most jobs want an address, the right gear and a clean record (heat under 40). Pay scales with the country you live in.</p>`);
+  h+=card('Openings',`<div class="list">${JOBS.map(j=>{const rl=reqList(j.req),ok=rl.every(r=>r[1]);
+    return `<div class="item ${S.job===j.id?'mine':''}"><div><div class="t">${j.name}</div><div class="s">${rl.length?chips(rl):'<span class="chip ok">No requirements</span>'}</div></div>
+      <div class="p">${money(j.pay*C().wage)}<div class="lbl">per shift</div></div>
+      <div class="btns">${S.job===j.id?'<span class="chip ok">Current job</span>':mini('apply',j.id,'Apply (−10 energy)',!ok||!!need(10))}</div></div>`}).join('')}</div>`,C().city);
+  return h;},
+
+hustle(){
+  const c=C(),ds=c.d,pr=S.prices;
+  let h=card('The corner',`<p>Cash only. Buy low in one neighborhood, sell high in another. Every sale adds heat, and heat is how you get caught. Police in ${c.name} are <b>${c.police>1.5?'very strict':c.police>1?'strict':c.police<.8?'easy to avoid':'average'}</b>.</p>
+    <div class="subtabs">${ds.map((d,i)=>mini('district',i,d+(i===S.district?' · here':''),i!==S.district&&!!need(5),i===S.district?'on':'')).join('')}</div>
+    <div class="tablewrap"><table><thead><tr><th>Product</th>${ds.map((d,i)=>`<th class="${i===S.district?'here':''}">${d}</th>`).join('')}<th>Holding</th></tr></thead>
+    <tbody>${PRODUCTS.map(p=>`<tr><td>${p.name}</td>${ds.map((d,i)=>`<td class="${i===S.district?'here':''}"><span class="num">${money(pr[i][p.id])}</span></td>`).join('')}<td class="num">${S.stash[p.id]}</td></tr>`).join('')}</tbody></table></div>
+    <div class="list">${PRODUCTS.map(p=>{const price=pr[S.district][p.id],free=stashCap()-stashCount();
+      return `<div class="row"><b style="min-width:64px">${p.name}</b>
+      ${mini('buyP',p.id+':1','Buy 1',S.cash<price||free<1||!!need(5))}${mini('buyP',p.id+':10','Buy 10',S.cash<price*10||free<10||!!need(5))}${mini('buyP',p.id+':max','Buy max',S.cash<price||free<1||!!need(5))}
+      ${mini('sellP',p.id+':1','Sell 1',S.stash[p.id]<1||!!need(5),'sell')}${mini('sellP',p.id+':all',`Sell all (${money(S.stash[p.id]*price)})`,S.stash[p.id]<1||!!need(5),'sell')}</div>`}).join('')}</div>
+    <p>Stash <b class="num">${stashCount()}/${stashCap()}</b> units. A car and a property give you room for more.</p>`,ds[S.district]);
+  h+=card('Hardware',S.rep<25?`<p>The gun crews don't know you yet. Build <b>street rep to 25</b> by dealing (you have ${Math.floor(S.rep)}).</p>`:
+    `<p>Crates cost ${money(P(3000))} cash. Buyers change every day. Huge heat, and a bust means a long sentence.</p>
+    <div class="row">${mini('buyCrate','',`Buy a crate (${money(P(3000))})`,S.crates>=crateCap()||!!need(10,P(3000),true))}<span class="s">Holding <b class="num">${S.crates}/${crateCap()}</b> crates</span></div>
+    <div class="list">${S.buyers.length?S.buyers.map(b=>`<div class="item"><div><div class="t">${b.name}</div><div class="s">Risk ${b.risk>.12?'high':b.risk>.08?'medium':'low'}</div></div><div class="p">${money(b.price)}</div>
+      <div class="btns">${mini('sellCrate',b.uid,'Sell a crate (−15 energy)',S.crates<1||!!need(15),'sell')}</div></div>`).join(''):'<p>No buyers today.</p>'}</div>`);
+  h+=card('Cover yourself',`<div class="grid">
+    ${btn('lawyer','',S.lawyer?'Drop your lawyer':'Put a lawyer on retainer',S.lawyer?'Currently on retainer':`${money(P(300))}/night · cuts sentences 65%, heat cools faster`,S.jail?'':'',S.lawyer?'hot':'')}
+    ${btn('dump','','Dump your stash','−5 energy · lose all product, −10 heat',need(5))}
+  </div><p>Heat cools by ${S.lawyer?10:6} a night. Above 60, police may raid you while you sleep. Moving abroad cools it by 70%.</p>`);
+  return h;},
+
+football(){
+  const st=S.fb.stage,nx=FB[st+1];
+  let h=card('Career',`<div class="stat"><div><span class="lbl">Club</span><b>${club()}</b></div><div><span class="lbl">Level</span><b>${FB[st].name}</b></div>
+    <div><span class="lbl">Career goals</span><b>${S.fb.goals}</b></div><div><span class="lbl">Appearances</span><b>${S.fb.apps}</b></div>
+    <div><span class="lbl">Weekly wage</span><b style="color:var(--cash)">${money(FB[st].wage*C().fb)}</b></div></div>
+    <div class="ladder">${FB.slice(1).map((f,i)=>`<div class="rung ${st>i?'done':st===i?'next':''}"><b>${f.name}</b><span>${money(f.wage*C().fb)}/wk</span></div>`).join('')}</div>
+    <p>${S.fb.retired?'You have retired from playing.':st?`Matches are every 7th day (next: day ${Math.ceil(S.day/7)*7}). Goals come from football skill and fitness.`:'Nobody knows your name yet. Play in the park, get fit, then go to a trial.'} Careers end at 36, and trials above semi-pro get hard after 33.</p>`,C().name);
+  if(!S.fb.retired){
+    const rq=nx?reqList(fbReq(st+1)):[];
+    h+=card('Train & trial',`<div class="grid">
+      ${btn('park','','Pickup football in the park','−20 energy · +football',need(20))}
+      ${st?btn('teamTrain','',`Train with ${club()}`,'−30 energy · +2 football, +fitness',need(30)):''}
+      ${btn('run','','Fitness run','−20 energy · +fitness',need(20))}
+    </div>
+    ${nx?`<p>Next step: <b>${nx.name}</b> at ${C().clubs[Math.min(3,st)]}.</p><div>${chips(rq)}</div>
+      <div class="row">${btn('trial','',`Go to the ${nx.name.toLowerCase()} trial`,'−30 energy · chance rises with your skill',need(30)||(rq.every(r=>r[1])?'':'Requirements not met'),'hot')}</div>`:'<p>You are at the top of the game.</p>'}`);}
+  return h;},
+
+business(){
+  let h='';
+  const tot=S.biz.reduce((a,b)=>a+b.last,0);
+  h+=card('Your companies',S.biz.length?`<p>Last night they cleared <b>${money(tot)}</b>. Profit swings day to day, and some days lose money. Business skill raises every company's profit.</p>
+    <div class="row">${btn('manage','','Manage in person','−25 energy · +20% profit tonight, +business',S.managed?'Already managing today':need(25),'hot')}</div>
+    <div class="list">${S.biz.map(b=>{const d=BIZ.find(x=>x.id===b.id),bc=COUNTRIES[b.country],up=Math.round(d.cost*bc.cost*.6*b.lvl);
+      return `<div class="item mine"><div><div class="t">${d.name} · level ${b.lvl}</div><div class="s">${bc.city} · last night ${money(b.last)}</div></div><div class="p">${money(bizValue(b))}<div class="lbl">sale value</div></div>
+      <div class="btns">${b.lvl<5?mini('upBiz',b.uid,`Expand (${money(up)})`,!!need(15,up)):'<span class="chip ok">Max level</span>'}${mini('sellBiz',b.uid,'Sell')}</div></div>`}).join('')}</div>`
+    :'<p>You don’t own anything yet. A hot dog cart is the cheapest start. Bigger businesses need more business skill.</p>');
+  if(S.biz.length)h+=card('Contracts on the table',S.offers.length?`<div class="list">${S.offers.map(o=>`<div class="item"><div><div class="t">${o.title}</div>
+      <div class="s">Pay ${money(o.cost)} now, get ${money(o.payout)} in ${o.days} days · risk of default ${Math.round(o.risk*100)}%</div></div><div class="p">+${money(o.payout-o.cost)}</div>
+      <div class="btns">${mini('sign',o.uid,'Sign (−10 energy)',!!need(10,o.cost))}${mini('negotiate',o.uid,'Negotiate (−10 energy)',o.negotiated||!!need(10))}</div></div>`).join('')}</div>`:'<p>No offers today. New deals arrive most nights.</p>')
+    +(S.contracts.length?card('Signed contracts',`<div class="list">${S.contracts.map(k=>`<div class="item"><div><div class="t">${k.title}</div><div class="s">Pays on day ${k.due}</div></div><div class="p">${money(k.payout)}</div></div>`).join('')}</div>`):'');
+  h+=card('Start a business',`<div class="list">${BIZ.map(d=>{const cost=P(d.cost),ok=S.sk.biz>=d.req;
+    return `<div class="item"><div><div class="t">${d.name}</div><div class="s">About ${money(d.profit*C().wage)} a day · ${chips([[`Business ${d.req}`,ok]])}</div></div><div class="p">${money(cost)}</div>
+    <div class="btns">${mini('startBiz',d.id,`Open in ${C().city} (−20 energy)`,!ok||!!need(20,cost))}</div></div>`}).join('')}</div>`,C().city);
+  return h;},
+
+computer(){
+  if(!has('laptop'))return card('Computer',`<p>You need a laptop to browse listings, bank online and use dating apps. The pawn shop on the Street tab sells a refurbished one for <b>${money(P(ITEMS.laptop.price))}</b>.</p>
+    <div class="row">${btn('buyItem','laptop','Buy the laptop',money(P(ITEMS.laptop.price)),need(0,P(ITEMS.laptop.price)),'hot')}</div>`);
+  const sub=[['homes','Homes'],['cars','Cars'],['bank','Bank'],['dating','Dating'],['shop','Shop']];
+  let h=`<div class="subtabs">${sub.map(([k,l])=>mini('ctab',k,l,false,S.ctab===k?'on':'')).join('')}</div>`;
+  if(S.ctab==='homes'){
+    h+=card('Rent',`<div class="grid">${RENTALS.map((r,i)=>btn('rent',i,r.name,`${money(P(r.daily))}/night · comfort ${r.comfort}`,S.rent&&S.rent.country===S.country&&S.rent.name===r.name?'Your lease':need(5,P(r.daily)))).join('')}</div>
+      ${S.rent?`<div class="row">${mini('endRent','',`End lease on ${S.rent.name.toLowerCase()} (${COUNTRIES[S.rent.country].city})`)}</div>`:''}<p>Renting or owning gives you an address, which most jobs require. Better homes mean more health, happiness and energy.</p>`,C().city);
+    h+=card('Buy property',`<div class="list">${HOMES.map(x=>`<div class="item"><div><div class="t">${x.name}</div><div class="s">Comfort ${x.comfort} · values drift up over time</div></div><div class="p">${money(P(x.price))}</div>
+      <div class="btns">${mini('buyHome',x.id,'Buy',!!need(5,P(x.price)))}</div></div>`).join('')}</div>`,C().city);
+    if(S.props.length)h+=card('Your properties',`<div class="list">${S.props.map(p=>{const here=p.country===S.country,live=S.homeId===p.uid&&here&&!p.rented;
+      return `<div class="item mine"><div><div class="t">${p.name}</div><div class="s">${COUNTRIES[p.country].city} · ${live?'you live here':p.rented?`rented out · ${money(p.value*.0005)}/night`:'empty'}</div></div><div class="p">${money(p.value)}</div>
+      <div class="btns">${here&&!live?mini('liveIn',p.uid,'Move in'):''}${mini('rentOut',p.uid,p.rented?'Stop renting out':'Rent out to tenants')}${mini('sellHome',p.uid,'Sell')}</div></div>`}).join('')}</div>`);
+  }
+  if(S.ctab==='cars'){
+    h+=card('Dealership',`<div class="list">${CARS.map(c=>`<div class="item"><div><div class="t">${c.name}</div><div class="s">+${c.happy} happiness${c.id==='jet'?' · not a car, but look at it':''}</div></div><div class="p">${money(P(c.price))}</div>
+      <div class="btns">${mini('buyCar',c.id,'Buy',!!need(0,P(c.price)))}</div></div>`).join('')}</div>`,C().city);
+    if(S.cars.length)h+=card('Your garage',`<div class="list">${S.cars.map(c=>`<div class="item mine"><div><div class="t">${c.name}</div><div class="s">Loses value slowly</div></div><div class="p">${money(c.value)}</div>
+      <div class="btns">${mini('sellCar',c.uid,`Sell for ${money(c.value*.85)}`)}</div></div>`).join('')}</div>`);
+  }
+  if(S.ctab==='bank'){
+    h+=card('Online banking',`<div class="stat"><div><span class="lbl">Cash on you</span><b style="color:var(--cash)">${money(S.cash)}</b></div><div><span class="lbl">In the bank</span><b style="color:var(--cash)">${money(S.bank)}</b></div><div><span class="lbl">Interest</span><b>0.03%/day</b></div></div>
+      <p>Money in the bank can't be stolen or seized in a bust. Street deals need cash in hand. Shops and property take bank money automatically.</p>
+      <div class="row"><span class="lbl">Deposit</span>${[100,1000,10000].map(n=>mini('dep',n,money(n),S.cash<n)).join('')}${mini('dep','all','All',S.cash<=0)}</div>
+      <div class="row"><span class="lbl">Withdraw</span>${[100,1000,10000].map(n=>mini('wd',n,money(n),S.bank<n)).join('')}${mini('wd','all','All',S.bank<=0)}</div>`);
+  }
+  if(S.ctab==='dating'){
+    if(S.spouse)h+=card('Married',`<p>You're married to <b>${esc(S.spouse.name)}</b>. Manage your marriage from the Life tab.</p>`);
+    else if(!S.match)h+=card('Dating app',`<p>Charm, happiness, an address and a car all get you more matches.</p><div class="row">${btn('swipe','','Swipe for an hour','−5 energy',need(5),'hot')}</div>`);
+    else h+=card(`Seeing ${esc(S.match.name)}`,`<div class="bar" style="--c:var(--happy)"><small>Love<span>${Math.round(S.match.love)}/100</span></small><i><u style="width:${clamp(S.match.love,0,100)}%"></u></i></div>
+      <div class="grid">${Object.entries(DATES).map(([k,d])=>btn('date',k,d.label,`${money(P(d.cost))} · −${d.e} energy`,need(d.e,P(d.cost)))).join('')}
+      ${btn('propose','','Propose',`Needs love 100 and a ring`,!has('ring')?'Buy a ring in the Shop tab':S.match.love<100?`Love is ${Math.round(S.match.love)}/100`:need(10),'hot')}</div>
+      <div class="row">${mini('breakup','','End it')}</div><p>Dates go better when you have your own place.</p>`);
+  }
+  if(S.ctab==='shop')h+=card('Online shop',`<div class="grid">${Object.entries(SHOP).map(([k,it])=>btn('buyItem',k,it.name,has(k)?'Owned':`${money(P(it.price))} · ${it.note}`,has(k)?'Owned':need(0,P(it.price)))).join('')}</div>`);
+  return h;},
+
+life(){
+  let h='';
+  h+=card('Goals',`<div class="goals">${ACH.map(([k,l])=>`<div class="goal ${S.ach[k]?'got':''}">${l}${S.ach[k]?` <span class="num" style="color:var(--dim)">D${S.ach[k]}</span>`:''}</div>`).join('')}</div>`);
+  h+=card('Family',S.spouse?`<p>Married to <b>${esc(S.spouse.name)}</b>. Love fades if you neglect them, stay hot with the police, or go to jail. At zero they divorce you and take half your money.</p>
+    <div class="bar" style="--c:var(--happy)"><small>Love<span>${Math.round(S.spouse.love)}/100</span></small><i><u style="width:${clamp(S.spouse.love,0,100)}%"></u></i></div>
+    <div class="grid">${btn('together','','Evening together','−15 energy · +8 love',need(15))}${btn('gift','','Buy a gift',`${money(P(600))} · +12 love`,need(0,P(600)))}</div>`
+    :`<p>${S.match?`You're seeing <b>${esc(S.match.name)}</b>. Take them on dates from the Computer tab.`:'Single. Find someone on the dating app (Computer tab, needs a laptop).'}</p>`);
+  h+=card('Move abroad',`<p>Pick up your life and move. You lose your job and lease, your heat cools by 70%, and your stash stays behind. Businesses and property keep earning from home.</p>
+    <div class="list">${Object.entries(COUNTRIES).map(([k,c])=>{const cost=c.visa+Math.round(900*c.cost);
+      return `<div class="item ${k===S.country?'mine':''}"><div><div class="t">${c.city}, ${c.name}</div><div class="s">Wages ×${c.wage} · prices ×${c.cost} · tax ${Math.round(c.tax*100)}% · police ${c.police>1.5?'very strict':c.police>1?'strict':c.police<.8?'lax':'average'} · football pay ×${c.fb}</div></div>
+      <div class="p">${k===S.country?'<span class="lbl">You live here</span>':money(cost)}</div>
+      ${k===S.country?'':`<div class="btns">${mini('move',k,'Get a visa and fly (−40 energy)',!!need(40,cost))}</div>`}</div>`}).join('')}</div>`);
+  h+=card('Save',`<p>Your game saves in this browser after every action.</p><div class="row">${mini('reset','',confirmReset?'Click again to wipe your save':'Start a new game',false,confirmReset?'on':'')}</div>`);
+  return h;},
+};
+
+/* ================= BOOT ================= */
+function intro(){
+  log('Goal: get to a billion. Start by eating, then find cash: cans, day labor, a job, or the corner.','good');
+  log('You wake up on a bench in Skid Row, Los Angeles. $3 in your pocket and a sore back.','info');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
+  const a=b.dataset.a;if(!A[a])return;
+  if(a!=='reset')confirmReset=false;
+  A[a](b.dataset.x);
+  if(a!=='closeModal')render();
+});
+function start(data){
+  S=(data&&data.day)?data:(load()||null);
+  if(!S){S=fresh();newPrices();intro();}
+  if(!S.prices)newPrices();
+  render();
+  if(S.over)gameOver();
+}
+try{window.claude?.hot?.snapshot?.(()=>S)}catch(e){}
+if(window.claude?.hot?.ready)window.claude.hot.ready(start);else start(window.claude?.hot?.data??{});
+</script>
