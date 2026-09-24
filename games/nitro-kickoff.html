@@ -288,7 +288,7 @@
         </dl>
       </div>
     </div>
-    <p class="tips">Hold a direction and jump twice to flip into the ball for a power shot. Glowing pads on the floor refill boost. <kbd>P</kbd> pauses.</p>
+    <p class="tips">Hold a direction and jump twice to flip into the ball for a power shot. The goals sit up on the walls: drive up the curved ramps, then jump or flip to put the ball in. Glowing pads on the floor refill boost. <kbd>P</kbd> pauses.</p>
   </div>
 </div>
 
@@ -321,7 +321,9 @@
   const WW = 2240;                     // full arena width; the camera scrolls
   const GROUND = 652, CEIL = 30;
   const FL = 96, FR = WW - 96;         // goal lines / side walls
-  const GOAL_TOP = GROUND - 200;       // crossbar height
+  const GOAL_BOT = GROUND - 150;       // goals are raised, Sideswipe style
+  const GOAL_TOP = GOAL_BOT - 170;     // crossbar height
+  const RC = 120, RT = 90;             // radius of the floor ramps and top corners
   const GBL = 16, GBR = WW - 16;        // back of the nets
   const BR = 36;                       // ball radius
   const CHW = 40, CHH = 15;            // car half size
@@ -353,7 +355,7 @@
   const ball = { x: WW / 2, y: GROUND - BR, vx: 0, vy: 0, spin: 0, alive: true, lastTouch: -1, trail: [] };
   const cars = [makeCar(0), makeCar(1)];
   const pads = [
-    { x: FL + 70, big: true }, { x: FR - 70, big: true },
+    { x: FL + RC + 50, big: true }, { x: FR - RC - 50, big: true },
     { x: WW / 2 - 640, big: false }, { x: WW / 2 - 280, big: false },
     { x: WW / 2 + 280, big: false }, { x: WW / 2 + 640, big: false },
   ].map((p) => ({ ...p, t: 0 }));
@@ -362,7 +364,8 @@
 
   function makeCar(team) {
     return {
-      team, x: 0, y: 0, vx: 0, vy: 0, a: 0, boost: 33, grounded: true,
+      team, x: 0, y: 0, vx: 0, vy: 0, a: 0, boost: 33,
+      onSurf: true, nx: 0, ny: -1, face: 1, s: 1, airT: 0,
       canFlip: false, flipWindow: 0, flipT: 0, flipDir: 0, hitCd: 0,
       prevJump: false, boosting: false, wheel: 0, aiPause: 0,
     };
@@ -371,8 +374,9 @@
     c.x = c.team === 0 ? FL + 230 : FR - 230;
     c.y = GROUND - CHH;
     c.vx = c.vy = 0;
-    c.a = c.team === 0 ? 0 : Math.PI;
-    c.grounded = true; c.canFlip = false; c.flipT = 0;
+    c.face = c.team === 0 ? 1 : -1;
+    c.onSurf = true; c.canFlip = false; c.flipT = 0;
+    alignToSurface(c, 0, -1);
     c.boost = 33; c.boosting = false;
   }
   function kickoff() {
@@ -447,18 +451,31 @@
       g.fillRect(lx - 22, 4, 44, 8);
     });
 
-    // Arena glass
+    // Arena glass, plus the solid ramps and walls under each goal
+    const arena = arenaPath();
+    g.save();
     g.fillStyle = 'rgba(16, 22, 58, 0.8)';
-    g.fillRect(FL, CEIL, FR - FL, GROUND - CEIL);
+    g.fill(arena);
+    g.clip(arena);
     g.strokeStyle = 'rgba(150,170,255,0.06)'; g.lineWidth = 1;
-    for (let x = FL; x <= FR; x += 44) { g.beginPath(); g.moveTo(x, CEIL); g.lineTo(x, GROUND); g.stroke(); }
-    for (let y = CEIL; y <= GROUND; y += 44) { g.beginPath(); g.moveTo(FL, y); g.lineTo(FR, y); g.stroke(); }
-    // Centre crest
+    for (let x = 0; x <= WW; x += 44) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, GROUND); g.stroke(); }
+    for (let y = CEIL; y <= GROUND; y += 44) { g.beginPath(); g.moveTo(0, y); g.lineTo(WW, y); g.stroke(); }
     g.strokeStyle = 'rgba(255,255,255,0.07)'; g.lineWidth = 3;
     g.beginPath(); g.arc(WW / 2, GROUND - 230, 120, 0, Math.PI * 2); g.stroke();
     g.beginPath(); g.moveTo(WW / 2, CEIL); g.lineTo(WW / 2, GROUND); g.stroke();
+    drawGoal(g, GBL, FL, 'rgba(58,160,255,0.16)');
+    drawGoal(g, FR, GBR, 'rgba(255,138,31,0.16)');
+    g.restore();
 
-    // Turf
+    // Everything below the goals that is not arena is solid ground
+    const outside = new Path2D();
+    outside.rect(-10, -10, WW + 20, H + 20);
+    outside.addPath(arena);
+    g.save();
+    g.beginPath(); g.rect(0, GOAL_BOT, WW, H - GOAL_BOT); g.clip();
+    g.clip(outside, 'evenodd');
+    g.fillStyle = '#1a1840';
+    g.fillRect(0, GOAL_BOT, WW, H - GOAL_BOT);
     gr = g.createLinearGradient(0, GROUND, 0, H);
     gr.addColorStop(0, '#23804a'); gr.addColorStop(1, '#0c3a22');
     g.fillStyle = gr; g.fillRect(0, GROUND, WW, H - GROUND);
@@ -466,19 +483,17 @@
       if ((x / 80) % 2) { g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(x, GROUND, 80, H - GROUND); }
     }
     g.fillStyle = 'rgba(255,255,255,0.75)';
-    g.fillRect(0, GROUND, WW, 2);
     g.fillRect(WW / 2 - 1.5, GROUND, 3, 18);
-    g.fillRect(FL - 1.5, GROUND, 3, 18);
-    g.fillRect(FR - 1.5, GROUND, 3, 18);
+    g.restore();
 
-    // Goals
-    drawGoal(g, GBL, FL, TEAM[0].color, 'rgba(58,160,255,0.13)');
-    drawGoal(g, FR, GBR, TEAM[1].color, 'rgba(255,138,31,0.13)');
-
-    // Ceiling and walls
-    neon(g, [[FL, GOAL_TOP], [FL, CEIL], [FR, CEIL], [FR, GOAL_TOP]], 'rgba(200,210,255,0.55)', 3);
-    neon(g, [[FL, CEIL + 2], [FL, GOAL_TOP]], TEAM[0].color, 4);
-    neon(g, [[FR, CEIL + 2], [FR, GOAL_TOP]], TEAM[1].color, 4);
+    // Outline: white around the pitch, team colour around each goal mouth
+    g.save();
+    g.strokeStyle = 'rgba(220,226,255,0.6)'; g.lineWidth = 3;
+    g.shadowColor = 'rgba(200,210,255,0.8)'; g.shadowBlur = 10;
+    g.stroke(arena);
+    g.restore();
+    neon(g, [[FL, GOAL_BOT], [GBL, GOAL_BOT], [GBL, GOAL_TOP], [FL, GOAL_TOP]], TEAM[0].color, 5);
+    neon(g, [[FR, GOAL_BOT], [GBR, GOAL_BOT], [GBR, GOAL_TOP], [FR, GOAL_TOP]], TEAM[1].color, 5);
 
     // Wall text
     g.save();
@@ -488,16 +503,14 @@
     g.fillText('NITRO KICKOFF', WW / 2, GROUND - 24);
     g.restore();
   }
-  function drawGoal(g, x0, x1, color, fill) {
+  function drawGoal(g, x0, x1, fill) {
     g.fillStyle = fill;
-    g.fillRect(x0, GOAL_TOP, x1 - x0, GROUND - GOAL_TOP);
+    g.fillRect(x0, GOAL_TOP, x1 - x0, GOAL_BOT - GOAL_TOP);
     g.strokeStyle = 'rgba(255,255,255,0.14)'; g.lineWidth = 1;
     for (let i = -220; i < 220; i += 14) {
       g.beginPath(); g.moveTo(x0, GOAL_TOP + i); g.lineTo(x1, GOAL_TOP + i + (x1 - x0)); g.stroke();
       g.beginPath(); g.moveTo(x1, GOAL_TOP + i); g.lineTo(x0, GOAL_TOP + i + (x1 - x0)); g.stroke();
     }
-    const back = x0 < WW / 2 ? x0 : x1;
-    neon(g, [[back, GROUND], [back, GOAL_TOP], [x0 < WW / 2 ? x1 : x0, GOAL_TOP]], color, 5);
   }
   function neon(g, pts, color, w) {
     g.save();
@@ -606,37 +619,126 @@
     }
   }
 
+  // ---------- Arena surface ----------
+  // One boundary for everything: floor, curved ramps, the short wall under
+  // each raised goal, the goal box, upper walls, rounded top corners, ceiling.
+  // surf() returns the distance to that boundary (positive inside the arena)
+  // and the inward-facing normal. The right half mirrors the left.
+  function insideLeft(x, y) {
+    if (x >= GBL && x <= FL && y >= GOAL_TOP && y <= GOAL_BOT) return true;
+    if (x < FL || y < CEIL || y > GROUND) return false;
+    if (x < FL + RC && y > GROUND - RC) return Math.hypot(x - (FL + RC), y - (GROUND - RC)) <= RC;
+    if (x < FL + RT && y < CEIL + RT) return Math.hypot(x - (FL + RT), y - (CEIL + RT)) <= RT;
+    return true;
+  }
+  function surf(x, y) {
+    const mirror = x > WW / 2, lx = mirror ? WW - x : x;
+    let best = Infinity, qx = 0, qy = 0;
+    const seg = (ax, ay, bx, by) => {
+      const dx = bx - ax, dy = by - ay;
+      const t = clamp(((lx - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy), 0, 1);
+      const px = ax + dx * t, py = ay + dy * t, d = Math.hypot(lx - px, y - py);
+      if (d < best) { best = d; qx = px; qy = py; }
+    };
+    const arc = (cx, cy, r, a0, a1) => {
+      let th = Math.atan2(y - cy, lx - cx);
+      while (th < a0) th += Math.PI * 2;
+      if (th <= a1) {
+        const px = cx + r * Math.cos(th), py = cy + r * Math.sin(th), d = Math.hypot(lx - px, y - py);
+        if (d < best) { best = d; qx = px; qy = py; }
+      }
+    };
+    seg(FL + RC, GROUND, WW / 2, GROUND);                  // floor
+    arc(FL + RC, GROUND - RC, RC, Math.PI / 2, Math.PI);   // ramp
+    seg(FL, GROUND - RC, FL, GOAL_BOT);                    // wall under the goal
+    seg(FL, GOAL_BOT, GBL, GOAL_BOT);                      // goal floor
+    seg(GBL, GOAL_BOT, GBL, GOAL_TOP);                     // back of the net
+    seg(GBL, GOAL_TOP, FL, GOAL_TOP);                      // goal roof
+    seg(FL, GOAL_TOP, FL, CEIL + RT);                      // upper wall
+    arc(FL + RT, CEIL + RT, RT, Math.PI, Math.PI * 1.5);   // top corner
+    seg(FL + RT, CEIL, WW / 2, CEIL);                      // ceiling
+    const inside = insideLeft(lx, y);
+    let nx = 0, ny = -1;
+    if (best > 1e-6) { nx = (lx - qx) / best; ny = (y - qy) / best; if (!inside) { nx = -nx; ny = -ny; } }
+    if (mirror) nx = -nx;
+    return { d: inside ? best : -best, nx, ny };
+  }
+  function arenaPath() {
+    const P = new Path2D();
+    P.moveTo(FL + RC, GROUND);
+    P.lineTo(FR - RC, GROUND);
+    P.arc(FR - RC, GROUND - RC, RC, Math.PI / 2, 0, true);
+    P.lineTo(FR, GOAL_BOT); P.lineTo(GBR, GOAL_BOT); P.lineTo(GBR, GOAL_TOP); P.lineTo(FR, GOAL_TOP);
+    P.lineTo(FR, CEIL + RT);
+    P.arc(FR - RT, CEIL + RT, RT, 0, -Math.PI / 2, true);
+    P.lineTo(FL + RT, CEIL);
+    P.arc(FL + RT, CEIL + RT, RT, -Math.PI / 2, -Math.PI, true);
+    P.lineTo(FL, GOAL_TOP); P.lineTo(GBL, GOAL_TOP); P.lineTo(GBL, GOAL_BOT); P.lineTo(FL, GOAL_BOT);
+    P.lineTo(FL, GROUND - RC);
+    P.arc(FL + RC, GROUND - RC, RC, Math.PI, Math.PI / 2, true);
+    P.closePath();
+    return P;
+  }
+
   // ---------- Car physics ----------
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const faceOf = (c) => (Math.cos(c.a) >= 0 ? 1 : -1);
+  const STICK_SLIP = 2.5;   // how far a car may drift off a surface and stay attached
+
+  // Point the car along the surface and keep its wheels on it.
+  function alignToSurface(c, nx, ny) {
+    c.nx = nx; c.ny = ny;
+    const tx = -ny, ty = nx;
+    c.a = Math.atan2(ty * c.face, tx * c.face);
+    const wheel = -Math.sin(c.a) * -nx + Math.cos(c.a) * -ny;
+    c.s = wheel >= 0 ? 1 : -1;
+  }
+  function land(c, q) {
+    const tx = -q.ny, ty = q.nx;
+    const along = Math.cos(c.a) * tx + Math.sin(c.a) * ty;
+    const vAlong = c.vx * tx + c.vy * ty;
+    c.face = Math.abs(along) > 0.2 ? Math.sign(along) : (Math.sign(vAlong) || c.face);
+    c.onSurf = true; c.canFlip = false; c.flipT = 0;
+    c.x += q.nx * (CHH - q.d); c.y += q.ny * (CHH - q.d);
+    const vn = c.vx * q.nx + c.vy * q.ny;
+    c.vx -= vn * q.nx; c.vy -= vn * q.ny;
+    alignToSurface(c, q.nx, q.ny);
+  }
 
   function updateCar(c, inp, dt) {
     c.hitCd -= dt;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     const jumpPress = inp.jump && !c.prevJump;
     c.prevJump = inp.jump;
-    let face = faceOf(c);
 
-    if (c.grounded && c.y + CHH < GROUND - 2) c.grounded = false;
-
-    if (c.grounded) {
+    if (c.onSurf) {
+      const nx = c.nx, ny = c.ny, tx = -ny, ty = nx;
+      let vt = c.vx * tx + c.vy * ty;
       if (dir) {
-        if (dir !== face) { c.a = dir > 0 ? 0 : Math.PI; face = dir; }
-        const braking = Math.sign(c.vx) === -dir;
-        c.vx += dir * DRIVE_ACC * (braking ? 2 : 1) * dt;
+        c.face = dir;
+        const braking = Math.sign(vt) === -dir;
+        vt += dir * DRIVE_ACC * (braking ? 2 : 1) * dt;
       } else {
-        c.vx -= Math.sign(c.vx) * Math.min(Math.abs(c.vx), 900 * dt);
+        vt -= Math.sign(vt) * Math.min(Math.abs(vt), 900 * dt);
       }
-      if (Math.abs(c.vx) > MAX_DRIVE && !(inp.boost && c.boost > 0)) {
-        c.vx -= Math.sign(c.vx) * Math.min(Math.abs(c.vx) - MAX_DRIVE, 700 * dt);
+      if (Math.abs(vt) > MAX_DRIVE && !(inp.boost && c.boost > 0)) {
+        vt -= Math.sign(vt) * Math.min(Math.abs(vt) - MAX_DRIVE, 700 * dt);
       }
-      if (jumpPress) {
-        c.vy = -650; c.grounded = false; c.canFlip = true; c.flipWindow = 1.4;
+      // Gravity pulls along the surface; throttle makes wheels grip on ramps and walls.
+      vt += G_CAR * ty * (dir ? 0.35 : 1) * dt;
+      c.vx = tx * vt; c.vy = ty * vt;
+      alignToSurface(c, nx, ny);
+      const steep = ny > -0.5, upsideDown = ny > 0.5;
+      if ((steep && !dir && Math.abs(vt) < 250) || (upsideDown && Math.abs(vt) < 380)) {
+        c.onSurf = false; c.airT = 0; c.vx += nx * 90; c.vy += ny * 90;
+      } else if (jumpPress) {
+        c.vx += nx * 650; c.vy += ny * 650;
+        c.onSurf = false; c.airT = 0; c.canFlip = true; c.flipWindow = 1.4;
         sfx('jump');
       }
     } else {
       const pitch = (inp.up ? 1 : 0) - (inp.down ? 1 : 0);
-      if (c.flipT <= 0) c.a -= pitch * 5.4 * dt * face;
+      if (c.flipT <= 0) c.a -= pitch * 5.4 * dt * c.s;
       c.vx += dir * 360 * dt;
       c.flipWindow -= dt;
       if (jumpPress && c.canFlip && c.flipWindow > 0) {
@@ -658,7 +760,7 @@
     c.boosting = false;
     if (inp.boost && c.boost > 0) {
       let hx = Math.cos(c.a), hy = Math.sin(c.a);
-      if (c.flipT > 0) { hx = face; hy = 0; }
+      if (c.flipT > 0) { hx = faceOf(c); hy = 0; }
       c.vx += hx * BOOST_ACC * dt; c.vy += hy * BOOST_ACC * dt;
       c.boost = Math.max(0, c.boost - 34 * dt);
       c.boosting = true;
@@ -672,28 +774,43 @@
     if (sp > MAX_SPEED) { c.vx *= MAX_SPEED / sp; c.vy *= MAX_SPEED / sp; }
 
     c.x += c.vx * dt; c.y += c.vy * dt;
-    c.wheel += c.vx * dt / 8;
+    c.wheel += (c.onSurf ? Math.hypot(c.vx, c.vy) * c.face : c.vx) * dt / 8;
 
-    // Ground
-    if (c.y + CHH >= GROUND) {
-      c.y = GROUND - CHH;
-      if (!c.grounded) {
-        c.grounded = true; c.a = Math.cos(c.a) >= 0 ? 0 : Math.PI;
-        c.canFlip = false; c.flipT = 0;
+    if (c.onSurf) {
+      const q = surf(c.x, c.y);
+      // Past a convex edge (like the lip under a goal) the surface falls away:
+      // a slow car rolls over it, a fast one launches off.
+      const fallsAway = q.d > CHH + 0.3 && Math.hypot(c.vx, c.vy) > 300;
+      if (q.d < CHH + STICK_SLIP && !fallsAway) {
+        c.x += q.nx * (CHH - q.d); c.y += q.ny * (CHH - q.d);
+        const vn = c.vx * q.nx + c.vy * q.ny;
+        c.vx -= vn * q.nx; c.vy -= vn * q.ny;
+        alignToSurface(c, q.nx, q.ny);
+      } else {
+        c.onSurf = false; c.airT = 0;   // drove off an edge, such as the lip under a goal
       }
-      c.vy = 0;
+    } else {
+      // In the air: test the nose, middle and tail against the arena.
+      c.airT += dt;
+      const hx = Math.cos(c.a), hy = Math.sin(c.a), off = CHW - CHH;
+      let touched = false, into = 0;
+      for (const k of [0, 1, -1]) {
+        const q = surf(c.x + hx * off * k, c.y + hy * off * k);
+        if (q.d < CHH) {
+          c.x += q.nx * (CHH - q.d); c.y += q.ny * (CHH - q.d);
+          const vn = c.vx * q.nx + c.vy * q.ny;
+          if (vn < 0) { c.vx -= vn * q.nx; c.vy -= vn * q.ny; into = Math.max(into, -vn); }
+          touched = true;
+        }
+      }
+      // Land when hitting a surface, not when grazing an edge just launched from.
+      if (touched && (into > 40 || c.airT > 0.25)) {
+        const q = surf(c.x, c.y);
+        const vt = Math.abs(c.vx * -q.ny + c.vy * q.nx);
+        const tooSlowForCeiling = q.ny > 0.5 && vt < 380;
+        if (q.d < CHH + 26 && !tooSlowForCeiling) land(c, q);
+      }
     }
-    // Ceiling
-    if (c.y - CHH < CEIL) { c.y = CEIL + CHH; c.vy = Math.abs(c.vy) * 0.2; }
-    // Walls and goal mouths
-    if (c.x < FL) {
-      if (c.y - CHH < GOAL_TOP) { c.y = GOAL_TOP + CHH; c.vy = Math.max(c.vy, 0); }
-      if (c.x - CHW < GBL) { c.x = GBL + CHW; c.vx = Math.max(c.vx, 0); }
-    } else if (c.x - CHW < FL && c.y - CHH < GOAL_TOP) { c.x = FL + CHW; c.vx = Math.max(c.vx, 0); }
-    if (c.x > FR) {
-      if (c.y - CHH < GOAL_TOP) { c.y = GOAL_TOP + CHH; c.vy = Math.max(c.vy, 0); }
-      if (c.x + CHW > GBR) { c.x = GBR - CHW; c.vx = Math.min(c.vx, 0); }
-    } else if (c.x + CHW > FR && c.y - CHH < GOAL_TOP) { c.x = FR - CHW; c.vx = Math.min(c.vx, 0); }
 
     // Boost pads
     for (const p of pads) {
@@ -708,38 +825,25 @@
   // ---------- Ball physics ----------
   function updateBall(dt) {
     ball.vy += G_BALL * dt;
-    ball.vx *= 1 - 0.04 * dt; ball.vy *= 1 - 0.02 * dt;
+    ball.vx *= 1 - 0.12 * dt; ball.vy *= 1 - 0.04 * dt;
     ball.x += ball.vx * dt; ball.y += ball.vy * dt;
     ball.spin += (ball.vx / BR) * dt;
   }
   function ballWorld(dt) {
-    const b = ball;
-    if (b.y + BR > GROUND) {
-      b.y = GROUND - BR;
-      if (b.vy > 0) { const v = b.vy; b.vy = v > 90 ? -v * 0.62 : 0; if (v > 380) sfx('bounce'); }
+    const q = surf(ball.x, ball.y);
+    if (q.d >= BR) return;
+    const pen = BR - q.d;
+    ball.x += q.nx * pen; ball.y += q.ny * pen;
+    const vn = ball.vx * q.nx + ball.vy * q.ny;
+    if (vn < 0) {
+      const wall = Math.abs(q.ny) < 0.5;
+      const e = -vn > 90 ? (wall ? 0.42 : 0.6) : 0;
+      ball.vx -= (1 + e) * vn * q.nx; ball.vy -= (1 + e) * vn * q.ny;
+      if (-vn > 380) sfx('bounce');
     }
-    if (b.y + BR >= GROUND - 0.5) b.vx *= 1 - 0.5 * dt;
-    if (b.y - BR < CEIL) { b.y = CEIL + BR; if (b.vy < 0) b.vy = -b.vy * 0.7; }
-    // Left side
-    if (b.x < FL) {
-      if (b.y - BR < GOAL_TOP) { b.y = GOAL_TOP + BR; if (b.vy < 0) b.vy = -b.vy * 0.6; }
-      if (b.x - BR < GBL) { b.x = GBL + BR; b.vx = Math.abs(b.vx) * 0.4; }
-    } else if (b.x - BR < FL && b.y < GOAL_TOP) { b.x = FL + BR; if (b.vx < 0) b.vx = -b.vx * 0.75; }
-    // Right side
-    if (b.x > FR) {
-      if (b.y - BR < GOAL_TOP) { b.y = GOAL_TOP + BR; if (b.vy < 0) b.vy = -b.vy * 0.6; }
-      if (b.x + BR > GBR) { b.x = GBR - BR; b.vx = -Math.abs(b.vx) * 0.4; }
-    } else if (b.x + BR > FR && b.y < GOAL_TOP) { b.x = FR - BR; if (b.vx > 0) b.vx = -b.vx * 0.75; }
-    corner(FL, GOAL_TOP); corner(FR, GOAL_TOP);
-  }
-  function corner(cx, cy) {
-    const dx = ball.x - cx, dy = ball.y - cy, d = Math.hypot(dx, dy);
-    if (d < BR && d > 0) {
-      const nx = dx / d, ny = dy / d;
-      ball.x = cx + nx * BR; ball.y = cy + ny * BR;
-      const vn = ball.vx * nx + ball.vy * ny;
-      if (vn < 0) { ball.vx -= 1.7 * vn * nx; ball.vy -= 1.7 * vn * ny; sfx('bounce'); }
-    }
+    // rolling friction along the surface
+    const tx = -q.ny, ty = q.nx, vt = ball.vx * tx + ball.vy * ty, f = 0.5 * dt;
+    ball.vx -= tx * vt * f; ball.vy -= ty * vt * f;
   }
   function carBall(c) {
     const ca = Math.cos(c.a), sa = Math.sin(c.a);
@@ -811,6 +915,11 @@
     let tx;
     if (behind) tx = px + side * (skill < 0.5 ? 20 : 4);
     else tx = b.x + side * (danger ? 200 : 260);
+    // Shooting at a raised goal: get just under and behind the ball, then go up.
+    const atkGoalX = side < 0 ? FR : FL;
+    const nearAtk = Math.abs(b.x - atkGoalX) < 460;
+    if (behind && nearAtk) tx = b.x + b.vx * 0.15 + side * (BR + 18);
+    tx = clamp(tx, FL + RC * 0.6, FR - RC * 0.6);
     if (!ball.alive) tx = c.team === 0 ? FL + 230 : FR - 230;
 
     const dx = tx - c.x;
@@ -821,12 +930,14 @@
     const dist = Math.hypot(bdx, bdy);
 
     if (c.boost > 3 && face === dir) {
-      if (c.grounded && Math.abs(dx) > 240 && Math.random() < 0.4 + skill * 0.6) inp.boost = true;
+      if (c.onSurf && Math.abs(dx) > 240 && Math.random() < 0.4 + skill * 0.6) inp.boost = true;
       if (behind && dist < 260 && Math.random() < skill * 0.5) inp.boost = true;
       if (danger && Math.random() < skill) inp.boost = true;
     }
 
-    if (ball.alive && c.grounded) {
+    const shotChance = nearAtk && behind;
+    if (ball.alive && c.onSurf) {
+      if (shotChance && c.ny < -0.9 && Math.abs(bdx) < 160 && bdy < -20 && bdy > -320 && b.vy > -200 && Math.random() < 0.1 + skill * 0.4) inp.jump = true;
       // hop over a ground ball when retreating through it
       if (!behind && Math.abs(bdx) < 170 && Math.sign(bdx) === dir && b.y > GROUND - 3 * BR) inp.jump = true;
       // go up for a ball dropping above
@@ -834,13 +945,15 @@
       // jump-flip into a low ball
       if (behind && skill > 0.4 && Math.abs(bdx) < 170 && Math.abs(bdx) > 90 && Math.abs(bdy) < 50 && Math.random() < skill * 0.03) inp.jump = true;
     } else if (ball.alive && !c.prevJump && c.canFlip && c.flipWindow < 1.25) {
-      if (behind && dist < 125 && Math.random() < 0.3 + skill * 0.6) {
+      if (shotChance && bdy < -90 && Math.abs(bdx) < 120 && Math.random() < skill) {
+        inp.jump = true; inp.left = inp.right = false;
+      } else if (behind && dist < (shotChance ? 150 : 125) && Math.random() < 0.3 + skill * 0.6) {
         inp.jump = true; inp.left = side > 0; inp.right = side < 0;
       } else if (bdy < -50 && Math.abs(bdx) < 110 && Math.random() < skill * 0.5) {
         inp.jump = true; inp.left = inp.right = false;
       }
     }
-    if (!c.grounded) {
+    if (!c.onSurf) {
       let off = c.a - (face > 0 ? 0 : Math.PI);
       off = Math.atan2(Math.sin(off), Math.cos(off));
       if (off * face > 0.12) inp.up = true; else if (off * face < -0.12) inp.down = true;
@@ -1042,7 +1155,11 @@
     else if (S.state === 'menu') focus = ball.x;
     else if (S.mode === '2p') focus = ball.x * 0.5 + carsMid * 0.5;
     else focus = ball.x * 0.65 + cars[0].x * 0.35;
-    const target = clamp(focus - W / 2, 0, WW - W);
+    let target = focus - W / 2;
+    // Always keep your own car well inside the view
+    if (S.state !== 'menu') target = clamp(target, cars[0].x - W + 220, cars[0].x - 220);
+    if (S.state !== 'menu' && S.mode === '2p') target = clamp(target, cars[1].x - W + 220, cars[1].x - 220);
+    target = clamp(target, 0, WW - W);
     camX += (target - camX) * Math.min(1, dt * 3.5);
   }
 
@@ -1147,13 +1264,12 @@
 
   function drawCar(c) {
     const t = TEAM[c.team];
-    const face = faceOf(c);
     let ang = c.a;
     if (c.flipT > 0) ang += c.flipDir * (1 - c.flipT / 0.55) * Math.PI * 2;
     ctx.save();
     ctx.translate(c.x, c.y);
     ctx.rotate(ang);
-    if (face < 0) ctx.scale(1, -1);
+    if (c.s < 0) ctx.scale(1, -1);
 
     // Boost flame
     if (c.boosting) {
