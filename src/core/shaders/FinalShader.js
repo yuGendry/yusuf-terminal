@@ -60,10 +60,85 @@ export const FinalShader = {
 
     varying vec2 vUv;
 
-    // ---- ACES filmic tonemap (Narkowicz fit) --------------------------------
-    vec3 aces(vec3 x) {
-      const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
-      return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+    // ---- AgX tonemap ---------------------------------------------------------
+    //
+    // Replaces the Narkowicz ACES fit, which was wrong for this game in a
+    // specific and visible way. That curve pushes saturated highlights toward
+    // their own hue as they clip, so a bright tungsten practical — of which
+    // this building is entirely made — blew out to a flat orange disc with a
+    // hard edge, and the kiln at temperature went the same way in red. AgX
+    // desaturates on the way up instead, the way film does: a hot filament
+    // goes white at the centre and keeps its colour in the falloff, so the
+    // light reads as bright rather than as a coloured hole in the picture.
+    //
+    // Implemented as the standard 6x6x6 log-encoded approximation: rotate into
+    // the AgX working space, take a log2 exposure range, apply a sigmoid, and
+    // rotate back. The polynomial is the usual Troy Sobotka fit.
+    const mat3 AGX_IN = mat3(
+      0.8424, 0.0784, 0.0792,
+      0.0423, 0.8789, 0.0788,
+      0.0424, 0.0784, 0.8793
+    );
+    const mat3 AGX_OUT = mat3(
+       1.1968, -0.0980, -0.0990,
+      -0.0528,  1.1519, -0.0991,
+      -0.0529, -0.0980,  1.1511
+    );
+
+    vec3 agxCurve(vec3 x) {
+      // Sobotka's 6th-order fit of the AgX sigmoid, in x^6 down to the
+      // constant. The order matters: written as a 4th-order polynomial by
+      // mistake this evaluates to 0.43 at x = 0, which lifts every black in
+      // the game to mid-grey and turns a horror game into an overcast
+      // afternoon. Correct, it passes through -0.00232 at zero.
+      vec3 x2 = x * x;
+      vec3 x4 = x2 * x2;
+      return  15.5     * x4 * x2
+           -  40.14    * x4 * x
+           +  31.96    * x4
+           -   6.868   * x2 * x
+           +   0.4298  * x2
+           +   0.1191  * x
+           -   0.00232;
+    }
+
+    /**
+     * The look, applied in the encoded space before the output rotation.
+     *
+     * Base AgX is deliberately flat: its log range spans sixteen and a half
+     * stops, so it lifts deep shadows a long way in exchange for holding on
+     * to highlight detail. That trade is right for a rendering reference and
+     * completely wrong here — with it the theatre reads as "dimly lit" rather
+     * than "black, with three pools of light in it", which is the entire
+     * atmosphere of the game.
+     *
+     * So the highlight behaviour is kept and the contrast is put back: an
+     * ASC-CDL power pushes the toe back down while barely touching anything
+     * above about 0.8, and a small saturation lift compensates for the
+     * desaturation the curve applies on the way up. This is what Blender
+     * ships as the "Punchy" look and it exists for the same reason.
+     */
+    vec3 agxLook(vec3 c) {
+      const float POWER  = 1.5;     // contrast: crushes the toe, spares the shoulder
+      const float OFFSET = -0.004;  // a hair of lift-removal so black is black
+      const float SAT    = 1.22;
+
+      c = clamp(c + OFFSET, 0.0, 1.0);
+      c = pow(c, vec3(POWER));
+      float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      return clamp(luma + (c - luma) * SAT, 0.0, 1.0);
+    }
+
+    vec3 agx(vec3 color) {
+      const float MIN_EV = -12.47393;
+      const float MAX_EV =   4.026069;
+
+      color = AGX_IN * max(color, vec3(0.0));
+      color = clamp((log2(color + 1e-8) - MIN_EV) / (MAX_EV - MIN_EV), 0.0, 1.0);
+      color = agxCurve(color);
+      color = agxLook(color);
+      color = AGX_OUT * color;
+      return clamp(color, 0.0, 1.0);
     }
 
     vec3 toSRGB(vec3 c) {
@@ -111,7 +186,7 @@ export const FinalShader = {
 
       // --- exposure + tonemap ------------------------------------------------
       color *= uBrightness;
-      color = aces(color);
+      color = agx(color);
       color = toSRGB(color);
 
       // --- grade -------------------------------------------------------------
@@ -146,6 +221,29 @@ export const FinalShader = {
       } else {
         color = mix(color, vec3(1.0), min(-uFade, 1.0));
       }
+
+      // --- dither ------------------------------------------------------------
+      //
+      // The last thing before the 8-bit buffer, and on this game one of the
+      // largest visible wins available for the cost. Almost every frame here
+      // is a near-black gradient — a torch falling off across plaster, the
+      // unlit half of a room — and 8 bits over that range quantises into
+      // visible contour rings. Adding a sub-LSB offset before the hardware
+      // rounds turns each ring edge into noise, which the eye integrates back
+      // into the smooth ramp that was there in the float buffer.
+      //
+      // An ordered 4x4 Bayer matrix rather than white noise: its pattern is
+      // fixed in screen space, so unlike a random dither it does not fizz
+      // frame to frame, and unlike a blue-noise texture it costs no sampler.
+      // The threshold is scaled to one 8-bit step, so it is invisible as
+      // pattern and only ever decides which side of a rounding boundary a
+      // pixel falls on.
+      float bayer = mod(
+        4.0 * mod(floor(gl_FragCoord.y), 2.0) + 2.0 * mod(floor(gl_FragCoord.x), 2.0)
+        + mod(floor(gl_FragCoord.y * 0.5), 2.0) + 8.0 * mod(floor(gl_FragCoord.x * 0.5), 2.0),
+        16.0
+      ) / 16.0;
+      color += (bayer - 0.5) / 255.0;
 
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }

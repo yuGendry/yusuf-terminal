@@ -15,7 +15,6 @@
 
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
@@ -23,6 +22,9 @@ import { FinalShader } from './shaders/FinalShader.js';
 import { MotionBlurShader } from './shaders/MotionBlurShader.js';
 import { SSAOShader, SSAOBlurShader } from './shaders/SSAOShader.js';
 import { TAAShader, JITTER } from './shaders/TAAShader.js';
+import {
+  BloomPrefilterShader, BloomDownShader, BloomUpShader, BloomCombineShader,
+} from './shaders/BloomShader.js';
 import { Settings } from './Settings.js';
 import { clamp, damp } from '../util/MathUtil.js';
 
@@ -113,8 +115,23 @@ export class PostFX {
     this.fxaaMat = makePassMaterial(FXAAShader);
     this.taaMat = makePassMaterial(TAAShader);
 
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.82);
     this.smaaPass = new SMAAPass(1, 1);
+
+    // ---- bloom chain -------------------------------------------------------
+    this.bloomPrefilterMat = makePassMaterial(BloomPrefilterShader);
+    this.bloomDownMat = makePassMaterial(BloomDownShader);
+    this.bloomUpMat = makePassMaterial(BloomUpShader);
+    this.bloomCombineMat = makePassMaterial(BloomCombineShader);
+    // Additive, because each upsample adds itself to the level above.
+    this.bloomUpMat.blending = THREE.AdditiveBlending;
+    this.bloomUpMat.transparent = true;
+
+    /** Six levels, allocated in setSize. The chain stops early on small windows. */
+    this.bloomMips = [];
+    this.BLOOM_LEVELS = 6;
+    for (let i = 0; i < this.BLOOM_LEVELS; i++) {
+      this.bloomMips.push(new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false }));
+    }
 
     // ---- motion blur reprojection state ------------------------------------
     this.prevViewProj = new THREE.Matrix4();
@@ -203,9 +220,13 @@ export class PostFX {
     this.enableTAA = s.antialias === 'taa';
     this.taaMat.uniforms.uBlend.value = s.preset === 'low' ? 0.82 : 0.92;
 
-    this.bloomPass.strength = s.bloomIntensity;
-    this.bloomPass.radius = 0.55;
-    this.bloomPass.threshold = 0.8;
+    this.bloomCombineMat.uniforms.uStrength.value = s.bloomIntensity;
+    this.bloomPrefilterMat.uniforms.uThreshold.value = 0.8;
+    this.bloomPrefilterMat.uniforms.uKnee.value = 0.55;
+    this.bloomUpMat.uniforms.uRadius.value = s.preset === 'low' ? 0.8 : 1.0;
+    // Fewer levels on low: the widest two contribute the faintest skirt and
+    // are the first thing worth giving up.
+    this._bloomLevels = s.preset === 'low' ? 4 : this.BLOOM_LEVELS;
 
     this.motionMat.uniforms.uIntensity.value = s.motionBlurIntensity;
     this.motionMat.uniforms.uSamples.value =
@@ -248,8 +269,19 @@ export class PostFX {
     this.aoRT.setSize(aow, aoh);
     this.aoBlurRT.setSize(aow, aoh);
 
-    this.bloomPass.setSize(w, h);
     this.smaaPass.setSize(w, h);
+
+    // The chain halves each step, starting at half resolution. It stops when
+    // a level would be smaller than 2px, so a very small window does not end
+    // up with degenerate 1x1 mips whose filter taps all land on one texel.
+    this._bloomActive = 0;
+    for (let i = 0; i < this.BLOOM_LEVELS; i++) {
+      const mw = Math.floor(w / Math.pow(2, i + 1));
+      const mh = Math.floor(h / Math.pow(2, i + 1));
+      if (mw < 2 || mh < 2) break;
+      this.bloomMips[i].setSize(mw, mh);
+      this._bloomActive = i + 1;
+    }
 
     this.finalMat.uniforms.uResolution.value = [w, h];
     this.taaMat.uniforms.uTexel.value = [1 / w, 1 / h];
@@ -432,11 +464,40 @@ export class PostFX {
     this.prevViewProj.copy(this.currViewProj);
     this._hasPrev = true;
 
-    // ---- 5. bloom (blends additively into `current` in place) ------------
-    if (this.enableBloom) {
-      this.bloomPass.strength = s.bloomIntensity;
-      this.bloomPass.renderToScreen = false;
-      this.bloomPass.render(renderer, spare, current, dt, false);
+    // ---- 5. bloom --------------------------------------------------------
+    //
+    // Prefilter into the first mip, walk down the chain, then walk back up
+    // adding each level onto the one above. The result in mip 0 is every
+    // scale of spread summed at once, which is why a filament ends up with a
+    // tight core and a very wide faint skirt instead of one fixed halo.
+    const levels = Math.min(this._bloomLevels ?? this.BLOOM_LEVELS, this._bloomActive);
+    if (this.enableBloom && levels > 0) {
+      this.bloomCombineMat.uniforms.uStrength.value = s.bloomIntensity;
+
+      this.bloomPrefilterMat.uniforms.tDiffuse.value = current.texture;
+      this._blit(this.bloomPrefilterMat, this.bloomMips[0]);
+
+      for (let i = 1; i < levels; i++) {
+        const src = this.bloomMips[i - 1];
+        this.bloomDownMat.uniforms.tDiffuse.value = src.texture;
+        this.bloomDownMat.uniforms.uTexel.value = [1 / src.width, 1 / src.height];
+        this._blit(this.bloomDownMat, this.bloomMips[i]);
+      }
+
+      for (let i = levels - 1; i > 0; i--) {
+        const src = this.bloomMips[i];
+        this.bloomUpMat.uniforms.tDiffuse.value = src.texture;
+        this.bloomUpMat.uniforms.uTexel.value = [1 / src.width, 1 / src.height];
+        // Additive onto the larger level, so it must NOT be cleared first.
+        this.quad.material = this.bloomUpMat;
+        renderer.setRenderTarget(this.bloomMips[i - 1]);
+        this.quad.render(renderer);
+      }
+
+      this.bloomCombineMat.uniforms.tDiffuse.value = current.texture;
+      this.bloomCombineMat.uniforms.tBloom.value = this.bloomMips[0].texture;
+      this._blit(this.bloomCombineMat, spare);
+      swap(spare);
     }
 
     // ---- 6. grade + 7. spatial antialias ---------------------------------
@@ -478,8 +539,10 @@ export class PostFX {
                      this.fxaaMat, this.taaMat]) {
       m.dispose();
     }
-    this.bloomPass.dispose?.();
     this.smaaPass.dispose?.();
+    for (const m of this.bloomMips) m.dispose();
+    for (const m of [this.bloomPrefilterMat, this.bloomDownMat,
+                     this.bloomUpMat, this.bloomCombineMat]) m.dispose();
     this.quad.dispose();
   }
 }
