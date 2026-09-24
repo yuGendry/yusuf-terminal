@@ -208,12 +208,13 @@ export class SettingsMenu {
     }));
     frag.appendChild(makeSelect({
       label: 'Anti-aliasing',
-      description: 'SMAA is sharper and costs a little more than FXAA.',
+      description: 'TAA accumulates eight sub-pixel samples over eight frames, which is the only option here that also steadies the shading — the rigging and the stair treads stop sparkling as you walk past them. SMAA and FXAA only smooth edges.',
       key: 'antialias',
       options: [
         { value: 'none', label: 'Off' },
         { value: 'fxaa', label: 'FXAA' },
         { value: 'smaa', label: 'SMAA' },
+        { value: 'taa', label: 'TAA' },
       ],
     }));
     frag.appendChild(makeSelect({

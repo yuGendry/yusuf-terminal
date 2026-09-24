@@ -22,6 +22,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { FinalShader } from './shaders/FinalShader.js';
 import { MotionBlurShader } from './shaders/MotionBlurShader.js';
 import { SSAOShader, SSAOBlurShader } from './shaders/SSAOShader.js';
+import { TAAShader, JITTER } from './shaders/TAAShader.js';
 import { Settings } from './Settings.js';
 import { clamp, damp } from '../util/MathUtil.js';
 
@@ -70,6 +71,16 @@ export class PostFX {
     this.rtA = new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false });
     this.rtB = new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false });
 
+    // The TAA history, ping-ponged. Two buffers rather than one because a
+    // pass cannot read and write the same texture: this frame resolves into
+    // one while reading the other, and they swap. Kept out of the rtA/rtB
+    // rotation on purpose — everything after TAA (motion blur, bloom) writes
+    // into those, and the history has to stay the clean resolved image or it
+    // accumulates its own blur, frame over frame, until the picture is soup.
+    this.histA = new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false });
+    this.histB = new THREE.WebGLRenderTarget(1, 1, { ...hdr, depthBuffer: false });
+    this._histIndex = 0;
+
     // AO is single-channel and tolerates half resolution; the bilateral blur
     // upsamples it cleanly enough that nobody notices.
     const aoOpts = {
@@ -100,6 +111,7 @@ export class PostFX {
     this.ssaoMat = makePassMaterial(SSAOShader);
     this.ssaoBlurMat = makePassMaterial(SSAOBlurShader);
     this.fxaaMat = makePassMaterial(FXAAShader);
+    this.taaMat = makePassMaterial(TAAShader);
 
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.82);
     this.smaaPass = new SMAAPass(1, 1);
@@ -109,6 +121,25 @@ export class PostFX {
     this.currViewProj = new THREE.Matrix4();
     this.invViewProj = new THREE.Matrix4();
     this._hasPrev = false;
+
+    /** Which of the 8 Halton offsets this frame uses. */
+    this._jitterIndex = 0;
+    /** Cleared by any cut, so the resolve does not blend across it. */
+    this._taaReset = true;
+    /**
+     * How many times the history has been thrown away.
+     *
+     * Exposed because the cut detector fails silently by construction: if it
+     * stops firing, nothing errors — you just get a frame of smear on every
+     * cut, which is easy to mistake for the motion blur doing its job. A
+     * counter is the only way a test can see it working, since the flag
+     * itself is consumed by the resolve on the same frame it is set.
+     */
+    this.temporalResets = 0;
+    this._prevCamPos = new THREE.Vector3();
+    this._prevCamDir = new THREE.Vector3(0, 0, -1);
+    this._camPos = new THREE.Vector3();
+    this._camDir = new THREE.Vector3();
 
     /**
      * Effect state the game drives directly. Held separately from the shader
@@ -143,6 +174,21 @@ export class PostFX {
   setScene(scene) {
     this.scene = scene;
     this._hasPrev = false;
+    this.resetTemporal();
+  }
+
+  /**
+   * Throw away the accumulated history.
+   *
+   * Anything that moves the camera discontinuously has to call this — a
+   * chapter load, a cinematic cut, a respawn, the jumpscare's snap. Without
+   * it the first frame after the cut is blended 92% with the last frame of
+   * somewhere else entirely, which looks exactly like a rendering fault.
+   */
+  resetTemporal() {
+    if (!this._taaReset) this.temporalResets++;
+    this._taaReset = true;
+    this._hasPrev = false;
   }
 
   /** Re-read every quality setting. Called when a preset or toggle changes. */
@@ -152,6 +198,10 @@ export class PostFX {
     this.enableMotionBlur = !!s.motionBlur;
     this.enableBloom = !!s.bloom;
     this.aa = s.antialias;
+    // TAA supersedes the spatial filters rather than stacking with them:
+    // running SMAA over an already-resolved image only softens it.
+    this.enableTAA = s.antialias === 'taa';
+    this.taaMat.uniforms.uBlend.value = s.preset === 'low' ? 0.82 : 0.92;
 
     this.bloomPass.strength = s.bloomIntensity;
     this.bloomPass.radius = 0.55;
@@ -187,6 +237,10 @@ export class PostFX {
     this.sceneRT.setSize(w, h);
     this.rtA.setSize(w, h);
     this.rtB.setSize(w, h);
+    this.histA.setSize(w, h);
+    this.histB.setSize(w, h);
+    // A resize invalidates every pixel of history.
+    this._taaReset = true;
     this.ldrRT.setSize(w, h);
 
     const aow = Math.max(1, Math.floor(w * (this._aoScale ?? 0.5)));
@@ -198,6 +252,7 @@ export class PostFX {
     this.smaaPass.setSize(w, h);
 
     this.finalMat.uniforms.uResolution.value = [w, h];
+    this.taaMat.uniforms.uTexel.value = [1 / w, 1 / h];
     this.motionMat.uniforms.uResolution.value = [w, h];
     this.ssaoMat.uniforms.uResolution.value = [aow, aoh];
     this.ssaoBlurMat.uniforms.uResolution.value = [aow, aoh];
@@ -242,7 +297,60 @@ export class PostFX {
       : 0;
     f.uLensTint.value = [this.fx.lensTint.r, this.fx.lensTint.g, this.fx.lensTint.b];
 
+    // ---- did the camera cut? ---------------------------------------------
+    //
+    // Detected rather than announced. Every discontinuity — a chapter load, a
+    // cinematic cut, a respawn, the jumpscare's snap onto a face — would
+    // otherwise blend the first frame of the new shot 92% with the last frame
+    // of the old one, which reads as a rendering fault rather than as an edit.
+    // Sniffing it here catches all of them, including the ones added later by
+    // somebody who has never heard of this buffer.
+    //
+    // The thresholds are well clear of anything a player can do: sprinting is
+    // about 6 m/s, so a 2-metre step in one frame means a teleport, and a
+    // 40-degree snap is a dozen times a fast mouse flick at 60fps.
+    camera.getWorldPosition(this._camPos);
+    camera.getWorldDirection(this._camDir);
+    if (this._hasPrev) {
+      const jumped = this._camPos.distanceToSquared(this._prevCamPos) > 4;
+      const spun = this._camDir.dot(this._prevCamDir) < 0.766;   // cos 40 degrees
+      if ((jumped || spun) && !this._taaReset) {
+        this._taaReset = true;
+        this.temporalResets++;
+      }
+    }
+    this._prevCamPos.copy(this._camPos);
+    this._prevCamDir.copy(this._camDir);
+
+    // ---- reprojection matrices, UNjittered -------------------------------
+    //
+    // Built before the jitter goes on, and used by both TAA and motion blur.
+    // They have to describe where the camera really is: reprojecting through
+    // a jittered matrix would fold the sub-pixel offset into the world
+    // position and the history would chase its own tail.
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    this.currViewProj
+      .copy(camera.projectionMatrix)
+      .multiply(camera.matrixWorldInverse);
+    this.invViewProj.copy(this.currViewProj).invert();
+
     // ---- 1. scene -------------------------------------------------------
+    //
+    // The jitter is a sub-pixel shift of the projection's centre, written
+    // straight into the matrix rather than going through setViewOffset —
+    // which rebuilds the matrix and would undo itself. Elements 8 and 9 are
+    // the x and y offsets in clip space, so a shift of one pixel is two
+    // clip units over the buffer width.
+    if (this.enableTAA) {
+      const [jx, jy] = JITTER[this._jitterIndex % JITTER.length];
+      this._jitterIndex++;
+      camera.projectionMatrix.elements[8] += (jx * 2) / this.bufferWidth;
+      camera.projectionMatrix.elements[9] += (jy * 2) / this.bufferHeight;
+      // SSAO unprojects through this, so it has to agree with what was drawn.
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    }
+
     renderer.setRenderTarget(this.sceneRT);
     renderer.clear();
     renderer.render(this.scene, camera);
@@ -288,13 +396,29 @@ export class PostFX {
       swap(spare);
     }
 
-    // ---- 3. motion blur --------------------------------------------------
-    camera.updateMatrixWorld();
-    this.currViewProj
-      .copy(camera.projectionMatrix)
-      .multiply(camera.matrixWorldInverse);
-    this.invViewProj.copy(this.currViewProj).invert();
+    // ---- 3. temporal resolve ---------------------------------------------
+    //
+    // Before motion blur and bloom, so the history stays the clean image.
+    if (this.enableTAA) {
+      const histRead = this._histIndex === 0 ? this.histA : this.histB;
+      const histWrite = this._histIndex === 0 ? this.histB : this.histA;
 
+      const t = this.taaMat.uniforms;
+      t.tDiffuse.value = current.texture;
+      t.tHistory.value = histRead.texture;
+      t.tDepth.value = this.sceneRT.depthTexture;
+      t.uInvViewProj.value = this.invViewProj;
+      t.uPrevViewProj.value = this.prevViewProj;
+      t.uFirst.value = (this._taaReset || !this._hasPrev) ? 1 : 0;
+
+      this._blit(this.taaMat, histWrite);
+
+      current = histWrite;
+      this._histIndex ^= 1;
+      this._taaReset = false;
+    }
+
+    // ---- 4. motion blur --------------------------------------------------
     if (this.enableMotionBlur && this._hasPrev) {
       const m = this.motionMat.uniforms;
       m.tDiffuse.value = current.texture;
@@ -308,14 +432,14 @@ export class PostFX {
     this.prevViewProj.copy(this.currViewProj);
     this._hasPrev = true;
 
-    // ---- 4. bloom (blends additively into `current` in place) ------------
+    // ---- 5. bloom (blends additively into `current` in place) ------------
     if (this.enableBloom) {
       this.bloomPass.strength = s.bloomIntensity;
       this.bloomPass.renderToScreen = false;
       this.bloomPass.render(renderer, spare, current, dt, false);
     }
 
-    // ---- 5. grade + 6. antialias ----------------------------------------
+    // ---- 6. grade + 7. spatial antialias ---------------------------------
     f.tDiffuse.value = current.texture;
     const useAA = this.aa === 'smaa' || this.aa === 'fxaa';
 
@@ -345,11 +469,13 @@ export class PostFX {
   }
 
   dispose() {
-    for (const rt of [this.sceneRT, this.rtA, this.rtB, this.aoRT, this.aoBlurRT, this.ldrRT]) {
+    for (const rt of [this.sceneRT, this.rtA, this.rtB, this.histA, this.histB,
+                      this.aoRT, this.aoBlurRT, this.ldrRT]) {
       rt.dispose();
     }
     this.sceneRT.depthTexture?.dispose();
-    for (const m of [this.finalMat, this.motionMat, this.ssaoMat, this.ssaoBlurMat, this.fxaaMat]) {
+    for (const m of [this.finalMat, this.motionMat, this.ssaoMat, this.ssaoBlurMat,
+                     this.fxaaMat, this.taaMat]) {
       m.dispose();
     }
     this.bloomPass.dispose?.();
