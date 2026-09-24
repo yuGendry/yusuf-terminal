@@ -19,14 +19,15 @@
     "reachcheck": "node scripts/reachcheck.mjs",
     "cinetest": "node scripts/cinetest.mjs",
     "tour": "node scripts/tour.mjs",
-    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/menucheck.mjs && node scripts/leakcheck.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs && node scripts/signcheck.mjs && node scripts/walkcheck.mjs",
+    "verify": "node scripts/smoke.mjs && node scripts/controlstest.mjs && node scripts/menucheck.mjs && node scripts/leakcheck.mjs && node scripts/doorcheck.mjs && node scripts/reachcheck.mjs && node scripts/signcheck.mjs && node scripts/sequencecheck.mjs && node scripts/walkcheck.mjs",
     "leakcheck": "node scripts/leakcheck.mjs",
     "walkcheck": "node scripts/walkcheck.mjs",
     "signcheck": "node scripts/signcheck.mjs",
     "portraits": "node scripts/portraits.mjs",
     "menucheck": "node scripts/menucheck.mjs",
     "build:single": "vite build --config vite.singlefile.config.js",
-    "singlefilecheck": "node scripts/singlefilecheck.mjs"
+    "singlefilecheck": "node scripts/singlefilecheck.mjs",
+    "sequencecheck": "node scripts/sequencecheck.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

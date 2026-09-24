@@ -1953,6 +1953,11 @@ function placeNote(scene, interaction, reader, save, id, position, rotY = 0) {
   scene.add(mesh);
   interaction.register({
     object: mesh, reach: 2.2, label: 'Read',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       reader.showNote(note);
       save.recordCollectible('note', id);
@@ -1987,6 +1992,11 @@ function placeStub(scene, interaction, reader, save, id, position) {
 
   interaction.register({
     object: mesh, reach: 2.0, label: 'A ticket stub',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       save.recordCollectible('stub', id);
       reader.showStub(stub, { found: save.stubCount, total: 12 });
@@ -2021,6 +2031,11 @@ function placeTape(scene, interaction, reader, save, id, position) {
 
   interaction.register({
     object: tv, reach: 2.4, label: 'Play the tape',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       save.recordCollectible('tape', id);
       screen.material.emissiveIntensity = 3;

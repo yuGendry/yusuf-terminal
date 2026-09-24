@@ -53,6 +53,7 @@ export function buildChapter1(ctx) {
     cellarKey: false,
     breakersOn: [false, false, false],
     boardSliders: [0, 0, 0, 0, 0, 0],
+    houseOpen: false,
     stageDoorOpen: false,
     chaseStarted: false,
     chaseDone: false,
@@ -646,6 +647,17 @@ export function buildChapter1(ctx) {
     object: maskProp,
     reach: 2.2,
     label: 'Take the porcelain mask',
+    // Gated on the torch, which is what the ticket window gives you.
+    //
+    // Without this the mask could be picked up on the way in, before the
+    // ticket window had been touched — which makes the chapter's first puzzle
+    // optional and its turning point an accident. The gate is the honest one
+    // rather than an invented lock: the lobby is pitch dark, the mask is
+    // white porcelain under a ledger, and you cannot find a thing you cannot
+    // see.
+    enabled: () => flashlight.owned,
+    disabledLabel: 'Something pale under the ledger — too dark to make out',
+    deniedMessage: 'There is something under the ledger. You would need a light to know what.',
     onUse: () => {
       mask.give();
       mask.unlockLens('threadlight');
@@ -665,9 +677,71 @@ export function buildChapter1(ctx) {
         // The cloakroom now comes first: the breaker that feeds the board is
         // in the cellar, and the cellar is locked.
         puzzles.activate('ch1-cloakroom');
+
+        // And the house opens. The chain is off, on the inside, which nobody
+        // did while the player was watching.
+        openHouse();
+        setTimeout(() => {
+          hud.say('Behind you, something heavy slides off a door and hits the carpet. The house is open.', { duration: 5.5 });
+        }, 7000);
       };
     },
   });
+
+  // ==========================================================================
+  // THE HOUSE DOORS
+  // ==========================================================================
+  //
+  // The lobby's north opening was a bare gap, so the whole intended order of
+  // the chapter was optional: you could walk straight past the ticket window,
+  // the package and the cloakroom, into the auditorium, and start throwing
+  // breakers. Everything downstream still worked, so nothing caught it — the
+  // chapter just quietly played itself in the wrong order, with the mask that
+  // is supposed to be its turning point picked up afterwards as a curiosity.
+  //
+  // The fix is the thing the chapter's own blurb already says: the doors were
+  // chained from the inside. They stay chained until the player has the mask,
+  // which is both the gate and the beat — and the line when they open is the
+  // other half of that blurb, which is that someone has walked through here
+  // recently.
+  //
+  // Two leaves. `kit.door` puts the hinge at x and extends the leaf toward
+  // local +x, so the right-hand leaf is turned by PI to swing the other way.
+  const HOUSE_DOOR_Z = -8;
+  const houseDoors = [
+    kit.door({
+      x: -1.7, z: HOUSE_DOOR_Z, width: 1.7, height: 3.2,
+      rotY: 0, locked: true, name: 'house-left',
+    }),
+    kit.door({
+      x: 1.7, z: HOUSE_DOOR_Z, width: 1.7, height: 3.2,
+      rotY: Math.PI, locked: true, name: 'house-right',
+    }),
+  ];
+
+  const openHouse = () => {
+    if (state.houseOpen) return;
+    state.houseOpen = true;
+    for (const d of houseDoors) {
+      d.unlock();
+      d.open();
+    }
+    audio?.doorOpen?.(new THREE.Vector3(0, 1.5, HOUSE_DOOR_Z));
+  };
+
+  for (const d of houseDoors) {
+    interaction.register({
+      object: d.object,
+      reach: 2.6,
+      label: () => (state.houseOpen
+        ? (d.isOpen ? 'Close' : 'Open')
+        : 'Chained shut'),
+      enabled: () => state.houseOpen,
+      disabledLabel: 'A chain and a padlock, on the inside',
+      deniedMessage: 'Chained from the inside, which is not how you chain a door you mean to come back through.',
+      onUse: () => d.toggle(),
+    });
+  }
 
   // ==========================================================================
   // HOUSE — the auditorium
@@ -1788,6 +1862,11 @@ function placeNote(kit, interaction, scene, reader, save, id, position, rotY = 0
     object: mesh,
     reach: 2.2,
     label: 'Read',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       reader.showNote(note);
       save.recordCollectible('note', id);
@@ -1826,6 +1905,11 @@ function placeStub(kit, interaction, scene, reader, save, id, position) {
     object: mesh,
     reach: 2.0,
     label: 'A ticket stub',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       const isNew = save.recordCollectible('stub', id);
       reader.showStub(stub, { found: save.stubCount, total: 12 });
@@ -1865,6 +1949,11 @@ function placeTape(kit, interaction, scene, reader, save, id, position) {
     object: tv,
     reach: 2.4,
     label: 'Play the tape',
+    // Collectibles are scattered on purpose and readable whenever you find
+    // them; they are never a puzzle step. Tagged so sequencecheck does not
+    // read "a note lying near the box-office counter" as the player having
+    // broken into the chapter's second puzzle.
+    collectible: true,
     onUse: () => {
       save.recordCollectible('tape', id);
       screen.material.emissiveIntensity = 3;
