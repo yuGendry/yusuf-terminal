@@ -382,7 +382,7 @@ function fresh(){return{
   match:null,spouse:null,textedDay:0,mission:null,ach:{},won:false,mealDay:0,uid:1,paint:'#b3202a',log:[],
   mode:'normal',guns:{},weapon:'fists',armor:0,god:false,policeOff:false,infAmmo:false,follow:false,fridgeT:-1e9,swipeH:-1};}
 const LOOKS={shirt:['#c0392b','#2e86de','#f5f5f5','#27ae60','#8e44ad','#f39c12','#e84393','#16a085','#d35400'],pants:['#2c3e50','#1b1b1b','#7f8c8d','#3b5b7a','#5a3d2b'],hair:['#1b1b1b','#3b2a1a','#6b4a2a','#d8b26a','#a0522d']};
-const randLook=()=>({skin:pick(SKINS),shirt:pick(LOOKS.shirt),pants:pick(LOOKS.pants),hair:pick(LOOKS.hair)});
+const randLook=()=>humanLook('f');
 const partner=()=>S.spouse||S.match;
 const MODE=()=>MODES[S.mode]||MODES.normal;
 const sandbox=()=>S.mode==='sandbox';
@@ -780,23 +780,91 @@ function makeJet(){const g=new THREE.Group(),w=std({color:0xf4f4f4,roughness:.4,
 /* =====================================================================
    CHARACTERS & CARS
    ===================================================================== */
-const SKINS=['#f1c9a5','#d9a47a','#b87c52','#8d5a3b','#5e3b27','#e8b894'];
+const SKINS=['#f3d2b3','#e8b894','#d9a47a','#c18a5e','#a36b43','#8d5a3b','#6b4128','#4e2e1c'];
+const HAIRC=['#16120f','#2b1d14','#4a2f1d','#6b4a2a','#8e4a25','#b5793a','#d8b26a','#e9d6a6','#7a7a7a'];
+const FEMALE=['Maya','Leila','Sofia','Amara','Elif','Jade','Zeynep','Priya','Inès','Camila','Yara','Aisha','Hana','Chloe','Nadia','Lucia','Emma','Selin'];
+const HMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,metalness:0});
+function humanLook(sex,extra){sex=sex||(Math.random()<.5?'m':'f');const f=sex==='f';
+  return Object.assign({sex,skin:pick(SKINS),hair:pick(HAIRC),eye:pick(['#3b2a1a','#2e5e8a','#3e6b3a','#5a3a1a']),
+    style:f?pick(['long','long','ponytail','bun','bob','curly','long']):pick(['short','short','buzz','bald','curly','short','slick']),
+    outfit:f?pick(['tee','dress','skirt','jacket','tank','dress','tee']):pick(['tee','tee','jacket','hoodie','suit','tank']),
+    shirt:pick(['#c0392b','#2e86de','#f2f2f0','#27ae60','#8e44ad','#f39c12','#e84393','#16a085','#d35400','#2c3e50','#1b1b1b','#f7d3da','#e8e0c8']),
+    pants:pick(['#2c3e50','#1b1b1b','#7f8c8d','#3b5b7a','#5a3d2b','#2e4a6b','#c8b89a']),shoes:pick(['#1a1a1a','#f2f2f2','#5a3d2b','#2c3e50','#8a1f2d']),
+    build:f?R(.85,1.2):R(.88,1.38),height:f?R(.92,1.02):R(.96,1.09),beard:!f&&Math.random()<.35},extra||{});}
+function mergeParts(parts){
+  const geos=parts.map(p=>p.g.index?p.g.toNonIndexed():p.g);let n=0;geos.forEach(g=>n+=g.attributes.position.count);
+  const pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=new Float32Array(n*3);let o=0;
+  geos.forEach((g,k)=>{const P_=g.attributes.position.array,cnt=g.attributes.position.count,pt=parts[k];pos.set(P_,o*3);nor.set(g.attributes.normal.array,o*3);
+    for(let i=0;i<cnt;i++){const c=pt.cfn?pt.cfn(P_[i*3+1],P_[i*3+2]):pt.c;col[(o+i)*3]=c.r;col[(o+i)*3+1]=c.g;col[(o+i)*3+2]=c.b;}o+=cnt;g.dispose();});
+  const out=new THREE.BufferGeometry();out.setAttribute('position',new THREE.BufferAttribute(pos,3));out.setAttribute('normal',new THREE.BufferAttribute(nor,3));out.setAttribute('color',new THREE.BufferAttribute(col,3));out.computeBoundingSphere();return out;}
 function makeHuman(o){
-  const g=new THREE.Group(),m=c=>new THREE.MeshStandardMaterial({color:c,roughness:.85});
-  const mk=(w,h,d,mat,x,y,z,parent=g)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);b.position.set(x,y,z);b.castShadow=!!o.shadow;parent.add(b);return b;};
-  const skin=m(o.skin),shirt=m(o.shirt),pants=m(o.pants),shoes=m('#1a1a1a'),hair=m(o.hair);
-  mk(.5,.6,.28,shirt,0,1.13,0);mk(.46,.2,.26,pants,0,.78,0);
-  mk(.28,.3,.28,skin,0,1.6,0);mk(.3,.1,.3,hair,0,1.78,0);mk(.3,.2,.06,hair,0,1.7,-.13);
-  const leg=x=>{const p=new THREE.Group();p.position.set(x,.76,0);g.add(p);mk(.2,.72,.22,pants,0,-.36,0,p);mk(.21,.1,.3,shoes,0,-.72,.04,p);return p;};
-  const arm=x=>{const p=new THREE.Group();p.position.set(x,1.38,0);g.add(p);mk(.14,.56,.16,shirt,0,-.26,0,p);mk(.12,.12,.12,skin,0,-.6,0,p);return p;};
-  g.userData={lL:leg(-.12),lR:leg(.12),aL:arm(-.33),aR:arm(.33),mats:{shirt,pants}};
+  o=Object.assign(humanLook(o&&o.sex||'m'),o||{});
+  const f=o.sex==='f',B=o.build,sB=Math.sqrt(B),C_=h=>new THREE.Color(h);
+  const skin=C_(o.skin),hair=C_(o.hair),top=C_(o.shirt),pants=C_(o.pants),shoes=C_(o.shoes),white=C_('#f6f4f0'),dark=C_('#15100c'),lips=C_(f?'#b8475a':'#8f564c'),skinD=skin.clone().multiplyScalar(.88),eye=C_(o.eye||'#3b2a1a');
+  const skirt=o.outfit==='dress'||o.outfit==='skirt',sleeve=o.outfit==='tank'?0:(o.outfit==='jacket'||o.outfit==='suit'||o.outfit==='hoodie')?2:1;
+  const bottom=o.outfit==='dress'?top:pants;
+  const sph=(r,sx,sy,sz,x,y,z,c,ws=14,hs=10)=>({g:new THREE.SphereGeometry(r,ws,hs).scale(sx,sy,sz).translate(x,y,z),c});
+  const shell=(r,ps,pl,ts,tl,sx,sy,sz,x,y,z,c)=>({g:new THREE.SphereGeometry(r,16,10,ps,pl,ts,tl).scale(sx,sy,sz).translate(x,y,z),c});
+  const bx=(w,h,d,x,y,z,c)=>({g:new THREE.BoxGeometry(w,h,d).translate(x,y,z),c});
+  const cap=(r1,r2,len,c,cfn)=>[{g:new THREE.CylinderGeometry(r1,r2,len,12,1,true).translate(0,-len/2,0),c,cfn},{g:new THREE.SphereGeometry(r1,12,6,0,Math.PI*2,0,Math.PI/2),c,cfn},{g:new THREE.SphereGeometry(r2,12,6,0,Math.PI*2,Math.PI/2,Math.PI/2).translate(0,-len,0),c,cfn}];
+  const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+  const mesh=(parts,parent,x,y,z)=>{const piv=new THREE.Group();piv.position.set(x,y,z);const m=new THREE.Mesh(mergeParts(parts),HMAT);m.castShadow=!!o.shadow;piv.add(m);parent.add(piv);return piv;};
+  // torso + head (one mesh)
+  const prof=f?[[0,.84],[.15,.85],[.19,.93],[.17,1.0],[.13,1.08],[.14,1.17],[.155,1.26],[.15,1.34],[.13,1.41],[.06,1.465],[0,1.47]]
+              :[[0,.84],[.15,.85],[.165,.93],[.16,1.0],[.155,1.08],[.17,1.18],[.19,1.28],[.197,1.36],[.172,1.43],[.07,1.485],[0,1.49]];
+  const lathe=new THREE.LatheGeometry(prof.map(([r,y])=>new THREE.Vector2(r,y)),20).scale(B,1,.64*(B>1.15?1.12:1));
+  const T_=[{g:lathe,cfn:y=>y<(skirt?.99:1.0)?bottom:top}];
+  if(f){T_.push(sph(.054,1,.9,.72,.062*B,1.255,.056,top),sph(.054,1,.9,.72,-.062*B,1.255,.056,top));}
+  if(B>1.18)T_.push(sph(.12*B,1.05,.9,.68,0,1.1,.03,top));
+  if(skirt)T_.push({g:new THREE.CylinderGeometry(.18*B,.27*B,o.outfit==='dress'?.4:.32,18,1,true).scale(1,1,.78).translate(0,o.outfit==='dress'?.8:.84,0),c:bottom});
+  if(o.outfit==='hoodie')T_.push(sph(.12,1.15,.55,.8,0,1.46,-.1,top));
+  if(o.outfit==='suit'){T_.push(bx(.07,.28,.01,0,1.3,.123,white),bx(.028,.24,.012,0,1.29,.128,C_('#7a1f2a')));}
+  if(o.outfit==='jacket')T_.push(bx(.08,.36,.01,0,1.24,.124,C_(o.shirt==='#f2f2f0'?'#2c3e50':'#f2f2f0')));
+  T_.push({g:new THREE.CylinderGeometry(f?.042:.05,f?.048:.056,.14,12).translate(0,1.52,0),c:skin});
+  const hy=f?1.645:1.665;
+  T_.push(sph(.11,.9,1.08,1,0,hy,0,skin,18,14),sph(f?.078:.086,1,.78,1,0,hy-.06,.022,skin),sph(.026,.45,1,.75,.1,hy,-.005,skin),sph(.026,.45,1,.75,-.1,hy,-.005,skin));
+  for(const sx of[-1,1]){T_.push(sph(.024,1,.7,.55,sx*.041,hy+.014,.093,white,10,8),sph(.013,1,1,.5,sx*.041,hy+.014,.104,eye,8,6),sph(.006,1,1,.5,sx*.041,hy+.014,.11,dark,6,4),bx(f?.042:.046,f?.007:.012,.012,sx*.042,hy+.046,.1,hair));
+    if(f)T_.push(bx(.042,.008,.01,sx*.041,hy+.028,.103,dark));}
+  T_.push(sph(.019,.8,1.2,1.15,0,hy-.012,.108,skinD,10,8),bx(f?.04:.046,f?.015:.011,.012,0,hy-.056,.098,lips));
+  const capG=(r,tl)=>shell(r,0,Math.PI*2,0,Math.PI*tl,.93,1.1,1.04,0,hy+.004,-.006,hair);
+  const backG=(r,tl,sy,dy=0)=>shell(r,Math.PI,Math.PI,0,Math.PI*tl,.95,sy,1.05,0,hy+.004+dy,-.008,hair);
+  switch(o.style){
+    case'short':T_.push(capG(.117,.36),backG(.117,.6,1.1));break;
+    case'slick':T_.push(capG(.116,.36),backG(.116,.58,1.1),sph(.045,1.7,.45,1,0,hy+.085,.05,hair));break;
+    case'buzz':T_.push(capG(.1135,.34),backG(.1135,.58,1.08));break;
+    case'curly':T_.push(shell(.138,0,Math.PI*2,0,Math.PI*.4,1,.95,1,0,hy+.02,-.012,hair),backG(.138,.62,1.05,.01));break;
+    case'long':T_.push(capG(.119,.4),backG(.124,.88,1.75,-.064),sph(.032,1,2.5,.8,.1,hy-.07,-.03,hair),sph(.032,1,2.5,.8,-.1,hy-.07,-.03,hair));break;
+    case'bob':T_.push(capG(.119,.4),backG(.126,.72,1.2,-.014));break;
+    case'ponytail':T_.push(capG(.118,.4),backG(.118,.6,1.1),sph(.045,1,2.6,1,0,hy-.06,-.15,hair));break;
+    case'bun':T_.push(capG(.118,.4),backG(.118,.6,1.1),sph(.058,1,1,1,0,hy+.1,-.1,hair));break;}
+  if(o.beard){const bc=skin.clone().lerp(hair,.8);T_.push(shell(.1155,0,Math.PI,Math.PI*.69,Math.PI*.27,.93,1.1,1.05,0,hy,0,bc),bx(.05,.012,.014,0,hy-.043,.104,bc));}
+  mesh(T_,body,0,0,0);
+  // arms
+  const shX=f?.162*sB:.205*sB,shY=f?1.4:1.42,ra=f?.043:.052;
+  const arm=sx=>{const up=cap(ra*sB,ra*.85*sB,.27,null,y=>sleeve===2||(sleeve===1&&y>-.14)?top:skin);const sh=mesh(up,body,sx*shX,shY,0);
+    const el=mesh([...cap(ra*.85*sB,ra*.7*sB,.24,sleeve===2?top:skin),sph(.04,.85,1.1,.7,0,-.29,.005,skin)],sh,0,-.29,0);sh.rotation.z=sx*.07;return[sh,el];};
+  const[aL,eL]=arm(-1),[aR,eR]=arm(1);
+  // legs
+  const leg=sx=>{const up=cap((f?.078:.085)*sB,.06*sB,.42,skirt?skin:pants);const hp=mesh(up,body,sx*(f?.088:.092)*sB,.9,0);
+    const kn=mesh([...cap(.058*sB,.045,.4,skirt?skin:pants),sph(.055,1,.72,1.9,0,-.43,.05,shoes)],hp,0,-.44,0);return[hp,kn];};
+  const[lL,kL]=leg(-1),[lR,kR]=leg(1);
+  g.scale.setScalar(o.height);
+  g.userData={lL,lR,kL,kR,aL,aR,eL,eR,body,look:o};
   return g;}
-function animHuman(h,ph,a){const s=Math.sin(ph)*a,u=h.userData;u.lL.rotation.x=s;u.lR.rotation.x=-s;u.aL.rotation.x=-s*.8;u.aR.rotation.x=s*.8;}
-function setOutfit(){if(!P.mesh)return;const u=P.mesh.userData.mats;
-  if(has('designer')){u.shirt.color.set('#8a1f2d');u.pants.color.set('#1a1c22')}
-  else if(has('suit')){u.shirt.color.set('#2a2f38');u.pants.color.set('#1d2027')}
-  else if(netWorth()>2000){u.shirt.color.set('#3b6ea5');u.pants.color.set('#2e3a4f')}
-  else{u.shirt.color.set('#6b5d4f');u.pants.color.set('#4a4238')}}
+function animHuman(h,ph,a){const u=h.userData,s=Math.sin(ph)*a;
+  u.lL.rotation.x=s;u.lR.rotation.x=-s;u.kL.rotation.x=.04+Math.max(0,Math.sin(ph-1.2))*a*1.25;u.kR.rotation.x=.04+Math.max(0,Math.sin(ph+Math.PI-1.2))*a*1.25;
+  u.aL.rotation.x=-s*.8;u.aR.rotation.x=s*.8;u.eL.rotation.x=-.18-a*.35;u.eR.rotation.x=-.18-a*.35;
+  u.body.position.y=Math.abs(Math.cos(ph))*a*.035;}
+function playerLook(){const L=S.plook||(S.plook={style:'short',hair:'#16120f',beard:true,skin:'#c18a5e'});let outfit,shirt,pants,shoes;
+  if(has('designer')){outfit='jacket';shirt='#8a1f2d';pants='#1a1c22';shoes='#f2f2f2';}
+  else if(has('suit')){outfit='suit';shirt='#262b33';pants='#1d2027';shoes='#111111';}
+  else if(netWorth()>2000){outfit='hoodie';shirt='#3b6ea5';pants='#2e3a4f';shoes='#f2f2f2';}
+  else{outfit='tee';shirt='#6b5d4f';pants='#4a4238';shoes='#3a2a1e';}
+  return{sex:'m',skin:L.skin,hair:L.hair,style:L.style,beard:L.beard,eye:'#3b2a1a',outfit,shirt,pants,shoes,build:1.06,height:1.02,shadow:true};}
+function setOutfit(){if(!P.mesh||!S)return;const look=playerLook(),key=JSON.stringify(look);if(key===P.lookKey)return;P.lookKey=key;
+  const old=P.mesh,m=makeHuman(look);m.position.copy(old.position);m.rotation.copy(old.rotation);m.visible=old.visible;scene.add(m);
+  const u=old.userData;if(u.gun){m.userData.aR.add(u.gun);m.userData.gun=u.gun;m.userData.gunMesh=u.gunMesh;m.userData.gunTip=u.gunTip;}
+  P.mesh=m;scene.remove(old);old.traverse(x=>{if(x.geometry)x.geometry.dispose();});}
 
 const CT={
   beater:{L:4.3,Wd:1.8,H:.6,cab:[1.6,.55,2.1,-.2],max:24,acc:6,turn:2.0,name:'Rusty sedan'},
@@ -811,23 +879,38 @@ const CT={
   hyper:{L:4.7,Wd:2.1,H:.42,cab:[1.45,.38,1.6,-.25],max:82,acc:27,turn:2.8,name:'Hypercar',spoiler:true},
   police:{L:4.6,Wd:1.95,H:.62,cab:[1.72,.55,2.3,-.2],max:48,acc:15,turn:2.4,name:'Police cruiser',police:true},
 };
-const wheelGeo=new THREE.CylinderGeometry(.38,.38,.3,14),rimGeo=new THREE.CylinderGeometry(.22,.22,.32,8);
+const wheelGeo=new THREE.CylinderGeometry(.38,.38,.28,20),rimGeo=new THREE.CylinderGeometry(.24,.24,.3,12);
+const CARGEO={};
+function carGeo(type){if(CARGEO[type])return CARGEO[type];
+  const t=CT[type],hl=t.L/2,base=.3,belt=.3+t.H,c=t.cab,roof=belt+c[1],cabF=c[3]+c[2]/2,cabR=c[3]-c[2]/2;
+  const ext=(sh,w,bv)=>{const g=new THREE.ExtrudeGeometry(sh,{depth:Math.max(.05,w-2*bv),bevelEnabled:bv>0,bevelThickness:bv,bevelSize:bv,bevelSegments:3,curveSegments:10});g.translate(0,0,-Math.max(.05,w-2*bv)/2);g.rotateY(-Math.PI/2);return g;};
+  const body=new THREE.Shape(),gh=new THREE.Shape(),rf=new THREE.Shape();
+  if(t.van){body.moveTo(-hl,base);body.lineTo(-hl,belt);body.lineTo(hl-.55,belt);body.quadraticCurveTo(hl-.1,belt-.1,hl,belt-.6);body.lineTo(hl,base);
+    gh.moveTo(hl-.62,belt-.06);gh.lineTo(hl-.5,belt+.02);gh.lineTo(hl+.04,belt-.58);gh.lineTo(hl-.06,belt-.64);
+    rf.moveTo(-hl+.5,belt-.62);rf.lineTo(hl-.9,belt-.62);rf.lineTo(hl-.9,belt-.28);rf.lineTo(-hl+.5,belt-.28);}
+  else{body.moveTo(-hl+.08,base);body.lineTo(-hl,belt-.16);body.quadraticCurveTo(-hl+.02,belt,-hl+.2,belt);body.lineTo(hl-.6,belt-.02);body.quadraticCurveTo(hl-.06,belt-.06,hl,belt-.24);body.lineTo(hl-.03,base);
+    gh.moveTo(cabR-.38,belt-.02);gh.quadraticCurveTo(cabR-.05,roof-.02,cabR+.18,roof);gh.lineTo(cabF-.22,roof);gh.quadraticCurveTo(cabF+.1,roof-.05,cabF+.5,belt-.02);
+    rf.moveTo(cabR+.12,roof-.02);rf.lineTo(cabF-.18,roof-.02);rf.lineTo(cabF-.24,roof+.05);rf.lineTo(cabR+.2,roof+.05);}
+  return CARGEO[type]={body:ext(body,t.Wd,.07),glass:ext(gh,t.van?t.Wd-.1:c[0],.035),roof:t.van?ext(rf,t.Wd+.02,0):ext(rf,c[0]+.01,.02),roofY:t.van?belt:roof+.05,belt};}
 function makeCar(type,color){
-  const t=CT[type],g=new THREE.Group();
-  const paint=std({color:new THREE.Color(color),roughness:.28,metalness:.55});
-  const B=(w,h,d,mat,x,y,z)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);b.position.set(x,y,z);b.castShadow=true;b.receiveShadow=true;g.add(b);return b;};
-  const by=.3+t.H/2;B(t.Wd,t.H,t.L,paint,0,by,0);B(t.Wd+.04,.16,t.L+.06,M.dark,0,.34,0);
-  if(t.van){B(t.cab[0],t.cab[1],.1,M.glassDark,0,.3+t.H-.4,t.L/2+.01);B(t.Wd+.02,.4,2.4,M.glassDark,0,.3+t.H-.35,.2);}
-  else{const c=t.cab;B(c[0],c[1],c[2],M.glassDark,0,.3+t.H+c[1]/2,c[3]);B(c[0]-.06,.07,c[2]*.72,paint,0,.3+t.H+c[1]+.02,c[3]-.08);}
-  if(t.bed){B(.1,.4,2.3,paint,t.Wd/2-.05,.3+t.H+.2,-1.35);B(.1,.4,2.3,paint,-t.Wd/2+.05,.3+t.H+.2,-1.35);B(t.Wd,.4,.1,paint,0,.3+t.H+.2,-2.55);}
-  if(t.spoiler){B(t.Wd*.9,.06,.5,M.dark,0,.3+t.H+.35,-t.L/2+.3);B(.08,.3,.2,M.dark,.6,.3+t.H+.18,-t.L/2+.35);B(.08,.3,.2,M.dark,-.6,.3+t.H+.18,-t.L/2+.35);}
-  const hy=.3+t.H*.62;for(const s of[-1,1]){B(.42,.15,.06,M.head,s*(t.Wd/2-.3),hy,t.L/2+.01);B(.42,.14,.06,M.tail,s*(t.Wd/2-.3),hy,-t.L/2-.01);}
+  const t=CT[type],g=new THREE.Group(),G_=carGeo(type),hl=t.L/2;
+  const paint=std({color:new THREE.Color(color),roughness:.22,metalness:.6});
+  const add_=(geo,mat)=>{const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;};
+  add_(G_.body,paint);add_(G_.glass,M.glassDark);add_(G_.roof,t.van?M.glassDark:paint);
+  const B=(w,h,d,mat,x,y,z)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);b.position.set(x,y,z);b.castShadow=true;g.add(b);return b;};
+  const belt=G_.belt,top=G_.roofY;
+  B(t.Wd+.03,.17,t.L+.16,M.dark,0,.37,0);
+  if(!t.van&&type!=='super'&&type!=='hyper')B(t.Wd*.46,.13,.03,M.dark,0,belt-.3,hl+.07);
+  if(t.bed){B(.08,.34,2.3,paint,t.Wd/2-.08,belt+.17,-1.35);B(.08,.34,2.3,paint,-t.Wd/2+.08,belt+.17,-1.35);B(t.Wd-.1,.34,.08,paint,0,belt+.17,-2.52);}
+  if(t.spoiler){B(t.Wd*.9,.05,.45,M.dark,0,belt+.33,-hl+.28);B(.07,.3,.18,M.dark,.6,belt+.16,-hl+.32);B(.07,.3,.18,M.dark,-.6,belt+.16,-hl+.32);}
+  if(!t.van)for(const s of[-1,1])B(.16,.08,.1,paint,s*(t.Wd/2+.07),belt+.14,t.cab[3]+t.cab[2]/2+.3);
+  const hy=belt-.14;for(const s of[-1,1]){B(.4,.13,.05,M.head,s*(t.Wd/2-.3),hy,hl+.07);B(.42,.12,.05,M.tail,s*(t.Wd/2-.28),hy+.02,-hl-.07);}
   let lights=null;
-  if(t.police){B(t.Wd+.02,t.H*.5,t.L*.42,M.white,0,by-.02,0);
+  if(t.police){for(const s of[-1,1])B(.02,t.H*.5,t.L*.42,M.white,s*(t.Wd/2+.075),.3+t.H*.45,0);
     const r=new THREE.MeshStandardMaterial({color:0x550000,emissive:0xff0000,emissiveIntensity:0}),bl=new THREE.MeshStandardMaterial({color:0x000055,emissive:0x1e5bff,emissiveIntensity:0});
-    const y=.3+t.H+t.cab[1]+.14;B(.6,.16,.3,r,-.35,y,t.cab[3]);B(.6,.16,.3,bl,.35,y,t.cab[3]);lights=[r,bl];}
-  if(t.taxi){const s=new THREE.MeshStandardMaterial({color:0xfff2b0,emissive:0xffd23a,emissiveIntensity:.6});B(.7,.2,.3,s,0,.3+t.H+t.cab[1]+.12,t.cab[3]);}
-  const wheels=[];for(const[sx,sz]of[[1,1],[-1,1],[1,-1],[-1,-1]]){const piv=new THREE.Group();piv.position.set(sx*(t.Wd/2-.08),.38,sz*(t.L/2-.85));g.add(piv);
+    B(.6,.14,.28,r,-.34,top+.07,t.cab[3]);B(.6,.14,.28,bl,.34,top+.07,t.cab[3]);B(1.3,.05,.32,M.dark,0,top+.01,t.cab[3]);lights=[r,bl];}
+  if(t.taxi){const sm=new THREE.MeshStandardMaterial({color:0xfff2b0,emissive:0xffd23a,emissiveIntensity:.6});B(.7,.2,.3,sm,0,top+.1,t.cab[3]);}
+  const wheels=[];for(const[sx,sz]of[[1,1],[-1,1],[1,-1],[-1,-1]]){const piv=new THREE.Group();piv.position.set(sx*(t.Wd/2-.06),.38,sz*(t.L/2-.85));g.add(piv);
     const w=new THREE.Mesh(wheelGeo,M.tire);w.rotation.order='ZYX';w.rotation.z=Math.PI/2;w.castShadow=true;piv.add(w);const rim=new THREE.Mesh(rimGeo,M.rim);w.add(rim);wheels.push({piv,w,front:sz>0});}
   g.userData={wheels,lights,paint};return g;}
 function spawnCar(type,color,x,z,h,owner){
@@ -856,7 +939,7 @@ function spawnParked(){for(let k=0;k<40;k++){const i=RI(0,N-1),j=RI(0,N-1),side=
   if(side===0){x=bCen(i)+t;z=bMin(j)-o;h=Math.PI/2}else if(side===1){x=bCen(i)+t;z=bMin(j)+BLOCK+o;h=-Math.PI/2}else if(side===2){x=bMin(i)-o;z=bCen(j)+t;h=0}else{x=bMin(i)+BLOCK+o;z=bCen(j)+t;h=Math.PI}
   spawnCar(pick(['sedan','hatch','pickup','lux','beater','sport','van']),pick(TRAFFIC_COLORS),x,z,h,'parked');}}
 function spawnPeds(){W.peds.forEach(p=>scene.remove(p.mesh));W.peds=[];
-  for(let k=0;k<38;k++){const mesh=makeHuman({skin:pick(SKINS),shirt:pick(['#c0392b','#2e86de','#f5f5f5','#27ae60','#8e44ad','#f39c12','#34495e','#e84393','#1b1b1b','#16a085']),pants:pick(['#2c3e50','#34495e','#1b1b1b','#7f8c8d','#3b5b7a']),hair:pick(['#1b1b1b','#3b2a1a','#6b4a2a','#d8b26a','#999'])});
+  for(let k=0;k<38;k++){const mesh=makeHuman(humanLook());
     scene.add(mesh);const p={mesh,i:0,j:0,s:0,dir:1,speed:R(1.1,1.7),state:'walk',vel:new V3(),t:0,ph:Math.random()*6};placePed(p,true);W.peds.push(p);}}
 function placePed(p,anywhere){for(let k=0;k<40;k++){const i=RI(0,N-1),j=RI(0,N-1);const A_=P.pos?anchor():null,d=A_?Math.hypot(bCen(i)-A_.x,bCen(j)-A_.z):0;if(anywhere&&!P.pos||(d<150&&d>40)||anywhere&&d<220){p.i=i;p.j=j;break;}}
   p.s=R(0,4*(BLOCK-3.6));p.dir=Math.random()<.5?1:-1;p.state='walk';p.mesh.rotation.set(0,0,0);p.hp=100;p.dead=false;p.panic=0;p.hold=0;p.buyer=Math.random()<.3;p.offered=false;p.want=0;}
@@ -1190,8 +1273,8 @@ function updatePlayer(dt){
   P.vy-=18*dt;P.pos.y+=P.vy*dt;if(P.pos.y<=gy){P.pos.y=gy;P.vy=0;P.onGround=true}
   const armed=!!GUNS[S.weapon];if(armed)P.h=turnToward(P.h,cam.yaw,16*dt);
   const sp=Math.hypot(P.vx,P.vz);P.phase+=dt*sp*2.4;animHuman(P.mesh,P.phase,sp>.3?Math.min(.95,sp*.13):0);
-  const u=P.mesh.userData;if(armed){const a=-Math.PI/2+clamp(cam.pitch-.12,-.6,.9);u.aR.rotation.x=a;if(S.weapon!=='pistol')u.aL.rotation.x=a+.15;}
-  if(W.punchT>0){W.punchT-=dt;u.aR.rotation.x=-1.6;}
+  const u=P.mesh.userData;if(armed){const a=-Math.PI/2+clamp(cam.pitch-.12,-.6,.9);u.aR.rotation.x=a;u.eR.rotation.x=0;if(S.weapon!=='pistol'){u.aL.rotation.x=a+.15;u.eL.rotation.x=-.35;}}
+  if(W.punchT>0){W.punchT-=dt;u.aR.rotation.x=-1.6;u.eR.rotation.x=0;}
   W.fireCD=(W.fireCD||0)-dt;if(W.firing&&W.fireCD<=0){if(armed)fire();else{punch();W.firing=false;}}
   P.mesh.position.copy(P.pos);P.mesh.rotation.y=P.h;
 }
@@ -1418,7 +1501,7 @@ function useSpot(id){
    ===================================================================== */
 function ensurePartnerNPC(){const pt=partner();
   if(!pt){if(W.pnpc){scene.remove(W.pnpc.mesh);W.pnpc=null;}S.follow=false;return;}
-  if(!pt.look)pt.look=randLook();
+  if(!pt.look||!pt.look.sex)pt.look=randLook();
   if(!W.pnpc||W.pnpc.name!==pt.name){if(W.pnpc)scene.remove(W.pnpc.mesh);const mesh=makeHuman({...pt.look,shadow:true});scene.add(mesh);W.pnpc={mesh,name:pt.name,pos:new V3(),h:0,ph:0,where:null,wander:null,wait:0};}}
 function updatePartner(dt){
   ensurePartnerNPC();const n=W.pnpc;if(!n)return;
@@ -1641,7 +1724,7 @@ A.pTalk=()=>{const pt=partner();W.talkT=T;pt.love=Math.min(S.spouse?100:120,pt.l
 A.pKiss=()=>{const pt=partner();W.kissT=T;pt.love=Math.min(S.spouse?100:120,pt.love+4);toast(`${pt.name} smiles.`,'good');};
 A.pFollow=()=>{S.follow=!S.follow;const pt=partner();toast(S.follow?`${pt.name} is with you now.`:`${pt.name} heads home.`,'info');if(UI.menu!=='phone')closeMenu();};
 A.swipe=()=>{S.swipeH=Math.floor(S.t/60);const p=.15+S.sk.charm/300+(hasAddress()?.1:0)+(ownsCar()?.05:0);
-  if(Math.random()<p){S.match={name:pick(NAMES),love:10,look:randLook()};toast(`Matched with ${S.match.name}! Meet them at Club Neon after 8 PM, or ask them to come find you.`,'good');}else toast('No matches this time.','info');};
+  if(Math.random()<p){S.match={name:pick(FEMALE),love:10,look:randLook()};toast(`Matched with ${S.match.name}! Meet them at Club Neon after 8 PM, or ask them to come find you.`,'good');}else toast('No matches this time.','info');};
 A.buyGun=k=>{const g=GUNS[k],c=P$(g.price);if(total()<c)return;pay(c);S.guns[k]=g.ammo;selectWeapon(k);toast(`Bought a ${g.name.toLowerCase()}. Press ${WEAPON_ORDER.indexOf(k)+1} to switch to it.`,'good');};
 A.buyAmmo=k=>{const g=GUNS[k],c=P$(g.ammoPrice);if(total()<c)return;pay(c);S.guns[k]=(S.guns[k]||0)+g.ammo;toast(`+${g.ammo} rounds.`,'info');};
 A.buyArmor=()=>{const c=P$(600);if(total()<c)return;pay(c);S.armor=100;toast('Body armor on.','good');};
@@ -1688,7 +1771,7 @@ A.workshop=()=>timed(2,'Job workshop…',()=>{addSk('biz',1);toast('Picked up a 
 A.speak=()=>{const c=P$(200);if(total()<c)return;pay(c);timed(2,'Public speaking…',()=>{addSk('charm',3);toast('More confident already.','info')});};
 A.course=()=>{const c=P$(600);if(total()<c)return;pay(c);timed(4,'Night school…',()=>{addSk('biz',4.5);toast('Course complete. Business up.','good')});};
 A.cut=()=>{const c=P$(25);if(total()<c)return;pay(c);timed(.5,'',()=>{addSk('charm',1);toast('Fresh cut.','info')});};
-A.makeover=()=>{const c=P$(250);if(total()<c)return;pay(c);timed(2,'Makeover…',()=>{addSk('charm',4);toast('You look like money.','good')});};
+A.makeover=()=>{const c=P$(250);if(total()<c)return;pay(c);timed(2,'Makeover…',()=>{addSk('charm',4);const L=S.plook||(S.plook={style:'short',hair:'#16120f',beard:true,skin:'#c18a5e'});const cur=L.style;L.style=pick(['short','buzz','curly','slick','bald'].filter(x=>x!==cur));L.beard=Math.random()<.6;P.lookKey=null;setOutfit();toast('New look. You look like money.','good')});};
 A.rent=k=>{const r=RENTALS[+k];S.rent={name:r.name,daily:r.daily,comfort:r.comfort,country:S.country};toast(`Signed a lease: ${r.name}. ${money(P$(r.daily))} a night.`,'good');refreshMarkers();};
 A.endRent=()=>{S.rent=null;toast('Lease ended.','info');refreshMarkers();};
 A.heal=()=>{const c=P$(180);if(total()<c)return;pay(c);timed(2,'Treatment…',()=>{S.health=100;toast('Patched up. Health full.','good')});};
@@ -1717,7 +1800,7 @@ A.buyHome=id=>{const h=HOMES.find(x=>x.id===id),c=P$(h.price);if(total()<c||S.pr
 A.rentOut=uid=>{const p=S.props.find(x=>x.uid==uid);p.rented=!p.rented;toast(p.rented?'Tenants move in tomorrow.':'Tenants moved out.','info');refreshMarkers();};
 A.sellHome=uid=>{const p=S.props.find(x=>x.uid==uid);const v=Math.round(p.value*.94);S.bank+=v;S.props=S.props.filter(x=>x!==p);toast(`Sold for ${money(v)}.`,'money');refreshMarkers();};
 A.mingle=()=>{const c=P$(40);if(total()<c)return;pay(c);timed(1,'Mingling…',()=>{const p=.2+S.sk.charm/220+(hasAddress()?.15:0)+(ownsCar()?.08:0)+(has('designer')?.1:0);
-  if(Math.random()<p){S.match={name:pick(NAMES),love:12,look:randLook()};toast(`You hit it off with ${S.match.name}.`,'good')}else toast('Nobody bit tonight.','bad')});};
+  if(Math.random()<p){S.match={name:pick(FEMALE),love:12,look:randLook()};toast(`You hit it off with ${S.match.name}.`,'good')}else toast('Nobody bit tonight.','bad')});};
 const DATES={dinner:{c:120,h:2,love:[10,18]},club:{c:300,h:3,love:[14,22]},trip:{c:2500,h:24,love:[24,34]}};
 A.date=k=>{const d=DATES[k],c=P$(d.c),pt=partner();if(total()<c||!pt)return;pay(c);timed(d.h,'On a date…',()=>{const g=Math.round(R(...d.love)*(1+S.sk.charm/200)*(hasAddress()?1:.6));pt.love=Math.min(S.spouse?100:120,pt.love+g);toast(`${pt.name} had a great time (+${g} love).`,'good')});};
 A.nightOut=()=>{const c=P$(300);if(total()<c)return;pay(c);timed(3,'Night out…',()=>{S.spouse.love=Math.min(100,S.spouse.love+15);toast('Great night.','good')});};
@@ -1839,7 +1922,7 @@ async function boot(){
   try{await Promise.race([document.fonts.load('900 64px "Big Shoulders Display"'),new Promise(r=>setTimeout(r,2500))]);}catch(e){}
   makeTextures();makeMats();beam=makeBeam();
   W.spot=new THREE.SpotLight(0xfff1d6,0,70,.5,.6,1.2);scene.add(W.spot);scene.add(W.spot.target);
-  P.mesh=makeHuman({skin:'#b87c52',shirt:'#6b5d4f',pants:'#4a4238',hair:'#1b1b1b',shadow:true});scene.add(P.mesh);
+  P.mesh=makeHuman(humanLook('m',{shadow:true}));scene.add(P.mesh);
   {const u=P.mesh.userData,gun=new THREE.Group(),gm=new THREE.Mesh(new THREE.BoxGeometry(.08,1,.12),new THREE.MeshStandardMaterial({color:0x1b1d21,roughness:.45,metalness:.6})),tip=new THREE.Object3D();
    gm.castShadow=true;gun.add(gm);gun.add(tip);u.aR.add(gun);u.gun=gun;u.gunMesh=gm;u.gunTip=tip;gun.visible=false;}
   W.muzzle=new THREE.PointLight(0xffc070,0,14,2);scene.add(W.muzzle);W.roomL=new THREE.PointLight(0xfff0d8,0,28,1.3);scene.add(W.roomL);W.boomL=new THREE.PointLight(0xff8a3d,0,50,2);scene.add(W.boomL);
