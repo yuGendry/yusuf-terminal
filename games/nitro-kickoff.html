@@ -218,6 +218,7 @@
   .tbtn.small { width: 48px; height: 48px; font-size: 16px; }
   .tbtn.boost { background: rgba(255, 138, 31, 0.22); border-color: var(--orange); }
   .tbtn.jump { background: rgba(58, 160, 255, 0.22); border-color: var(--blue); }
+  .tbtn.air { background: rgba(255, 210, 63, 0.2); border-color: var(--gold); }
   .tbtn.on { filter: brightness(1.8); }
 
   @media (prefers-reduced-motion: reduce) {
@@ -243,6 +244,7 @@
     <div class="grp">
       <button class="tbtn boost" data-k="boost" type="button">BOOST</button>
       <button class="tbtn jump" data-k="jump" type="button">JUMP</button>
+      <button class="tbtn air" data-k="aerial" type="button" aria-label="Auto aerial">AIR</button>
     </div>
   </div>
 </div>
@@ -276,6 +278,7 @@
           <dt><kbd>Space</kbd></dt><dd>Jump, press again to flip</dd>
           <dt><kbd>Shift</kbd></dt><dd>Boost</dd>
           <dt><kbd>W</kbd> <kbd>S</kbd></dt><dd>Tilt the car in the air</dd>
+          <dt><kbd>E</kbd></dt><dd>Auto aerial: jumps and flies at the ball for you</dd>
         </dl>
       </div>
       <div id="p2Box" hidden>
@@ -285,6 +288,7 @@
           <dt><kbd>Enter</kbd></dt><dd>Jump, press again to flip</dd>
           <dt><kbd>R-Shift</kbd></dt><dd>Boost</dd>
           <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Tilt the car in the air</dd>
+          <dt><kbd>.</kbd></dt><dd>Auto aerial</dd>
         </dl>
       </div>
     </div>
@@ -329,7 +333,7 @@
   const CHW = 40, CHH = 15;            // car half size
   const G_BALL = 1250, G_CAR = 1700;
   const MAX_DRIVE = 560, MAX_SPEED = 1000;
-  const DRIVE_ACC = 1500, BOOST_ACC = 1750;
+  const DRIVE_ACC = 1500, BOOST_ACC = 1750, BOOST_AIR = 2500;   // air boost beats gravity so aerials work
   const MATCH_TIME = 180;
   const TEAM = [
     { name: 'Blue', color: '#3aa0ff', dark: '#1a4f8f', light: '#9ed2ff' },
@@ -366,6 +370,7 @@
     return {
       team, x: 0, y: 0, vx: 0, vy: 0, a: 0, boost: 33,
       onSurf: true, nx: 0, ny: -1, face: 1, s: 1, airT: 0,
+      auto: null, prevAerial: false, touches: 0,
       canFlip: false, flipWindow: 0, flipT: 0, flipDir: 0, hitCd: 0,
       prevJump: false, boosting: false, wheel: 0, aiPause: 0,
     };
@@ -377,7 +382,7 @@
     c.face = c.team === 0 ? 1 : -1;
     c.onSurf = true; c.canFlip = false; c.flipT = 0;
     alignToSurface(c, 0, -1);
-    c.boost = 33; c.boosting = false;
+    c.boost = 33; c.boosting = false; c.auto = null;
   }
   function kickoff() {
     cars.forEach(spawnCar);
@@ -522,20 +527,22 @@
 
   // ---------- Input ----------
   const keys = new Set();
+  const taps = new Set();   // keys pressed since the last frame, so quick taps are never missed
   const BIND_SOLO = {
     left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'],
-    jump: ['Space', 'KeyK', 'Enter'], boost: ['ShiftLeft', 'ShiftRight', 'KeyJ'],
+    jump: ['Space', 'KeyK', 'Enter'], boost: ['ShiftLeft', 'ShiftRight', 'KeyJ'], aerial: ['KeyE', 'KeyL'],
   };
-  const BIND_P1 = { left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'], jump: ['Space'], boost: ['ShiftLeft'] };
+  const BIND_P1 = { left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'], jump: ['Space'], boost: ['ShiftLeft'], aerial: ['KeyE'] };
   const BIND_P2 = {
     left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
     jump: ['Enter', 'NumpadEnter', 'Numpad0'], boost: ['ShiftRight', 'Slash', 'ControlRight'],
+    aerial: ['Period', 'Numpad1'],
   };
   const GAME_KEYS = new Set(['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter']);
 
   function readKeys(bind, withTouch) {
     const o = {};
-    for (const k in bind) o[k] = bind[k].some((c) => keys.has(c)) || (withTouch && keys.has('T_' + k));
+    for (const k in bind) o[k] = bind[k].some((c) => keys.has(c) || taps.has(c)) || (withTouch && (keys.has('T_' + k) || taps.has('T_' + k)));
     return o;
   }
   const overlayOpen = () => !$('menu').hidden || !$('pauseMenu').hidden || !$('overMenu').hidden;
@@ -547,7 +554,7 @@
     if (e.code === 'KeyM') { toggleMute(); return; }
     if (overlayOpen()) return;
     if (GAME_KEYS.has(e.code)) e.preventDefault();
-    keys.add(e.code);
+    keys.add(e.code); taps.add(e.code);
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
@@ -555,7 +562,7 @@
 
   touchPad.querySelectorAll('.tbtn').forEach((b) => {
     const k = 'T_' + b.dataset.k;
-    const on = (e) => { e.preventDefault(); audio(); keys.add(k); b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
+    const on = (e) => { e.preventDefault(); audio(); keys.add(k); taps.add(k); b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
     const off = () => { keys.delete(k); b.classList.remove('on'); };
     b.addEventListener('pointerdown', on);
     b.addEventListener('pointerup', off);
@@ -761,7 +768,8 @@
     if (inp.boost && c.boost > 0) {
       let hx = Math.cos(c.a), hy = Math.sin(c.a);
       if (c.flipT > 0) { hx = faceOf(c); hy = 0; }
-      c.vx += hx * BOOST_ACC * dt; c.vy += hy * BOOST_ACC * dt;
+      const acc = c.onSurf ? BOOST_ACC : BOOST_AIR;
+      c.vx += hx * acc * dt; c.vy += hy * acc * dt;
       c.boost = Math.max(0, c.boost - 34 * dt);
       c.boosting = true;
       if (Math.random() < 0.25) {
@@ -875,6 +883,7 @@
         burst(ball.x - nx * BR, ball.y - ny * BR, '#ffffff', 3 + amt * 5, 200, 0.25, 2.5);
       }
       ball.lastTouch = c.team;
+      c.touches++;
     }
     const s = Math.hypot(ball.vx, ball.vy);
     if (s > 1700) { ball.vx *= 1700 / s; ball.vy *= 1700 / s; }
@@ -1065,15 +1074,64 @@
   $('pauseBtn').addEventListener('click', () => (S.state === 'paused' ? resume() : pause()));
 
   // ---------- Main loop ----------
-  function inputs() {
+  function inputs(dt) {
     if (S.state === 'menu') return [botInput(cars[0], 0.6), botInput(cars[1], 0.6)];
-    if (S.mode === '2p') return [readKeys(BIND_P1, true), readKeys(BIND_P2, false)];
-    return [readKeys(BIND_SOLO, true), botInput(cars[1], SKILL[S.diff])];
+    if (S.mode === '2p') return [pilot(cars[0], readKeys(BIND_P1, true), dt), pilot(cars[1], readKeys(BIND_P2, false), dt)];
+    return [pilot(cars[0], readKeys(BIND_SOLO, true), dt), botInput(cars[1], SKILL[S.diff])];
+  }
+
+  // ---------- Auto aerial ----------
+  // One press: jump, double jump, then steer the nose at where the ball is
+  // going and boost into it. Ends on a touch, on landing, after 2.5 s, or on
+  // a second press.
+  function pilot(c, inp, dt) {
+    const press = inp.aerial && !c.prevAerial;
+    c.prevAerial = inp.aerial;
+    if (press) {
+      if (c.auto) c.auto = null;
+      else if (S.state === 'play' && ball.alive) {
+        c.auto = { t: 0, phase: c.onSurf ? 'jump' : c.canFlip ? 'release' : 'fly', touches: c.touches };
+      }
+    }
+    const A = c.auto;
+    if (!A) return inp;
+    A.t += dt;
+    const done = !ball.alive || S.state !== 'play' || A.t > 2.5 ||
+      c.touches > A.touches || (A.phase === 'fly' && c.onSurf && A.t > 0.3);
+    if (done) { c.auto = null; return inp; }
+
+    const out = { left: false, right: false, up: false, down: false, jump: false, boost: false, aerial: inp.aerial };
+    if (A.phase === 'jump') {
+      if (c.onSurf) out.jump = !c.prevJump;
+      else A.phase = 'release';
+    } else if (A.phase === 'release') {
+      A.phase = c.canFlip && ball.y < c.y - 220 ? 'double' : 'fly';
+    } else if (A.phase === 'double') {
+      out.jump = true;
+      A.phase = 'fly';
+    }
+    if (!c.onSurf) {
+      // Predict where the ball will be, from the side away from the goal we attack,
+      // then work out the thrust that gets the car there given its own speed and gravity.
+      const dist = Math.hypot(ball.x - c.x, ball.y - c.y);
+      const T = clamp(dist / 850, 0.15, 1.0);
+      const atk = c.team === 0 ? 1 : -1;
+      const tx = clamp(ball.x + ball.vx * T, FL + BR, FR - BR) - atk * 22;
+      const ty = clamp(ball.y + ball.vy * T + 0.5 * G_BALL * T * T, CEIL + BR, GROUND - BR) + 12;
+      const ax = 2 * (tx - c.x - c.vx * T) / (T * T);
+      const ay = 2 * (ty - c.y - c.vy * T) / (T * T) - G_CAR;
+      const want = Math.atan2(ay, ax);
+      const diff = Math.atan2(Math.sin(want - c.a), Math.cos(want - c.a));
+      if (Math.abs(diff) > 0.08) { const pitch = -Math.sign(diff) * c.s; out.up = pitch > 0; out.down = pitch < 0; }
+      out.boost = A.phase === 'fly' && Math.abs(diff) < 0.5 && Math.hypot(ax, ay) > 300 && c.boost > 0;
+    }
+    return out;
   }
 
   function step(dt) {
     if (S.state === 'paused' || S.state === 'over') { tickFx(dt); return; }
-    const inp = inputs();
+    const inp = inputs(dt);
+    taps.clear();
     let frozen = false;
 
     if (S.state === 'countdown' || (S.state === 'menu' && S.countdown > 0)) {
@@ -1324,6 +1382,11 @@
     ctx.textAlign = 'center';
     ctx.fillStyle = t.color;
     ctx.fillText(label, c.x, c.y - 42);
+    if (c.auto) {
+      ctx.font = '700 11px "Chakra Petch", sans-serif';
+      ctx.fillStyle = '#ffd23f';
+      ctx.fillText('AUTO AERIAL', c.x, c.y - 56);
+    }
     ctx.restore();
   }
 
