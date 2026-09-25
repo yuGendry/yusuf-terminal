@@ -1,0 +1,795 @@
+<title>Loadout</title>
+<meta name="description" content="Look up any game or app instantly, read the review, and see our best pick for every theme.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #e4e8f1;
+    --ink: #12162a;
+    --ink-2: #4a5270;
+    --ink-3: #737b98;
+    --line: #d4d9e6;
+    --accent: #2b44e8;
+    --accent-soft: #dfe4ff;
+    --accent-ink: #ffffff;
+    --gold: #d98d0c;
+    --good: #1c8656;
+    --good-soft: #d8f1e4;
+    --bad: #c2413a;
+    --scrim: rgba(18, 22, 42, .45);
+    --shadow: 0 1px 2px rgba(18, 22, 42, .06), 0 8px 24px rgba(18, 22, 42, .08);
+    --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e1120;
+      --surface: #171b2e;
+      --surface-2: #21263d;
+      --ink: #e8ebf7;
+      --ink-2: #a2a9c6;
+      --ink-3: #7c84a3;
+      --line: #2b3150;
+      --accent: #8898ff;
+      --accent-soft: #252c55;
+      --accent-ink: #0e1120;
+      --gold: #f2b544;
+      --good: #4cc28a;
+      --good-soft: #173628;
+      --bad: #f07a72;
+      --scrim: rgba(4, 6, 14, .6);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e1120;
+    --surface: #171b2e;
+    --surface-2: #21263d;
+    --ink: #e8ebf7;
+    --ink-2: #a2a9c6;
+    --ink-3: #7c84a3;
+    --line: #2b3150;
+    --accent: #8898ff;
+    --accent-soft: #252c55;
+    --accent-ink: #0e1120;
+    --gold: #f2b544;
+    --good: #4cc28a;
+    --good-soft: #173628;
+    --bad: #f07a72;
+    --scrim: rgba(4, 6, 14, .6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 56px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .wrap > * { min-width: 0; }
+
+  /* ---------- Header ---------- */
+  .top { display: grid; gap: 18px; }
+  .brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .wordmark { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; margin: 0; display: flex; align-items: center; gap: 10px; }
+  .wordmark .slot { display: inline-grid; grid-template-columns: repeat(3, 7px); gap: 3px; }
+  .wordmark .slot i { width: 7px; height: 18px; border-radius: 2px; background: var(--accent); }
+  .wordmark .slot i:nth-child(2) { background: var(--gold); height: 13px; align-self: end; }
+  .wordmark .slot i:nth-child(3) { background: var(--good); height: 9px; align-self: end; }
+  .tagline { color: var(--ink-2); margin: 0; font-size: 14px; }
+
+  .searchbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+  .search { flex: 1 1 320px; position: relative; }
+  .search svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+  .search input {
+    width: 100%; height: 52px; padding: 0 64px 0 46px;
+    border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface);
+    font-size: 16px; transition: border-color .15s;
+  }
+  .search input:focus { outline: none; border-color: var(--accent); }
+  .search kbd {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font: 600 12px var(--mono); color: var(--ink-3); border: 1px solid var(--line);
+    border-radius: 6px; padding: 2px 7px; background: var(--surface-2);
+  }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 14px; padding: 4px; gap: 2px; }
+  .seg button {
+    border: 0; background: transparent; padding: 0 16px; border-radius: 10px; font-weight: 600;
+    color: var(--ink-2); min-height: 44px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .sort { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 14px; }
+  .sort select {
+    height: 52px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface);
+    padding: 0 12px; font-weight: 600;
+  }
+  .note { font-size: 12.5px; color: var(--ink-3); margin: 0; }
+
+  /* ---------- Theme rail ---------- */
+  .rail-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+  .rail { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+  .chip {
+    flex: none; display: inline-flex; align-items: center; gap: 8px;
+    border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 8px 14px; font-weight: 600; font-size: 14px; white-space: nowrap;
+  }
+  .chip .n { font: 600 11.5px var(--mono); color: var(--ink-3); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .chip[aria-pressed="true"] .n { color: var(--bg); opacity: .7; }
+  .chip:hover:not([aria-pressed="true"]) { border-color: var(--ink-3); }
+
+  /* ---------- Pick band ---------- */
+  .band { display: grid; gap: 16px; }
+  .band-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+  .band-head h2 { font-family: var(--display); font-weight: 700; font-size: clamp(20px, 3.2vw, 28px); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+  .band-head h2 em { font-style: normal; color: var(--accent); }
+  .band-head p { margin: 4px 0 0; color: var(--ink-2); max-width: 60ch; }
+  .picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+  .pick {
+    display: grid; grid-template-columns: 150px 1fr; gap: 18px; align-items: start;
+    background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 16px;
+    text-align: left; box-shadow: var(--shadow);
+  }
+  .pick .cover { aspect-ratio: 1; border-radius: 12px; }
+  .pick .cover .mono { font-size: 40px; }
+  .pick-body { display: grid; gap: 8px; min-width: 0; }
+  .ribbon {
+    justify-self: start; font: 700 11px var(--body); letter-spacing: .09em; text-transform: uppercase;
+    background: var(--gold); color: #1a1405; padding: 4px 9px; border-radius: 6px;
+  }
+  .pick h3 { margin: 0; font-size: 20px; line-height: 1.2; }
+  .pick .why { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  .linkbtn { justify-self: start; border: 0; background: none; padding: 0; font-weight: 700; color: var(--accent); }
+  .linkbtn:hover { text-decoration: underline; }
+
+  /* ---------- Grid ---------- */
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .list-head h2 { margin: 0; font-size: 17px; }
+  .list-head span { color: var(--ink-3); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 16px; }
+  .card {
+    display: grid; grid-template-rows: auto 1fr; text-align: left; padding: 0; overflow: hidden;
+    border: 1.5px solid var(--line); background: var(--surface); border-radius: 16px;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--ink-3); box-shadow: var(--shadow); }
+  .card .cover { aspect-ratio: 16 / 9; }
+  .card-body { padding: 12px 14px 14px; display: grid; gap: 6px; align-content: start; }
+  .card h3 { margin: 0; font-size: 16px; line-height: 1.25; }
+  .meta { color: var(--ink-3); font-size: 13px; }
+  .blurb { color: var(--ink-2); font-size: 13.5px; margin: 2px 0 0; }
+  .scores { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .score {
+    font: 600 13px var(--mono); padding: 3px 8px; border-radius: 7px;
+    background: var(--surface-2); color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .score.top { background: var(--good-soft); color: var(--good); }
+  .stars { font: 600 13px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .stars b { color: var(--gold); font-weight: 600; }
+  .mine-tag { font-size: 12px; font-weight: 700; color: var(--accent); }
+
+  .cover {
+    position: relative; display: grid; place-items: center; color: #fff; overflow: hidden;
+    background-blend-mode: overlay, normal;
+  }
+  .cover .mono { font-family: var(--display); font-weight: 700; font-size: 34px; letter-spacing: -.03em; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+  .cover .kind {
+    position: absolute; left: 10px; top: 10px; font: 700 10.5px var(--body); letter-spacing: .08em;
+    text-transform: uppercase; background: rgba(0,0,0,.35); padding: 3px 8px; border-radius: 6px;
+  }
+
+  .empty { text-align: center; padding: 48px 16px; color: var(--ink-2); border: 1.5px dashed var(--line); border-radius: 16px; }
+  .empty strong { display: block; color: var(--ink); font-size: 17px; margin-bottom: 4px; }
+
+  /* ---------- Drawer ---------- */
+  .scrim { position: fixed; inset: 0; background: var(--scrim); opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s; z-index: 10; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); z-index: 11;
+    background: var(--surface); box-shadow: var(--shadow); overflow-y: auto;
+    transform: translateX(100%); visibility: hidden; transition: transform .25s ease, visibility .25s;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.drawer-open .scrim { opacity: 1; visibility: visible; }
+  body.drawer-open .drawer { transform: none; visibility: visible; }
+  body.drawer-open { overflow: hidden; }
+  .d-cover { aspect-ratio: 16 / 8; }
+  .d-cover .mono { font-size: 56px; }
+  .d-close {
+    position: absolute; right: 12px; top: calc(12px + env(safe-area-inset-top, 0px)); z-index: 2;
+    width: 40px; height: 40px; border-radius: 12px; border: 0; background: rgba(0,0,0,.4); color: #fff;
+    display: grid; place-items: center;
+  }
+  .d-body { padding: 18px 20px 28px; display: grid; gap: 22px; }
+  .d-title h2 { font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: -.02em; margin: 0 0 4px; text-wrap: balance; line-height: 1.2; }
+  .d-title p { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .fact { font-size: 12.5px; background: var(--surface-2); color: var(--ink-2); padding: 3px 9px; border-radius: 6px; }
+  .d-section h3 { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+  .scoreboard { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; background: var(--surface-2); border-radius: 14px; padding: 16px; }
+  .big-score { text-align: center; }
+  .big-score b { display: block; font: 600 40px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .big-score span { font-size: 12px; color: var(--ink-2); }
+  .dist { display: grid; gap: 5px; }
+  .dist-row { display: grid; grid-template-columns: 22px 1fr 38px; gap: 8px; align-items: center; font: 500 12px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--gold); border-radius: 4px; }
+  .dist-foot { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+  .verdict { margin: 0; font-size: 16px; line-height: 1.6; max-width: 62ch; }
+  .pc { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .pc ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+  .pc li { display: grid; grid-template-columns: 16px 1fr; gap: 6px; }
+  .pc .plus::before { content: "+"; color: var(--good); font-weight: 700; }
+  .pc .minus::before { content: "\2212"; color: var(--bad); font-weight: 700; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 13px; border: 1.5px solid var(--line); border-radius: 999px; padding: 4px 11px; background: transparent; }
+  button.tag:hover { border-color: var(--accent); color: var(--accent); }
+  .mine { display: grid; gap: 10px; }
+  .star-input { display: flex; gap: 4px; }
+  .star-input button { border: 0; background: none; font-size: 28px; line-height: 1; padding: 2px; color: var(--line); }
+  .star-input button.on { color: var(--gold); }
+  .mine textarea { width: 100%; min-height: 84px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); padding: 10px 12px; resize: vertical; }
+  .mine textarea:focus { outline: none; border-color: var(--accent); }
+  .mine-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 700; border-radius: 10px; padding: 10px 18px; }
+  .btn.ghost { background: transparent; color: var(--ink-2); border: 1.5px solid var(--line); }
+  .status { font-size: 13px; color: var(--good); font-weight: 600; }
+
+  footer { color: var(--ink-3); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+  @media (max-width: 560px) {
+    .wrap { padding-inline: 16px; }
+    .pick { grid-template-columns: 96px 1fr; gap: 14px; }
+    .pick .cover .mono { font-size: 26px; }
+    .pc { grid-template-columns: 1fr; }
+    .seg { flex: 1; }
+    .seg button { flex: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 class="wordmark"><span class="slot" aria-hidden="true"><i></i><i></i><i></i></span>Loadout</h1>
+      <p class="tagline">Look up any game or app, read the verdict, grab our best pick.</p>
+    </div>
+    <div class="searchbar">
+      <label class="search" for="q">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input id="q" type="search" placeholder="Search games, apps, genres, makers…" autocomplete="off" aria-label="Search games and apps">
+        <kbd aria-hidden="true">/</kbd>
+      </label>
+      <div class="seg" role="group" aria-label="Show">
+        <button type="button" data-kind="all" aria-pressed="true">All</button>
+        <button type="button" data-kind="game" aria-pressed="false">Games</button>
+        <button type="button" data-kind="app" aria-pressed="false">Apps</button>
+      </div>
+      <label class="sort" for="sort">
+        <span class="sr">Sort</span>
+        <select id="sort">
+          <option value="score">Our score</option>
+          <option value="rating">Player rating</option>
+          <option value="new">Newest</option>
+          <option value="az">A to Z</option>
+        </select>
+      </label>
+    </div>
+    <p class="note">Demo catalog. Our scores and reviews are Loadout's own takes; player ratings, rating counts and prices are sample figures, not live store data.</p>
+  </header>
+
+  <section aria-labelledby="rail-label">
+    <p class="rail-label" id="rail-label">Pick a theme</p>
+    <div class="rail" id="rail"></div>
+  </section>
+
+  <section class="band" id="band" aria-live="polite"></section>
+
+  <section style="display:grid; gap:14px">
+    <div class="list-head"><h2 id="list-title">Everything</h2><span id="list-count"></span></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <footer>Loadout keeps your own ratings and notes on this device only. Press <b>/</b> to search, <b>Esc</b> to close a review.</footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-name" tabindex="-1"></aside>
+
+<script>
+const THEMES = [
+  { id: "all", name: "Everything", desc: "The whole catalog, highest rated first." },
+  { id: "cozy", name: "Cozy evening", desc: "Low stakes, warm colors, nothing chasing you.",
+    game: ["stardew", "Farming, fishing and friendships on your own schedule. Ten years on, still the gold standard for unwinding."],
+    app: ["headspace", "The sleepcasts and wind-down sessions turn the last hour of the day into something calmer."] },
+  { id: "friends", name: "Play with friends", desc: "Couch or online, best with two or more.",
+    game: ["mariokart", "Anyone can pick up a controller and be having fun in thirty seconds, and it still rewards the regulars."],
+    app: ["discord", "Where the group chat, the voice call and the stream all live. Every co-op night starts here."] },
+  { id: "quick", name: "15-minute breaks", desc: "Start, finish a run, get back to work.",
+    game: ["balatro", "One run fits in a coffee break and every hand teaches you something. Dangerously easy to say one more."],
+    app: ["duolingo", "Five-minute lessons and a streak that actually gets you to show up every day."] },
+  { id: "story", name: "Stories that stick", desc: "Writing and worlds you will think about for weeks.",
+    game: ["disco", "No other game lets you argue with your own necktie and have it matter. The writing is in a league of its own."] },
+  { id: "hard", name: "Hard but fair", desc: "You will die a lot. Every death is your fault, and that is the fun.",
+    game: ["celeste", "Brutal screens with instant restarts, an assist mode for anyone who wants it, and a story about why we climb."] },
+  { id: "scary", name: "Lights off", desc: "Tension, dread and a few good jump scares.",
+    game: ["re4", "The best-paced horror action game around: every room is a puzzle of ammo, space and panic."] },
+  { id: "focus", name: "Focus & study", desc: "Tools that help you sit down and actually learn.",
+    app: ["forest", "Plant a tree, put the phone down, keep it alive. The simplest nudge that works."] },
+  { id: "organized", name: "Get organized", desc: "Tasks, notes and plans that stay out of your way.",
+    app: ["todoist", "Type a task the way you would say it and it lands in the right place on the right day. Fast everywhere."] },
+  { id: "create", name: "Make something", desc: "Build, draw, edit. Leave with something you made.",
+    game: ["minecraft", "Still the biggest blank canvas in games. Redstone, castles, whole cities: it scales with your ambition."],
+    app: ["procreate", "One payment, no subscription, and a brush engine pros use daily. The best reason to own an iPad."] },
+  { id: "explore", name: "Get lost exploring", desc: "Big worlds, real trails, and the urge to see what is over the hill.",
+    game: ["totk", "Hyrule's sky, surface and depths, plus building tools that turn every problem into your own invention."],
+    app: ["alltrails", "Trail maps, recent condition reports and offline downloads for the real-world version of exploring."] },
+];
+
+// kind, name, maker, year, genre, platforms, price, score(/10), rating(/5), count, cover [h1,h2,pattern], blurb, verdict, pros, cons, mentions, themes
+const ITEMS = [
+  { id: "stardew", kind: "game", name: "Stardew Valley", maker: "ConcernedApe", year: 2016, genre: "Farming sim", platforms: "PC · Switch · PlayStation · Xbox · Mobile", price: "$14.99", score: 9.4, rating: 4.9, count: "612k", cover: [95, 45, "grid"],
+    blurb: "Inherit a farm, fix up a town, and lose a hundred hours without noticing.",
+    verdict: "A one-person project that still outclasses big-budget life sims. Free updates keep adding reasons to start another save, and co-op farming with friends is a delight.",
+    pros: ["Endless depth hidden behind a gentle start", "Free updates for years", "Up to 8-player co-op"], cons: ["Early days can feel slow", "Mobile controls are fiddly"],
+    mentions: ["relaxing", "great with a partner", "one more day", "charming pixel art"], themes: ["cozy", "friends"] },
+  { id: "celeste", kind: "game", name: "Celeste", maker: "Maddy Makes Games", year: 2018, genre: "Precision platformer", platforms: "PC · Switch · PlayStation · Xbox", price: "$19.99", score: 9.3, rating: 4.8, count: "148k", cover: [330, 260, "stripes"],
+    blurb: "Climb a mountain one punishing screen at a time.",
+    verdict: "Tight controls, instant respawns and a story about anxiety that lands. The assist mode makes it welcoming without watering down the challenge for those who want it.",
+    pros: ["Near-perfect controls", "Heartfelt story", "Assist mode for accessibility"], cons: ["B-sides are very demanding"],
+    mentions: ["great soundtrack", "hard but fair", "strawberries"], themes: ["hard"] },
+  { id: "hollowknight", kind: "game", name: "Hollow Knight", maker: "Team Cherry", year: 2017, genre: "Metroidvania", platforms: "PC · Switch · PlayStation · Xbox", price: "$14.99", score: 9.1, rating: 4.8, count: "310k", cover: [220, 250, "rings"],
+    blurb: "A hand-drawn bug kingdom full of secrets and tough bosses.",
+    verdict: "Huge, mysterious and gorgeous for the price. The map system asks you to explore on its terms, which some players love and others find exhausting.",
+    pros: ["Massive world for the price", "Memorable bosses", "Beautiful art and music"], cons: ["Getting lost can frustrate", "Long walks back after deaths"],
+    mentions: ["atmosphere", "tough bosses", "incredible value"], themes: ["hard", "explore"] },
+  { id: "silksong", kind: "game", name: "Hollow Knight: Silksong", maker: "Team Cherry", year: 2025, genre: "Metroidvania", platforms: "PC · Switch · PlayStation · Xbox", price: "$19.99", score: 9.2, rating: 4.6, count: "205k", cover: [350, 15, "rings"],
+    blurb: "Hornet's long-awaited adventure through a new kingdom.",
+    verdict: "Faster and more acrobatic than the original, with a bigger toolkit and an even meaner early game. Worth the wait if you like being tested.",
+    pros: ["Fluid, fast combat", "Enormous variety of areas", "Superb music"], cons: ["Steep early difficulty", "Some runbacks feel punishing"],
+    mentions: ["worth the wait", "difficult", "gorgeous"], themes: ["hard", "explore"] },
+  { id: "bg3", kind: "game", name: "Baldur's Gate 3", maker: "Larian Studios", year: 2023, genre: "RPG", platforms: "PC · PlayStation · Xbox · Mac", price: "$59.99", score: 9.7, rating: 4.8, count: "690k", cover: [0, 290, "rings"],
+    blurb: "A Dungeons & Dragons adventure where almost anything you try works.",
+    verdict: "The benchmark for choice in RPGs. Companions feel alive, fights reward creative thinking, and whole acts change based on what you did hours earlier.",
+    pros: ["Choices with real consequences", "Great companions", "Full co-op campaign"], cons: ["Act 3 is dense and demanding on hardware", "Turn-based combat is slow for some"],
+    mentions: ["replayable", "voice acting", "freedom"], themes: ["story", "friends"] },
+  { id: "ittakestwo", kind: "game", name: "It Takes Two", maker: "Hazelight", year: 2021, genre: "Co-op adventure", platforms: "PC · Switch · PlayStation · Xbox", price: "$39.99", score: 9.0, rating: 4.8, count: "240k", cover: [190, 140, "dots"],
+    blurb: "A couple shrunk into dolls has to work together to get home.",
+    verdict: "Every chapter introduces a new mechanic and throws it away before it gets old. Only one copy is needed thanks to the Friend's Pass.",
+    pros: ["Constant new ideas", "Friend's Pass: one copy for two", "Great for couples"], cons: ["Co-op only, no solo mode"],
+    mentions: ["date night", "variety", "the elephant scene"], themes: ["friends"] },
+  { id: "splitfiction", kind: "game", name: "Split Fiction", maker: "Hazelight", year: 2025, genre: "Co-op adventure", platforms: "PC · PlayStation · Xbox · Switch 2", price: "$49.99", score: 9.1, rating: 4.7, count: "96k", cover: [280, 190, "stripes"],
+    blurb: "Two writers trapped in their own sci-fi and fantasy stories.",
+    verdict: "Hazelight's most inventive game yet. Side stories remix whole genres in ten minutes, and it looks fantastic throughout.",
+    pros: ["Wildly inventive levels", "Friend's Pass included", "Stunning visuals"], cons: ["Story is thinner than the gameplay"],
+    mentions: ["co-op", "genre mashup", "side stories"], themes: ["friends"] },
+  { id: "minecraft", kind: "game", name: "Minecraft", maker: "Mojang Studios", year: 2011, genre: "Sandbox", platforms: "Every platform", price: "$29.99", score: 9.3, rating: 4.6, count: "4.1M", cover: [110, 30, "grid"],
+    blurb: "Mine, craft, survive, or just build whatever you imagine.",
+    verdict: "Fifteen years in, nothing else offers this much creative freedom. Survival for tension, Creative for building, servers for everything else.",
+    pros: ["Unlimited creativity", "Cross-play on Bedrock", "Huge modding scene"], cons: ["Java and Bedrock editions split features"],
+    mentions: ["builds", "with friends", "redstone", "for kids and adults"], themes: ["create", "friends", "cozy"] },
+  { id: "outerwilds", kind: "game", name: "Outer Wilds", maker: "Mobius Digital", year: 2019, genre: "Exploration mystery", platforms: "PC · Switch · PlayStation · Xbox", price: "$24.99", score: 9.5, rating: 4.8, count: "112k", cover: [25, 220, "rings"],
+    blurb: "A solar system stuck in a 22-minute time loop, and only your curiosity to solve it.",
+    verdict: "The only upgrade is what you know. Go in blind, take notes, and expect one of the best endings in games.",
+    pros: ["Knowledge-based progression", "Unforgettable ending", "Hand-crafted planets"], cons: ["Ship controls take practice", "Some players get stuck without guides"],
+    mentions: ["go in blind", "mind-blowing", "space"], themes: ["story", "explore"] },
+  { id: "balatro", kind: "game", name: "Balatro", maker: "LocalThunk", year: 2024, genre: "Roguelike deckbuilder", platforms: "PC · Switch · PlayStation · Xbox · Mobile", price: "$14.99", score: 9.2, rating: 4.8, count: "180k", cover: [350, 200, "dots"],
+    blurb: "Poker hands, silly jokers, and scores that explode into the millions.",
+    verdict: "You know the rules of poker in five seconds and discover the real game over a hundred runs. The mobile version is ideal for short breaks.",
+    pros: ["Instantly understandable", "Deep synergies", "Great on phone"], cons: ["Runs can end on bad luck"],
+    mentions: ["addictive", "one more run", "jokers"], themes: ["quick"] },
+  { id: "disco", kind: "game", name: "Disco Elysium", maker: "ZA/UM", year: 2019, genre: "Detective RPG", platforms: "PC · Switch · PlayStation · Xbox · Mac", price: "$39.99", score: 9.4, rating: 4.7, count: "95k", cover: [45, 175, "stripes"],
+    blurb: "A washed-up detective with amnesia and 24 arguing voices in his head.",
+    verdict: "An RPG with no combat, and you will not miss it. Every skill is a personality with opinions, and the city of Revachol is written like a great novel.",
+    pros: ["Extraordinary writing", "Full voice acting in Final Cut", "Failures are as fun as successes"], cons: ["A lot of reading", "Slow first hours"],
+    mentions: ["writing", "politics", "funny and sad"], themes: ["story"] },
+  { id: "portal2", kind: "game", name: "Portal 2", maker: "Valve", year: 2011, genre: "Puzzle", platforms: "PC · PlayStation · Xbox · Switch", price: "$9.99", score: 9.6, rating: 4.9, count: "420k", cover: [200, 30, "grid"],
+    blurb: "Portals, physics and one very passive-aggressive AI.",
+    verdict: "Puzzle design that teaches without words, and still one of the funniest scripts in games. The co-op campaign is its own full game.",
+    pros: ["Perfect difficulty curve", "Hilarious writing", "Separate co-op campaign"], cons: ["Little replay value once solved"],
+    mentions: ["GLaDOS", "co-op", "classic"], themes: ["friends", "story"] },
+  { id: "unpacking", kind: "game", name: "Unpacking", maker: "Witch Beam", year: 2021, genre: "Zen puzzle", platforms: "PC · Switch · PlayStation · Xbox · Mobile", price: "$19.99", score: 8.6, rating: 4.8, count: "58k", cover: [20, 330, "dots"],
+    blurb: "Unpack boxes across eight moves and piece together a life.",
+    verdict: "A story told entirely through someone's belongings. Short, calming and surprisingly emotional.",
+    pros: ["Clever environmental storytelling", "Very relaxing", "Great sound design"], cons: ["Around 4 hours long"],
+    mentions: ["wholesome", "satisfying", "short"], themes: ["cozy", "quick"] },
+  { id: "shorthike", kind: "game", name: "A Short Hike", maker: "adamgryu", year: 2019, genre: "Exploration", platforms: "PC · Switch · PlayStation · Xbox", price: "$7.99", score: 8.8, rating: 4.8, count: "64k", cover: [160, 200, "stripes"],
+    blurb: "A bird climbs a mountain to get phone signal.",
+    verdict: "Finishable in an afternoon and full of tiny detours. The gliding feels wonderful and the ending earns its warmth.",
+    pros: ["Lovely to play for an evening", "Satisfying gliding", "Cheap"], cons: ["Very short"],
+    mentions: ["cozy", "short and sweet", "fishing"], themes: ["cozy", "explore"] },
+  { id: "dredge", kind: "game", name: "Dredge", maker: "Black Salt Games", year: 2023, genre: "Fishing horror", platforms: "PC · Switch · PlayStation · Xbox · Mobile", price: "$24.99", score: 8.4, rating: 4.6, count: "52k", cover: [185, 230, "rings"],
+    blurb: "Fish by day, fear the fog at night.",
+    verdict: "A relaxing fishing loop with dread creeping in at the edges. Inventory packing is oddly satisfying.",
+    pros: ["Unique mix of cozy and creepy", "Tight 10-hour length"], cons: ["Late game gets repetitive"],
+    mentions: ["atmosphere", "Lovecraftian", "fishing"], themes: ["scary", "explore"] },
+  { id: "re4", kind: "game", name: "Resident Evil 4", maker: "Capcom", year: 2023, genre: "Survival horror", platforms: "PC · PlayStation · Xbox · Mac", price: "$39.99", score: 9.3, rating: 4.8, count: "160k", cover: [0, 20, "stripes"],
+    blurb: "The classic rescue mission, rebuilt from the ground up.",
+    verdict: "A remake that respects the original and fixes what aged badly. Parrying with the knife is the best new addition, and pacing is superb.",
+    pros: ["Excellent pacing", "Great combat feel", "Lots to unlock"], cons: ["Some cheesy lines were cut", "Ashley segments still divide people"],
+    mentions: ["remake done right", "tense", "replayable"], themes: ["scary"] },
+  { id: "alanwake2", kind: "game", name: "Alan Wake 2", maker: "Remedy", year: 2023, genre: "Survival horror", platforms: "PC · PlayStation · Xbox", price: "$49.99", score: 9.0, rating: 4.5, count: "70k", cover: [260, 330, "rings"],
+    blurb: "A writer and an FBI agent caught in a horror story rewriting reality.",
+    verdict: "Weird, ambitious and technically stunning. It leans more into story than action, which is exactly why it stands out.",
+    pros: ["Unforgettable set pieces", "Beautiful visuals", "Two campaigns that intertwine"], cons: ["Slow pacing in places", "Heavy on hardware"],
+    mentions: ["musical chapter", "creepy", "Remedy universe"], themes: ["scary", "story"] },
+  { id: "lethal", kind: "game", name: "Lethal Company", maker: "Zeekerss", year: 2023, genre: "Co-op horror", platforms: "PC", price: "$9.99", score: 8.5, rating: 4.8, count: "420k", cover: [60, 100, "grid"],
+    blurb: "Scavenge abandoned moons for scrap with friends, and try not to die.",
+    verdict: "Proximity voice chat turns every trip into a comedy horror story. Best with three friends and low expectations of survival.",
+    pros: ["Hilarious with friends", "Cheap", "Huge mod scene"], cons: ["Not much to do solo", "Still in early access"],
+    mentions: ["proximity chat", "funny", "screaming"], themes: ["scary", "friends"] },
+  { id: "overcooked2", kind: "game", name: "Overcooked! 2", maker: "Ghost Town Games", year: 2018, genre: "Party", platforms: "PC · Switch · PlayStation · Xbox", price: "$24.99", score: 8.2, rating: 4.5, count: "88k", cover: [30, 0, "dots"],
+    blurb: "Chaotic co-op kitchens where communication is everything.",
+    verdict: "The fastest way to find out how well your friends handle pressure. Levels are short, loud and endlessly replayable.",
+    pros: ["Easy to learn", "Great local co-op", "Short levels"], cons: ["Can cause real arguments", "Weak solo"],
+    mentions: ["chaos", "couch co-op", "yelling"], themes: ["friends", "quick"] },
+  { id: "mariokart", kind: "game", name: "Mario Kart 8 Deluxe", maker: "Nintendo", year: 2017, genre: "Racing", platforms: "Switch · Switch 2", price: "$59.99", score: 9.1, rating: 4.8, count: "510k", cover: [0, 45, "stripes"],
+    blurb: "Kart racing with 96 tracks once the Booster Course Pass is added.",
+    verdict: "The definitive party racer. Smart steering and auto-accelerate let beginners compete while experts chase perfect drift lines.",
+    pros: ["Anyone can play", "Huge track list", "4-player split screen"], cons: ["Blue shells, as always", "Battle mode is thin"],
+    mentions: ["family night", "rainbow road", "split screen"], themes: ["friends", "quick"] },
+  { id: "vampire", kind: "game", name: "Vampire Survivors", maker: "poncle", year: 2022, genre: "Roguelite", platforms: "PC · Switch · PlayStation · Xbox · Mobile", price: "$4.99", score: 8.7, rating: 4.8, count: "240k", cover: [290, 350, "dots"],
+    blurb: "Move, and let your weapons do the rest as the screen fills with monsters.",
+    verdict: "Thirty-minute runs that become a firework show. It is almost free and hard to put down.",
+    pros: ["Incredibly cheap", "Pure dopamine", "Local co-op"], cons: ["Visual chaos late in runs"],
+    mentions: ["one more run", "cheap", "bullet heaven"], themes: ["quick"] },
+  { id: "totk", kind: "game", name: "Zelda: Tears of the Kingdom", maker: "Nintendo", year: 2023, genre: "Open-world adventure", platforms: "Switch · Switch 2", price: "$69.99", score: 9.6, rating: 4.7, count: "380k", cover: [150, 45, "rings"],
+    blurb: "Explore sky islands, the surface and the depths below Hyrule.",
+    verdict: "Ultrahand turns every obstacle into an engineering challenge. A huge, generous game that rewards curiosity at every turn.",
+    pros: ["Creative building tools", "Three layers of world", "Endless discovery"], cons: ["Reuses much of the previous map", "Menus get clunky"],
+    mentions: ["creative solutions", "huge world", "Ultrahand"], themes: ["explore", "create"] },
+  { id: "acnh", kind: "game", name: "Animal Crossing: New Horizons", maker: "Nintendo", year: 2020, genre: "Life sim", platforms: "Switch · Switch 2", price: "$59.99", score: 8.8, rating: 4.5, count: "450k", cover: [135, 185, "dots"],
+    blurb: "Build an island paradise with animal neighbors on a real-time clock.",
+    verdict: "A daily ritual more than a game. Island design tools are superb, though progress is deliberately slow.",
+    pros: ["Relaxing daily routine", "Deep decorating", "Charming villagers"], cons: ["Real-time pacing tests patience", "Clunky crafting menus"],
+    mentions: ["daily check-in", "island design", "villagers"], themes: ["cozy", "create"] },
+  { id: "hades2", kind: "game", name: "Hades II", maker: "Supergiant Games", year: 2025, genre: "Roguelike action", platforms: "PC · Switch · Switch 2", price: "$29.99", score: 9.4, rating: 4.8, count: "130k", cover: [285, 330, "stripes"],
+    blurb: "Melinoë fights her way toward Chronos, the Titan of Time.",
+    verdict: "Everything the first game did, with more weapons, more gods and a new witch-craft layer. Each run moves the story forward, so failing still feels like progress.",
+    pros: ["Superb combat", "Story advances every run", "Stunning art"], cons: ["Harder early than the first game"],
+    mentions: ["gorgeous", "voice acting", "one more run"], themes: ["hard", "story"] },
+
+  { id: "notion", kind: "app", name: "Notion", maker: "Notion Labs", year: 2016, genre: "Notes & docs", platforms: "Web · iOS · Android · Mac · Windows", price: "Free, paid plans", score: 8.6, rating: 4.7, count: "95k", cover: [225, 240, "grid"],
+    blurb: "Docs, wikis, databases and project boards in one workspace.",
+    verdict: "Endlessly flexible, which is its superpower and its trap. Great for teams and planners, overkill for a grocery list.",
+    pros: ["Databases for anything", "Great templates", "Real-time collaboration"], cons: ["Slow on large pages", "Offline support is limited"],
+    mentions: ["templates", "second brain", "can get complicated"], themes: ["organized", "focus"] },
+  { id: "duolingo", kind: "app", name: "Duolingo", maker: "Duolingo", year: 2012, genre: "Language learning", platforms: "iOS · Android · Web", price: "Free, Super plan", score: 8.4, rating: 4.7, count: "4.8M", cover: [100, 130, "dots"],
+    blurb: "Bite-sized language lessons, streaks and a very persistent owl.",
+    verdict: "The best habit builder in any app. Pair it with a tutor or conversation practice if you want to become fluent.",
+    pros: ["Keeps you consistent", "40+ languages", "Fun and quick"], cons: ["Won't make you fluent alone", "Hearts system on free tier"],
+    mentions: ["streak", "owl notifications", "gamified"], themes: ["quick", "focus"] },
+  { id: "forest", kind: "app", name: "Forest", maker: "Seekrtech", year: 2014, genre: "Focus timer", platforms: "iOS · Android · Chrome", price: "$3.99 iOS, free Android", score: 8.5, rating: 4.8, count: "620k", cover: [140, 100, "rings"],
+    blurb: "Plant a virtual tree that grows while you stay off your phone.",
+    verdict: "A focus timer with just enough guilt to work. You can even spend coins to plant real trees.",
+    pros: ["Simple and effective", "Real tree planting", "One-time price on iOS"], cons: ["Stats are basic"],
+    mentions: ["Pomodoro", "study buddy", "cute"], themes: ["focus"] },
+  { id: "procreate", kind: "app", name: "Procreate", maker: "Savage Interactive", year: 2011, genre: "Drawing & painting", platforms: "iPad", price: "$12.99 once", score: 9.4, rating: 4.6, count: "70k", cover: [20, 300, "stripes"],
+    blurb: "A professional painting studio for iPad and Apple Pencil.",
+    verdict: "Pro-grade brushes, animation tools and a one-time price. Its promise to never use generative AI has earned artists' trust.",
+    pros: ["No subscription", "Superb brush engine", "Animation built in"], cons: ["iPad only", "No vector tools"],
+    mentions: ["one-time purchase", "brushes", "for artists"], themes: ["create"] },
+  { id: "spotify", kind: "app", name: "Spotify", maker: "Spotify", year: 2008, genre: "Music & podcasts", platforms: "Every platform", price: "Free, Premium", score: 8.7, rating: 4.7, count: "30M", cover: [140, 160, "rings"],
+    blurb: "Music, podcasts and audiobooks with the best recommendations.",
+    verdict: "Discover Weekly alone justifies it. Works on every device you own, including your car and console.",
+    pros: ["Excellent recommendations", "Works everywhere", "Free tier"], cons: ["Lower artist payouts", "Busy home screen"],
+    mentions: ["Discover Weekly", "playlists", "Wrapped"], themes: ["cozy", "focus"] },
+  { id: "headspace", kind: "app", name: "Headspace", maker: "Headspace", year: 2012, genre: "Meditation & sleep", platforms: "iOS · Android · Web", price: "Subscription", score: 8.3, rating: 4.8, count: "1M", cover: [25, 45, "dots"],
+    blurb: "Guided meditations, sleepcasts and wind-down routines.",
+    verdict: "The friendliest way into meditation. Sleepcasts are the standout for anyone who struggles to switch off.",
+    pros: ["Beginner friendly", "Great sleep content", "Clear courses"], cons: ["Most content needs a subscription"],
+    mentions: ["sleepcasts", "calming", "beginners"], themes: ["cozy", "focus"] },
+  { id: "todoist", kind: "app", name: "Todoist", maker: "Doist", year: 2007, genre: "Tasks & to-dos", platforms: "Every platform", price: "Free, Pro plan", score: 8.8, rating: 4.8, count: "250k", cover: [5, 355, "stripes"],
+    blurb: "Type \"pay rent every 1st\" and it simply understands.",
+    verdict: "Natural-language dates and fast capture make it the least-friction task app we have tried. Syncs instantly everywhere.",
+    pros: ["Natural-language input", "Fast on every device", "Clean design"], cons: ["Reminders need Pro"],
+    mentions: ["quick add", "clean", "cross-platform"], themes: ["organized"] },
+  { id: "obsidian", kind: "app", name: "Obsidian", maker: "Obsidian", year: 2020, genre: "Notes", platforms: "Mac · Windows · Linux · iOS · Android", price: "Free, paid Sync", score: 9.0, rating: 4.7, count: "30k", cover: [270, 250, "grid"],
+    blurb: "Linked notes stored as plain files you own.",
+    verdict: "Your notes are plain Markdown files on your device, forever. Plugins can turn it into almost anything.",
+    pros: ["Local files you own", "Thousands of plugins", "Graph and links"], cons: ["Setup takes effort", "Sync costs extra"],
+    mentions: ["plugins", "privacy", "second brain"], themes: ["organized", "focus"] },
+  { id: "discord", kind: "app", name: "Discord", maker: "Discord", year: 2015, genre: "Chat & voice", platforms: "Every platform", price: "Free, Nitro", score: 8.5, rating: 4.6, count: "7M", cover: [235, 260, "dots"],
+    blurb: "Voice, video and text for your friends and communities.",
+    verdict: "Low-latency voice and screen sharing make it the default for playing together. Servers can get noisy, so tune your notifications.",
+    pros: ["Great voice quality", "Screen share and streams", "Free"], cons: ["Notification overload", "Nitro upsells"],
+    mentions: ["voice chat", "communities", "streaming"], themes: ["friends"] },
+  { id: "anki", kind: "app", name: "Anki", maker: "Ankitects", year: 2006, genre: "Flashcards", platforms: "Mac · Windows · Linux · Android · iOS", price: "Free, $24.99 iOS", score: 8.7, rating: 4.6, count: "210k", cover: [205, 225, "grid"],
+    blurb: "Spaced-repetition flashcards trusted by med students everywhere.",
+    verdict: "Looks dated and works brilliantly. If you need to remember a lot of facts, nothing beats it.",
+    pros: ["Proven spaced repetition", "Shared decks", "Free on most platforms"], cons: ["Old-fashioned interface", "Learning curve"],
+    mentions: ["med school", "shared decks", "memory"], themes: ["focus"] },
+  { id: "strava", kind: "app", name: "Strava", maker: "Strava", year: 2009, genre: "Fitness tracking", platforms: "iOS · Android · Web", price: "Free, subscription", score: 8.2, rating: 4.7, count: "1M", cover: [20, 10, "stripes"],
+    blurb: "Track runs and rides and see what your friends are up to.",
+    verdict: "The social feed keeps you moving and route heatmaps help you find new places to run. The best features sit behind the subscription.",
+    pros: ["Motivating social feed", "Great route heatmaps", "Works with every watch"], cons: ["Key features need a subscription"],
+    mentions: ["kudos", "segments", "motivation"], themes: ["explore"] },
+  { id: "alltrails", kind: "app", name: "AllTrails", maker: "AllTrails", year: 2010, genre: "Hiking maps", platforms: "iOS · Android · Web", price: "Free, Plus plan", score: 8.6, rating: 4.8, count: "500k", cover: [115, 85, "rings"],
+    blurb: "Find trails, check recent conditions, and navigate offline.",
+    verdict: "The biggest trail library around, with recent reviews that tell you about mud, snow and closures. Offline maps are worth paying for.",
+    pros: ["Huge trail database", "Recent condition reports", "Offline maps with Plus"], cons: ["Offline maps need Plus"],
+    mentions: ["trail reviews", "offline maps", "weekend plans"], themes: ["explore"] },
+  { id: "goodnotes", kind: "app", name: "Goodnotes", maker: "Goodnotes", year: 2011, genre: "Handwritten notes", platforms: "iPad · iPhone · Mac · Android · Windows", price: "Free, paid plan", score: 8.7, rating: 4.7, count: "180k", cover: [210, 170, "grid"],
+    blurb: "Digital notebooks for handwriting, PDFs and annotating slides.",
+    verdict: "The best note-taking experience with a stylus. Searchable handwriting is a lifesaver before exams.",
+    pros: ["Excellent pen feel", "Searchable handwriting", "Great for PDFs"], cons: ["Free version is limited"],
+    mentions: ["students", "PDF markup", "planners"], themes: ["focus", "create"] },
+  { id: "capcut", kind: "app", name: "CapCut", maker: "ByteDance", year: 2020, genre: "Video editing", platforms: "iOS · Android · Web · Mac · Windows", price: "Free, Pro plan", score: 8.1, rating: 4.6, count: "2M", cover: [180, 280, "stripes"],
+    blurb: "Quick video edits with auto captions, effects and templates.",
+    verdict: "The fastest way to cut a short video on your phone. Auto captions are excellent, though more tools are moving behind Pro.",
+    pros: ["Auto captions", "Tons of templates", "Easy to learn"], cons: ["Features moving to Pro", "Watermark on some templates"],
+    mentions: ["shorts", "captions", "templates"], themes: ["create"] },
+];
+
+const BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+const THEME_BY_ID = Object.fromEntries(THEMES.map(t => [t.id, t]));
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+const state = Object.assign({ kind: "all", theme: "cozy", sort: "score" }, load("loadout.prefs", {}), { q: "" });
+if (!THEME_BY_ID[state.theme]) state.theme = "cozy";
+let mine = load("loadout.mine", {});
+let lastFocus = null;
+
+const PATTERNS = {
+  stripes: "repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 10px, transparent 10px 22px)",
+  dots: "radial-gradient(rgba(255,255,255,.22) 2px, transparent 2.6px) 0 0 / 16px 16px",
+  grid: "linear-gradient(rgba(255,255,255,.14) 1px, transparent 1px) 0 0 / 18px 18px, linear-gradient(90deg, rgba(255,255,255,.14) 1px, transparent 1px) 0 0 / 18px 18px",
+  rings: "repeating-radial-gradient(circle at 80% 15%, rgba(255,255,255,.16) 0 6px, transparent 6px 16px)",
+};
+function monogram(name) {
+  const words = name.replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(w => w && !/^(the|of|a)$/i.test(w));
+  return (words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2)).toUpperCase();
+}
+function cover(item, cls = "") {
+  const [h1, h2, p] = item.cover;
+  const bg = `${PATTERNS[p]}, linear-gradient(140deg, hsl(${h1} 68% 52%), hsl(${h2} 62% 32%))`;
+  return `<div class="cover ${cls}" style="background:${bg}" aria-hidden="true"><span class="kind">${item.kind}</span><span class="mono">${esc(monogram(item.name))}</span></div>`;
+}
+function scoreChip(item) {
+  return `<span class="score ${item.score >= 9 ? "top" : ""}" title="Loadout score out of 10">${item.score.toFixed(1)}</span>`;
+}
+function starsChip(item) {
+  return `<span class="stars" title="Sample player rating out of 5"><b>★</b> ${item.rating.toFixed(1)} · ${item.count}</span>`;
+}
+
+function matches(item, q) {
+  const hay = [item.name, item.maker, item.genre, item.platforms, item.blurb, ...item.mentions, ...item.themes.map(t => THEME_BY_ID[t].name)].join(" ").toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+function inKind(item) { return state.kind === "all" || item.kind === state.kind; }
+function sorted(list) {
+  const by = {
+    score: (a, b) => b.score - a.score || b.rating - a.rating,
+    rating: (a, b) => b.rating - a.rating || b.score - a.score,
+    new: (a, b) => b.year - a.year || b.score - a.score,
+    az: (a, b) => a.name.localeCompare(b.name),
+  }[state.sort];
+  return [...list].sort(by);
+}
+
+function renderRail() {
+  $("#rail").innerHTML = THEMES.map(t => {
+    const n = ITEMS.filter(i => inKind(i) && (t.id === "all" || i.themes.includes(t.id))).length;
+    const on = !state.q && state.theme === t.id;
+    return `<button type="button" class="chip" data-theme-id="${t.id}" aria-pressed="${on}">${esc(t.name)}<span class="n">${n}</span></button>`;
+  }).join("");
+}
+
+function picksFor(theme) {
+  if (theme.id === "all") {
+    const best = k => sorted(ITEMS.filter(i => i.kind === k))[0];
+    return [
+      { label: "Best game", item: best("game"), why: "Our highest-scored game in the catalog." },
+      { label: "Best app", item: best("app"), why: "Our highest-scored app in the catalog." },
+    ].filter(p => state.kind === "all" || p.item.kind === state.kind);
+  }
+  const out = [];
+  if (theme.game && state.kind !== "app") out.push({ label: "Best game", item: BY_ID[theme.game[0]], why: theme.game[1] });
+  if (theme.app && state.kind !== "game") out.push({ label: "Best app", item: BY_ID[theme.app[0]], why: theme.app[1] });
+  return out;
+}
+
+function renderBand() {
+  const band = $("#band");
+  if (state.q) { band.hidden = true; return; }
+  band.hidden = false;
+  const t = THEME_BY_ID[state.theme];
+  const picks = picksFor(t);
+  const head = t.id === "all"
+    ? `<h2>Our best <em>overall</em></h2><p>${esc(t.desc)}</p>`
+    : `<h2>Our best for <em>${esc(t.name)}</em></h2><p>${esc(t.desc)}</p>`;
+  const body = picks.length
+    ? `<div class="picks">${picks.map(p => `
+        <article class="pick">
+          ${cover(p.item)}
+          <div class="pick-body">
+            <span class="ribbon">${p.label}</span>
+            <h3>${esc(p.item.name)}</h3>
+            <div class="meta">${esc(p.item.maker)} · ${esc(p.item.genre)}</div>
+            <div class="scores">${scoreChip(p.item)}${starsChip(p.item)}</div>
+            <p class="why">${esc(p.why)}</p>
+            <button type="button" class="linkbtn" data-open="${p.item.id}">Read our review →</button>
+          </div>
+        </article>`).join("")}</div>`
+    : `<div class="empty"><strong>No ${state.kind === "game" ? "game" : "app"} pick for this theme yet</strong>Switch to ${state.kind === "game" ? "Apps" : "Games"} or All to see our pick.</div>`;
+  band.innerHTML = `<div class="band-head"><div>${head}</div></div>${body}`;
+}
+
+function renderGrid() {
+  let list;
+  if (state.q) {
+    list = ITEMS.filter(i => inKind(i) && matches(i, state.q));
+    $("#list-title").textContent = `Results for “${state.q}”`;
+  } else {
+    list = ITEMS.filter(i => inKind(i) && (state.theme === "all" || i.themes.includes(state.theme)));
+    const t = THEME_BY_ID[state.theme];
+    const what = state.kind === "game" ? "games" : state.kind === "app" ? "apps" : "games & apps";
+    $("#list-title").textContent = state.theme === "all" ? `All ${what}` : `More ${what} for ${t.name.toLowerCase()}`;
+  }
+  list = sorted(list);
+  $("#list-count").textContent = `${list.length} ${list.length === 1 ? "match" : "matches"}`;
+  $("#grid").innerHTML = list.length ? list.map(i => {
+    const m = mine[i.id];
+    return `<button type="button" class="card" data-open="${i.id}">
+      ${cover(i)}
+      <div class="card-body">
+        <h3>${esc(i.name)}</h3>
+        <div class="meta">${esc(i.maker)} · ${esc(i.genre)} · ${i.year}</div>
+        <div class="scores">${scoreChip(i)}${starsChip(i)}${m && m.stars ? `<span class="mine-tag">You: ${m.stars}★</span>` : ""}</div>
+        <p class="blurb">${esc(i.blurb)}</p>
+      </div>
+    </button>`;
+  }).join("") : `<div class="empty" style="grid-column:1/-1"><strong>Nothing matches “${esc(state.q)}”</strong>Try a genre like “roguelike”, a maker like “Nintendo”, or a theme like “cozy”.</div>`;
+}
+
+function render() {
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.kind === state.kind));
+  $("#sort").value = state.sort;
+  renderRail(); renderBand(); renderGrid();
+  save("loadout.prefs", { kind: state.kind, theme: state.theme, sort: state.sort });
+}
+
+function distribution(r) {
+  const c = r + 0.35;
+  const w = [5, 4, 3, 2, 1].map(k => Math.exp(-((k - c) ** 2) / 0.9) + (k === 1 ? 0.03 : 0.008));
+  const sum = w.reduce((a, b) => a + b, 0);
+  return w.map(x => Math.round((x / sum) * 100));
+}
+
+function openItem(id) {
+  const i = BY_ID[id]; if (!i) return;
+  lastFocus = document.activeElement;
+  const d = distribution(i.rating);
+  const m = mine[i.id] || { stars: 0, note: "" };
+  $("#drawer").innerHTML = `
+    <div style="position:relative">
+      ${cover(i, "d-cover")}
+      <button type="button" class="d-close" id="d-close" aria-label="Close review">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+    <div class="d-body">
+      <div class="d-title">
+        <h2 id="d-name">${esc(i.name)}</h2>
+        <p>${esc(i.maker)} · ${i.year} · ${esc(i.genre)}</p>
+        <div class="facts"><span class="fact">${esc(i.platforms)}</span><span class="fact">${esc(i.price)}</span></div>
+      </div>
+
+      <div class="scoreboard">
+        <div class="big-score"><b style="color:${i.score >= 9 ? "var(--good)" : "var(--ink)"}">${i.score.toFixed(1)}</b><span>Loadout score</span></div>
+        <div>
+          <div class="dist">${d.map((p, n) => `<div class="dist-row"><span>${5 - n}★</span><div class="bar"><i style="width:${p}%"></i></div><span>${p}%</span></div>`).join("")}</div>
+          <div class="dist-foot"><b style="color:var(--gold)">★</b> ${i.rating.toFixed(1)} from ${i.count} player ratings (sample)</div>
+        </div>
+      </div>
+
+      <div class="d-section"><h3>Our review</h3><p class="verdict">${esc(i.verdict)}</p></div>
+
+      <div class="d-section pc">
+        <div><h3>Good</h3><ul>${i.pros.map(p => `<li class="plus"><span>${esc(p)}</span></li>`).join("")}</ul></div>
+        <div><h3>Not so good</h3><ul>${i.cons.map(p => `<li class="minus"><span>${esc(p)}</span></li>`).join("")}</ul></div>
+      </div>
+
+      <div class="d-section"><h3>Players keep mentioning</h3><div class="tags">${i.mentions.map(x => `<span class="tag">${esc(x)}</span>`).join("")}</div></div>
+
+      <div class="d-section"><h3>Fits these themes</h3><div class="tags">${i.themes.map(t => `<button type="button" class="tag" data-goto="${t}">${esc(THEME_BY_ID[t].name)}</button>`).join("")}</div></div>
+
+      <div class="d-section mine">
+        <h3>Your rating</h3>
+        <div class="star-input" role="group" aria-label="Your stars">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-star="${n}" class="${n <= m.stars ? "on" : ""}" aria-label="${n} star${n > 1 ? "s" : ""}" aria-pressed="${n === m.stars}">★</button>`).join("")}</div>
+        <textarea id="mine-note" placeholder="What did you think? Only you can see this.">${esc(m.note || "")}</textarea>
+        <div class="mine-actions">
+          <button type="button" class="btn" id="mine-save">Save my rating</button>
+          ${m.stars || m.note ? `<button type="button" class="btn ghost" id="mine-clear">Remove</button>` : ""}
+          <span class="status" id="mine-status" role="status"></span>
+        </div>
+      </div>
+    </div>`;
+  $("#drawer").dataset.id = i.id;
+  $("#drawer").dataset.stars = m.stars;
+  $("#drawer").scrollTop = 0;
+  document.body.classList.add("drawer-open");
+  $("#d-close").focus();
+}
+function closeDrawer() {
+  if (!document.body.classList.contains("drawer-open")) return;
+  document.body.classList.remove("drawer-open");
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+/* ---------- Events ---------- */
+$("#q").addEventListener("input", e => { state.q = e.target.value.trim(); render(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
+document.querySelector(".seg").addEventListener("click", e => {
+  const b = e.target.closest("button[data-kind]"); if (!b) return;
+  state.kind = b.dataset.kind; render();
+});
+$("#rail").addEventListener("click", e => {
+  const b = e.target.closest("[data-theme-id]"); if (!b) return;
+  state.theme = b.dataset.themeId; state.q = ""; $("#q").value = ""; render();
+});
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-open]");
+  if (o) { openItem(o.dataset.open); return; }
+});
+$("#scrim").addEventListener("click", closeDrawer);
+$("#drawer").addEventListener("click", e => {
+  const dr = $("#drawer");
+  if (e.target.closest("#d-close")) return closeDrawer();
+  const g = e.target.closest("[data-goto]");
+  if (g) { state.theme = g.dataset.goto; state.q = ""; $("#q").value = ""; closeDrawer(); render(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  const s = e.target.closest("[data-star]");
+  if (s) {
+    const n = +s.dataset.star;
+    dr.dataset.stars = n;
+    dr.querySelectorAll("[data-star]").forEach(b => { b.classList.toggle("on", +b.dataset.star <= n); b.setAttribute("aria-pressed", +b.dataset.star === n); });
+    $("#mine-status").textContent = "";
+    return;
+  }
+  if (e.target.closest("#mine-save")) {
+    const stars = +dr.dataset.stars || 0, note = $("#mine-note").value.trim();
+    if (!stars && !note) { $("#mine-status").style.color = "var(--bad)"; $("#mine-status").textContent = "Pick some stars or write a note first."; return; }
+    mine[dr.dataset.id] = { stars, note, at: new Date().toISOString() };
+    save("loadout.mine", mine);
+    $("#mine-status").style.color = ""; $("#mine-status").textContent = "Saved on this device";
+    renderGrid();
+    return;
+  }
+  if (e.target.closest("#mine-clear")) {
+    delete mine[dr.dataset.id]; save("loadout.mine", mine); renderGrid(); openItem(dr.dataset.id);
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeDrawer(); return; }
+  if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); $("#q").focus(); }
+  if (e.key === "Tab" && document.body.classList.contains("drawer-open")) {
+    const f = [...$("#drawer").querySelectorAll("button, textarea")];
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  }
+});
+
+render();
+</script>
