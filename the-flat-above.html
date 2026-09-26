@@ -3093,10 +3093,30 @@ const UI = {
     $('clock').textContent = (G.phase === 'day' || G.phase === 'night') ? `${ph} ${G.day} · ${this.clockText()}` : '';
   },
   // ---------- pointer lock ----------
-  lockPointer() { this.wantLock = true; this.reqT = performance.now(); const c = renderer.domElement; if (document.pointerLockElement !== c) { try { const p = c.requestPointerLock(); if (p && p.catch) p.catch(() => $('clickResume').classList.remove('hidden')); } catch (e) { } } },
+  /** gesture: true when called straight from a click/key, so a failure means the browser refuses mouse lock outright. */
+  lockPointer(gesture) {
+    this.wantLock = true; this.reqT = performance.now(); if (gesture) this.gestureReq = true;
+    const c = renderer.domElement; if (document.pointerLockElement === c) return;
+    try { const p = c.requestPointerLock(); if (p && p.catch) p.catch(() => this.lockFailed()); }
+    catch (e) { this.lockFailed(); }
+  },
+  /** Mouse lock refused (sandboxed preview, some browsers): fall back to click-and-drag look instead of getting stuck. */
+  lockFailed() {
+    if (!(G.phase === 'day' || G.phase === 'night')) return;
+    if (this.gestureReq || this.noLock) {
+      $('clickResume').classList.add('hidden');
+      if (!this.noLock) {
+        this.noLock = true; renderer.domElement.style.cursor = 'grab';
+        const hint = () => say('<i>Mouse lock isn\'t allowed here. Hold the LEFT MOUSE BUTTON and DRAG to look around. (For the full experience, open the file directly in Chrome, Edge or Firefox.)</i>', 9000);
+        hint(); Timers.add(9, hint); UI.toast('Drag with the mouse to look');
+      }
+    } else $('clickResume').classList.remove('hidden');
+    this.gestureReq = false;
+  },
   releasePointer() { this.wantLock = false; if (document.pointerLockElement) document.exitPointerLock(); },
   onLockChange() {
     this.locked = document.pointerLockElement === renderer.domElement;
+    this.gestureReq = false;
     if (this.locked) $('clickResume').classList.add('hidden');
     else if (this.wantLock && !G.ui && (G.phase === 'day' || G.phase === 'night') && performance.now() - (this.reqT || 0) > 500) this.pause();
   },
@@ -3189,7 +3209,7 @@ const UI = {
     $('btnRestart').textContent = G.phase === 'night' ? 'Restart Night' : 'Restart Day';
     if (AudioSys.ctx) AudioSys.ctx.suspend();
   },
-  resume() { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; this.lockPointer(); },
+  resume() { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; this.lockPointer(true); },
 };
 
 /* ---------- notebook ---------- */
@@ -3306,13 +3326,13 @@ const Game = {
     $('btnNew').onclick = () => { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; Save.clear(); this.newGame(); };
     const sl = (id, key) => { const e = $(id); e.value = G.settings[key]; e.oninput = () => { G.settings[key] = +e.value; AudioSys.setVolumes(); Save.saveSettings(); }; };
     sl('volMaster', 'master'); sl('volSfx', 'sfx'); sl('volAmb', 'amb'); sl('sens', 'sens');
-    $('clickResume').onclick = () => UI.lockPointer();
+    $('clickResume').onclick = () => UI.lockPointer(true);
     $('nbClose').onclick = () => Notebook.close();
     $('dialogue').addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') UI.advance(); });
   },
   audioStart() {
     AudioSys.init(); if (AudioSys.ctx.state !== 'running') AudioSys.ctx.resume();
-    $('start').classList.add('hidden'); UI.lockPointer();
+    $('start').classList.add('hidden'); UI.lockPointer(true);
   },
   hookInput() {
     document.addEventListener('keydown', e => {
@@ -3344,9 +3364,12 @@ const Game = {
     document.addEventListener('keyup', e => { Player.keys[e.code] = false; });
     window.addEventListener('blur', () => { Player.keys = {}; });
     document.addEventListener('pointerlockchange', () => UI.onLockChange());
-    document.addEventListener('pointerlockerror', () => { if (G.phase === 'day' || G.phase === 'night') $('clickResume').classList.remove('hidden'); });
-    document.addEventListener('mousemove', e => { if (UI.locked && !G.ui && !Player.hiddenLookLock) Player.look(e.movementX || 0, e.movementY || 0); });
-    renderer.domElement.addEventListener('click', () => { if ((G.phase === 'day' || G.phase === 'night') && !G.ui && !UI.locked) UI.lockPointer(); });
+    document.addEventListener('pointerlockerror', () => UI.lockFailed());
+    // look: pointer-locked mouse, or (fallback when lock is refused) drag with the left button held
+    document.addEventListener('mousemove', e => { if (!G.ui && (UI.locked || (e.buttons & 1))) Player.look(e.movementX || 0, e.movementY || 0); });
+    renderer.domElement.addEventListener('click', () => { if ((G.phase === 'day' || G.phase === 'night') && !G.ui && !UI.locked && !UI.noLock) UI.lockPointer(true); });
+    renderer.domElement.addEventListener('mousedown', e => { if (UI.noLock) { renderer.domElement.style.cursor = 'grabbing'; e.preventDefault(); } });
+    document.addEventListener('mouseup', () => { if (UI.noLock) renderer.domElement.style.cursor = 'grab'; });
   },
 
   // ---------------- phases ----------------
@@ -3477,7 +3500,7 @@ const Game = {
       $('fadeText').textContent = `You were found on ${floorName(f)}.`;
       $('fadeSub').textContent = f === 2 ? 'It was so close to home.' : '';
       const b = document.createElement('button'); b.className = 'bigbtn'; b.textContent = 'Restart night';
-      b.onclick = () => { fd.classList.remove('on'); G.ui = null; this.restart(); UI.lockPointer(); };
+      b.onclick = () => { fd.classList.remove('on'); G.ui = null; this.restart(); UI.lockPointer(true); };
       $('fadeBtns').appendChild(b);
     });
   },
@@ -3499,7 +3522,7 @@ const Game = {
       const stats = `\n\nNights survived: ${kind === 'hide' || kind === 'run' || kind === 'down' ? 9 : G.day - 1} · Floors guessed right: ${G.correct} of 8 · Clues: ${G.clues.length} · Logbook pages: ${G.pages.length}/9`;
       $('fadeSub').textContent = E.text + stats;
       const b = document.createElement('button'); b.className = 'bigbtn'; b.textContent = 'Play again';
-      b.onclick = () => { fd.classList.remove('on'); G.ui = null; this.newGame(); UI.lockPointer(); };
+      b.onclick = () => { fd.classList.remove('on'); G.ui = null; this.newGame(); UI.lockPointer(true); };
       $('fadeBtns').appendChild(b);
     });
   },
