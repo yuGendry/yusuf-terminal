@@ -147,6 +147,7 @@
     <button class="btn" id="btnRestart">Restart Night</button>
     <button class="btn" id="btnUnstuck">I'm stuck &mdash; take me back to Flat 2B</button>
     <button class="btn" id="btnNew">New Game</button>
+    <label>Jump scares <input type="checkbox" id="jumps" checked style="width:auto"></label>
     <label>Graphics <select id="gfx"><option value="high">High</option><option value="low">Low (faster)</option></select></label>
     <label>Master <input type="range" id="volMaster" min="0" max="1" step="0.01"></label>
     <label>Effects <input type="range" id="volSfx" min="0" max="1" step="0.01"></label>
@@ -172,7 +173,8 @@
   </div>
   <div class="ctrl">
     WASD move · Mouse look · Shift run (loud) · C crouch (quiet) · E interact · F torch · H hide / leave hiding<br>
-    Space hold breath (while hiding) · Tab notebook · R phone · G throw phone · Esc pause
+    Space hold breath (while hiding) · Tab notebook · R phone · G throw phone · Esc pause<br>
+    <span style="color:#8a3a2a">Contains flashing images and loud jump scares (can be turned off in the pause menu).</span>
   </div>
 </div>
 
@@ -255,7 +257,7 @@ const G = {
   recordings: [],       // Dean recording ids
   items: { battery: 1, batteries: 0, masterKey: false, phone: true, photo: false },
   flags: {},
-  settings: { master: 0.85, sfx: 0.9, amb: 0.75, sens: 1, quality: 'high' },
+  settings: { master: 0.85, sfx: 0.9, amb: 0.75, sens: 1, quality: 'high', jumps: true },
 };
 function persistentState() {
   return {
@@ -593,6 +595,21 @@ const AudioSys = {
     this.nz(d, 'brown', t, 0.5, 1.2, 'lowpass', 1500, 200, 0.8);
     this.nz(d, 'white', t, 0.2, 0.5, 'bandpass', 2500, 0, 2);
     this.osc(d, 'sine', 70, 30, t, 0.5, 1);
+  },
+  /** Jump-scare shriek: detuned sawtooth screech sweeping up, a noise burst and a low impact boom. */
+  shriek(vol = 1) {
+    if (!this.ready) return; const C = this.ctx, t = this.t, d = this.out(null, { dur: 2.2 });
+    const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 0.6; bp.connect(d);
+    [520, 556, 783, 1130].forEach((f, i) => {
+      const o = C.createOscillator(), g = C.createGain(), v = C.createOscillator(), vg = C.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 0.55, t); o.frequency.exponentialRampToValueAtTime(f * 1.5, t + 0.1); o.frequency.exponentialRampToValueAtTime(f * 0.85, t + 1.3);
+      v.frequency.value = 26 + i * 5; vg.gain.value = f * 0.05; v.connect(vg); vg.connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2 * vol, t + 0.02); g.gain.setValueAtTime(0.2 * vol, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      o.connect(g); g.connect(bp); o.start(t); o.stop(t + 1.5); v.start(t); v.stop(t + 1.5);
+    });
+    this.nz(d, 'white', t, 0.9, 0.7 * vol, 'bandpass', 3200, 1500, 0.8, 0.01);
+    this.osc(d, 'sine', 95, 28, t, 0.7, 1.2 * vol, 0.003);
+    this.nz(d, 'brown', t, 0.5, 1.3 * vol, 'lowpass', 500, 80, 0.8, 0.003);
   },
   deathStep(i) {
     if (!this.ready) return; const t = this.t, d = this.out(null, { dur: 2 });
@@ -1032,6 +1049,7 @@ function initRenderer() {
   LIGHTS.flat = new THREE.PointLight(0xffd49a, 0.9, 10, 1.6); LIGHTS.flat.position.set(30, 2.4, -4.5); scene.add(LIGHTS.flat);
   LIGHTS.red = new THREE.PointLight(0xff2a10, 0, 16, 1.4); LIGHTS.red.position.set(30, 2.3, 0); scene.add(LIGHTS.red);
   LIGHTS.exit = new THREE.PointLight(0x30ff70, 0.12, 5, 2); LIGHTS.exit.position.set(0.5, 2.2, 0); scene.add(LIGHTS.exit);
+  LIGHTS.scare = new THREE.PointLight(0xd8def0, 0, 4, 2); scene.add(LIGHTS.scare); // lights the thing's face during jump scares
   const torch = new THREE.SpotLight(0xfff0d0, 0, 24, 0.48, 0.55, 1.5);
   torch.castShadow = true; torch.shadow.mapSize.set(1024, 1024); torch.shadow.camera.near = 0.2; torch.shadow.camera.far = 24; torch.shadow.bias = -0.0015; torch.shadow.radius = 3;
   torch.position.set(0.18, -0.15, 0.1); camera.add(torch); camera.add(torch.target); torch.target.position.set(0, -0.1, -5);
@@ -1054,10 +1072,10 @@ function initRenderer() {
         c += (texture2D(tDiffuse, vUv + o*4.0).rgb + texture2D(tDiffuse, vUv - o*4.0).rgb) * 0.0162162;
         gl_FragColor = vec4(c, 1.0); }` });
   postMat = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloom: { value: 0.9 }, time: { value: 0 }, grain: { value: 0.07 }, vig: { value: 0.35 }, dark: { value: 0 }, bright: { value: 1 }, desat: { value: 0.3 }, red: { value: 0 }, ca: { value: 1 }, expo: { value: 1.25 } },
+    uniforms: { tDiffuse: { value: null }, tBloom: { value: null }, bloom: { value: 0.9 }, time: { value: 0 }, grain: { value: 0.07 }, vig: { value: 0.35 }, dark: { value: 0 }, bright: { value: 1 }, desat: { value: 0.3 }, red: { value: 0 }, ca: { value: 1 }, expo: { value: 1.25 }, flash: { value: 0 } },
     vertexShader: vs, depthTest: false, depthWrite: false,
     fragmentShader: `
-      uniform sampler2D tDiffuse, tBloom; uniform float time, grain, vig, dark, bright, desat, red, bloom, ca, expo; varying vec2 vUv;
+      uniform sampler2D tDiffuse, tBloom; uniform float time, grain, vig, dark, bright, desat, red, bloom, ca, expo, flash; varying vec2 vUv;
       float rnd(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }
       vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
       void main(){
@@ -1075,6 +1093,7 @@ function initRenderer() {
         c *= mix(1.0, smoothstep(0.85, 0.2, r), vig);
         c *= 1.0 - dark * smoothstep(0.08, 0.55, r);
         c *= 1.0 - dark * 0.35;
+        c = mix(c, vec3(1.0, 0.93, 0.9), clamp(flash, 0.0, 1.0) * 0.3);   // jump-scare flash
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
@@ -1692,7 +1711,8 @@ function buildFlatInterior(g, f, id, info, s, moved) {
     if (isPlayer) inter([x, 0.7, z], 0.9, () => G.phase === 'day' ? 'Sleep until night' : (G.sleepOK ? 'Sleep until morning' : 'Lie down'), () => Game.sleep()); }
   // wardrobe (side wall near door)
   { const [x, z] = P(3.62, 2.4); const ry = F.side < 0 ? Math.PI / 2 : -Math.PI / 2; wardrobe(g, x, z, ry);
-    addHide({ id: 'ward' + f + id, type: 'wardrobe', label: 'Hide in the wardrobe', pos: [x, 1.45, z], yaw: F.side < 0 ? -Math.PI / 2 : Math.PI / 2, exit: P(2.7, 2.4), at: [x, 1.2, z] }); }
+    const wyaw = F.side < 0 ? -Math.PI / 2 : Math.PI / 2; // peer out through the gap in the doors, not from behind the seam
+    addHide({ id: 'ward' + f + id, type: 'wardrobe', label: 'Hide in the wardrobe', pos: [x - Math.sin(wyaw) * 0.34, 1.45, z - Math.cos(wyaw) * 0.34], yaw: wyaw, exit: P(2.7, 2.4), at: [x, 1.2, z] }); }
   // kitchen along the left wall
   { const [x, z] = P(-3.65, 2.1);
     const k = kitchen(g, x, z, F.side < 0 ? -Math.PI / 2 : Math.PI / 2); if (moved) k.rotation.y += 0.05;
@@ -2039,7 +2059,12 @@ const Player = {
   peephole() {
     G.ui = 'peephole'; this.peepT = 0; UI.hideOverlay('peep');
     UI.releasePointer();
-    say('<i>[any key] step back</i>');
+    say('<i>[any key / click] step back</i>');
+    // something may be right on the other side of the lens
+    const atDoor = Monster.state === 'SIEGE' && Monster.siege && ['door', 'listen', 'chain'].includes(Monster.siege.phase);
+    if (atDoor ? Scare.can('peep', true) : (G.day >= 3 && !World.soupNPC && chance(0.5) && Scare.can('peep'))) {
+      Timers.add(atDoor ? 0.5 : rr(1.3, 2.6), () => { if (G.ui === 'peephole') Scare.jump('peep', { d0: 0.55, d1: 0.1, lunge: 0.1, dur: 0.75, onEnd: () => { if (G.ui === 'peephole') Game.endPeephole(); } }); });
+    }
   },
   // ----- phone throw -----
   throwPhone() {
@@ -2112,6 +2137,64 @@ function buildMonsterMesh(rev) {
     for (let k = 0; k < 4; k++) mk(fa, 0.014, 0.3, 0.014, skin, -0.03 + k * 0.02, -0.88, 0.01 * k);
   });
   g.userData.P = P;
+  return g;
+}
+/** The close-up face used for jump scares: painted procedurally on a canvas (far more control than primitives),
+    on a slightly curved card that fades into the dark at its edges. */
+function texScareFace() {
+  return canvasTex('scareFace', 512, 768, (g, w, h) => {
+    const R = mulberry32(666), rnd = (a, b) => a + R() * (b - a);
+    g.clearRect(0, 0, w, h);
+    // head silhouette: long, narrow, jaw hanging
+    g.save(); g.beginPath(); g.ellipse(256, 360, 170, 330, 0, 0, Math.PI * 2); g.clip();
+    const base = g.createRadialGradient(256, 430, 40, 256, 360, 340); base.addColorStop(0, '#a29c8a'); base.addColorStop(0.4, '#6e6a5b'); base.addColorStop(0.75, '#2a2923'); base.addColorStop(1, '#050504');
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    // blotches and damp skin
+    for (let i = 0; i < 70; i++) { const x = rnd(90, 420), y = rnd(60, 700), r = rnd(8, 45); const gr = g.createRadialGradient(x, y, 0, x, y, r); const c = R() < 0.5 ? '60,70,50' : '120,90,90'; gr.addColorStop(0, `rgba(${c},${rnd(0.15, 0.35)})`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    // veins
+    g.lineCap = 'round';
+    for (let i = 0; i < 26; i++) { g.strokeStyle = `rgba(${R() < 0.5 ? '40,50,80' : '70,30,40'},${rnd(0.25, 0.55)})`; g.lineWidth = rnd(0.8, 2.4); g.beginPath(); let x = rnd(100, 410), y = rnd(40, 650); g.moveTo(x, y); for (let k = 0; k < 9; k++) { x += rnd(-16, 16); y += rnd(-4, 24); g.lineTo(x, y); } g.stroke(); }
+    // sunken sockets
+    [[180, 290, 1], [334, 282, 0.9]].forEach(([x, y, s]) => {
+      const sh = g.createRadialGradient(x, y + 25, 5, x, y + 20, 110 * s); sh.addColorStop(0, 'rgba(0,0,0,.95)'); sh.addColorStop(0.45, 'rgba(10,8,6,.85)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = sh; g.beginPath(); g.ellipse(x, y + 18, 95 * s, 120 * s, 0, 0, 7); g.fill();
+      g.fillStyle = '#000'; g.beginPath(); g.ellipse(x, y + 12, 44 * s, 58 * s, rnd(-0.2, 0.2), 0, 7); g.fill();
+      const pu = g.createRadialGradient(x + 4, y + 8, 0, x + 4, y + 8, 9 * s); pu.addColorStop(0, 'rgba(255,250,235,1)'); pu.addColorStop(0.5, 'rgba(230,220,190,.7)'); pu.addColorStop(1, 'rgba(160,20,10,0)');
+      g.fillStyle = pu; g.beginPath(); g.arc(x + 4, y + 8, 9 * s, 0, 7); g.fill();
+    });
+    // nostril slits
+    g.fillStyle = 'rgba(0,0,0,.85)'; g.beginPath(); g.ellipse(243, 400, 5, 16, 0.2, 0, 7); g.fill(); g.beginPath(); g.ellipse(270, 400, 5, 16, -0.2, 0, 7); g.fill();
+    // the mouth: a vertical tear from under the nose to past the chin
+    const mp = [[256, 440]]; for (let y = 460; y <= 700; y += 20) mp.push([256 + Math.sin(y * 0.05) * 6 + rnd(-3, 3), y]);
+    const edge = (side, wide) => mp.map(([x, y], k) => [x + side * (wide * Math.sin(Math.PI * k / (mp.length - 1)) + rnd(-4, 4)), y]);
+    const L = edge(-1, 58), Rr = edge(1, 58);
+    g.fillStyle = '#060000'; g.beginPath(); g.moveTo(...L[0]); L.forEach(p => g.lineTo(...p)); Rr.slice().reverse().forEach(p => g.lineTo(...p)); g.closePath(); g.fill();
+    const throat = g.createLinearGradient(0, 470, 0, 690); throat.addColorStop(0, 'rgba(90,10,10,.55)'); throat.addColorStop(1, 'rgba(20,0,0,0)'); g.fillStyle = throat; g.fill();
+    // teeth: thin, yellowed, irregular, pointing inward
+    [[L, 1], [Rr, -1]].forEach(([E, dir]) => E.forEach(([x, y], k) => { if (k === 0 || k === E.length - 1 || R() < 0.2) return; const len = rnd(14, 34), wd = rnd(3, 7);
+      g.fillStyle = `rgb(${190 + rnd(-20, 20)},${175 + rnd(-20, 15)},${120 + rnd(-20, 20)})`; g.beginPath(); g.moveTo(x - dir * 2, y - wd); g.lineTo(x + dir * len, y + rnd(-6, 6)); g.lineTo(x - dir * 2, y + wd); g.fill(); }));
+    // strings of spit
+    g.strokeStyle = 'rgba(200,190,170,.35)'; for (let i = 0; i < 4; i++) { g.lineWidth = rnd(0.8, 1.8); g.beginPath(); const x = 256 + rnd(-30, 30); g.moveTo(x, rnd(470, 520)); g.quadraticCurveTo(x + rnd(-10, 10), 600, x + rnd(-6, 6), rnd(620, 680)); g.stroke(); }
+    // cylindrical shading: dark cheeks and temples, shadowed brow
+    const side = g.createLinearGradient(86, 0, 426, 0); side.addColorStop(0, 'rgba(0,0,0,.85)'); side.addColorStop(0.3, 'rgba(0,0,0,0)'); side.addColorStop(0.7, 'rgba(0,0,0,0)'); side.addColorStop(1, 'rgba(0,0,0,.85)');
+    g.fillStyle = side; g.fillRect(0, 0, w, h);
+    const top = g.createLinearGradient(0, 30, 0, 260); top.addColorStop(0, 'rgba(0,0,0,.75)'); top.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = top; g.fillRect(0, 0, w, h);
+    g.restore();
+    // melt the edges into darkness (elliptical fade)
+    g.globalCompositeOperation = 'destination-in';
+    g.save(); g.translate(256, 380); g.scale(1, 1.9);
+    const fade = g.createRadialGradient(0, 0, 0, 0, 0, 175); fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(0.7, 'rgba(0,0,0,1)'); fade.addColorStop(0.88, 'rgba(0,0,0,.5)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade; g.fillRect(-256, -210, 512, 420); g.restore();
+    g.globalCompositeOperation = 'source-over';
+  });
+}
+function buildScareFace() {
+  const g = new THREE.Group();
+  const geo = new THREE.PlaneGeometry(0.34, 0.51, 12, 16), pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), y = pos.getY(i); pos.setZ(i, -(x * x) * 2.2 - (y * y) * 0.6); } // curved like a skull
+  const mat = new THREE.MeshBasicMaterial({ map: texScareFace(), transparent: true, depthTest: false, depthWrite: false, fog: false, color: 0xd8d4c8 });
+  const m = new THREE.Mesh(geo, mat); m.renderOrder = 1000; g.add(m); g.userData.mat = mat;
+  g.visible = false;
   return g;
 }
 function buildHandMesh() {
@@ -2442,7 +2525,12 @@ const Monster = {
         else if (!this.path.length) {
           if (!s.order.length) { s.phase = 'leave'; this.goTo(-3.5, 0); break; }
           const [x, z] = s.order[0]; this.goTo(x, z + (z < -1.5 ? 0.9 : 0));
-        } else if (this.moveAlong(dt)) { s.pause = rr(3.5, 5); if (World.f === 2 && Player.inFlat2B()) AudioSys.mBreath(this.pos3(2.1), 0, 1.2); }
+        } else if (this.moveAlong(dt)) {
+          s.pause = rr(3.5, 5); if (World.f === 2 && Player.inFlat2B()) AudioSys.mBreath(this.pos3(2.1), 0, 1.2);
+          const h = Player.hidden;
+          if (h && World.f === 2 && dist2(this.x, this.z, h.pos.x, h.pos.z) < 2 && Scare.can('slats', true) && !Scare.used.slats)
+            Scare.jump('slats', { quiet: true, d0: 0.9, d1: 0.42, lunge: 1.6, dur: Math.min(3.2, s.pause - 0.3) });
+        }
         break;
       case 'leave':
         this.speed = 1.2; s.lt = (s.lt || 0) + dt;
@@ -2589,6 +2677,7 @@ const Director = {
       if (st >= 3) { add('whisper', 3); add('torch'); add('distantDoor'); }
       if (st >= 2 && !this.used.glimpse && this.canBig()) add('glimpse', 2);
       if ((st >= 2 || World.emptyFloor) && !this.used.hand && this.canBig()) add('hand', 2);
+      if ((st >= 2 || World.emptyFloor) && !Player.hidden && Scare.can('behind') && G.now - this.lastBig > 60) add('behind', 2);
     } else { add('nothing'); }
     const kind = pick(pool.length ? pool : ['distantDoor']);
     this.lastSign = G.now;
@@ -2622,6 +2711,7 @@ const Director = {
       }
       case 'glimpse': this.glimpse(); break;
       case 'hand': this.showHand(); break;
+      case 'behind': Scare.armBehind(); break;
       case 'liftSelf': this.used.liftDay = true; Lift.floor = World.f; AudioSys.ding(new THREE.Vector3(20, 2.2, 1.6), 0.9); Lift.openDoors(); say('<i>The lift arrives on your floor. Nobody called it. Nobody gets out.</i>'); break;
       case 'nothing': break;
     }
@@ -2729,6 +2819,13 @@ const Director = {
       if (o.life <= 0) { World.group.remove(o.s); o.s.material.dispose(); return false; } return true;
     });
     this.updateHand(dt);
+    // a face pressed to the outside of the 2B window (nights 4+), when you look at it
+    if (G.phase === 'night' && G.day >= 4 && World.f === 2 && Player.inFlat2B() && !Player.hidden && Scare.can('window') && !G.cut) {
+      const wp = new THREE.Vector3(29.2, 1.62, -7.62), to = wp.clone().sub(camera.position), dd = to.length();
+      const fw = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      this.winT = to.normalize().dot(fw) > 0.95 && dd < 6.5 ? (this.winT || 0) + dt : 0;
+      if (this.winT > 1.2) { this.winT = 0; Scare.jump('window', { world: wp, dur: 1.1, drop: true, quiet: false, vol: 0.7 }); Timers.add(0.9, () => AudioSys.thump(new THREE.Vector3(29.2, -1, -8), 0.2, 0.8)); }
+    }
   },
 };
 
@@ -2777,6 +2874,7 @@ const Power = {
     AudioSys.breakerFlip(World.fusePos);
     if (World.led) World.led.material = MAT.ledGreen;
     Timers.add(0.6, () => { G.power = true; AudioSys.powerOn(); Monster.onRestore(); Director.hideHand(); });
+    if (G.day !== 9 && G.day >= 2 && chance(0.55) && Scare.can('lights', true) && !Scare.used.lights) Timers.add(0.7, () => Scare.armLights());
     G.sleepOK = true;
     say('You slam the breaker up. The corridor stutters back to yellow. Somewhere, something heavy draws back into the walls.');
     Clues.add('fx' + G.day, `Night ${G.day}: restored the power at the fuse cupboard on ${floorName(c.floor)}.`);
@@ -2887,6 +2985,7 @@ const Doors = {
     if (d.key === '2B' && d.chain) { say('The chain is on.'); AudioSys.chain(p, 0.6); return; }
     setDoorOpen(d, 1); AudioSys.doorCreak(p, 0.6, 1.1);
     if (d.key === '2B') G.door2B.open = true;
+    else if ((st === 'emptied' || st === 'vacant') && G.day >= 2 && chance(0.3) && Scare.can('door')) Timers.add(0.45, () => { if (G.phase === 'night') Scare.jump('door', { d0: 1.8, d1: 0.45, lunge: 0.14, y: 0.05 }); });
     Monster.hear(World.f, d.x, d.z, 0.15);
   },
   toggleLock() {
@@ -2961,6 +3060,92 @@ const Clues = {
       say(t);
       if (!(Monster.silent && night)) this.add(`ls${G.day}${G.phase[0]}_${f}`, `Stairwell, floor ${floorShort(f)} (${night ? 'night' : 'day'}): ${t}`);
     });
+  },
+};
+
+/* ---------- JUMP SCARES ----------
+   Rare, sudden and loud, layered on top of the slow dread. The director gates them:
+   at most three a night, never within 75 s of each other or during a calm period,
+   never the same kind twice in a row, and they can be switched off in the pause menu.
+   Kinds: death lunge · peephole · "turn around" · door burst · lights-on · window face · the slats. */
+const Scare = {
+  face: null, body: null, active: null, jumpsNight: 0, lastJump: -999, lastKind: '', shake: 0, flash: 0, armed: null, used: {},
+  init() { this.face = buildScareFace(); scene.add(this.face); },
+  reset() { this.end(true); this.jumpsNight = 0; this.armed = null; this.used = {}; this.shake = 0; this.flash = 0; if (this.body) this.body.visible = false; },
+  enabled() { return G.settings.jumps !== false; },
+  can(kind, force) {
+    if (!this.enabled() || this.active || G.phase !== 'night') return false;
+    if (force) return true;
+    return kind !== this.lastKind && !this.used[kind] && this.jumpsNight < 3 && G.now - this.lastJump > 75 && !Director.inCalm();
+  },
+  /** Face lunge relative to the camera. o: {d0, d1, lunge, dur, x, y, quiet, onEnd, world, look} */
+  jump(kind, o = {}) {
+    this.active = Object.assign({ t: 0, d0: 1.3, d1: 0.3, lunge: 0.16, dur: 0.85, x: 0, y: -0.02 }, o, { kind });
+    this.face.visible = true; this.lastJump = G.now; this.lastKind = kind; this.used[kind] = true;
+    if (kind !== 'death') this.jumpsNight++;
+    if (o.quiet) AudioSys.stinger();
+    else { AudioSys.shriek(o.vol || 1); this.shake = 0.8; this.flash = 1; }
+    Director.scare('jump-' + kind, true); Director.stress = 1; Director.heartT = 0;
+  },
+  end(silent) {
+    if (this.face) this.face.visible = false;
+    const a = this.active; this.active = null; if (LIGHTS.scare) LIGHTS.scare.intensity = 0;
+    if (a && a.onEnd && !silent) a.onEnd();
+  },
+  /** The whole creature, lit for a split second (used when the lights come back on). */
+  armLights() { this.armed = { kind: 'lights', t: 0 }; },
+  bodyFlash(dist) {
+    if (!this.body) { this.body = buildMonsterMesh(true); scene.add(this.body); }
+    const fw = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); const sx = Math.sign(fw.x) || 1;
+    const x = clamp(Player.pos.x + sx * dist, 0.5, 39.5);
+    this.body.position.set(x, 0, 0); this.body.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2; this.body.visible = true;
+    this.lastJump = G.now; this.lastKind = 'lights'; this.used.lights = true; this.jumpsNight++;
+    AudioSys.shriek(0.9); this.shake = 0.6; this.flash = 0.8; Director.scare('jump-lights', true);
+    Timers.add(0.4, () => { LIGHTS.corr.forEach(l => l.userData.kill = 0.35); });
+    Timers.add(0.55, () => { this.body.visible = false; });
+  },
+  /** "Turn around": breathing right behind you; the moment you turn, it is there. */
+  armBehind() {
+    this.armed = { kind: 'behind', yaw0: Player.yaw, t: 0, breathed: false };
+    Director.preSilence = 4; this.used.behind = true;
+  },
+  update(dt) {
+    this.shake = Math.max(0, this.shake - dt * 1.3); this.flash = Math.max(0, this.flash - dt * 3);
+    if (postMat) postMat.uniforms.flash.value = this.flash;
+    const ar = this.armed;
+    if (ar && ar.kind === 'lights') {
+      ar.t += dt; const fw = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      if (Player.region() === 'C' && Math.abs(fw.x) > 0.85 && G.power && !this.active) { this.armed = null; this.bodyFlash(3.2); }
+      else if (ar.t > 8 || World.f < 1) this.armed = null;
+    }
+    if (ar && ar.kind === 'behind') {
+      ar.t += dt;
+      if (ar.t > 1.8 && !ar.breathed) { ar.breathed = true; const fw = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion); AudioSys.mBreath(camera.position.clone().addScaledVector(fw, -1.1), 0, 1.3); say('<i>Breathing. Right behind you.</i>', 3000); }
+      const dy = Math.abs(Math.atan2(Math.sin(Player.yaw - ar.yaw0), Math.cos(Player.yaw - ar.yaw0)));
+      if (ar.breathed && dy > 2.2 && !this.active) { this.armed = null; this.jump('behind', { d0: 0.75, d1: 0.34, lunge: 0.12 }); }
+      else if (ar.t > 16 || Player.hidden || G.phase !== 'night') this.armed = null;
+    }
+    const a = this.active; if (!a) return;
+    a.t += dt;
+    const k = clamp(a.t / a.lunge, 0, 1), d = lerp(a.d0, a.d1, 1 - Math.pow(1 - k, 3));
+    camera.updateMatrixWorld(true);
+    if (a.world) { this.face.position.copy(a.world); if (a.drop) this.face.position.y -= Math.max(0, a.t - a.dur + 0.5) * 4; this.face.lookAt(camera.position); }
+    else {
+      const j = a.quiet ? 0.004 : 0.018;
+      this.face.position.set(a.x + rr(-j, j), a.y + rr(-j, j), -d).applyMatrix4(camera.matrixWorld);
+      this.face.quaternion.copy(camera.quaternion);
+    }
+    this.face.rotateZ(Math.sin(a.t * 37) * (a.quiet ? 0.01 : 0.06));
+    LIGHTS.scare.position.copy(camera.position).lerp(this.face.position, 0.35); LIGHTS.scare.position.y += 0.15;
+    const fade = a.t < a.dur - 0.15 ? 1 : Math.max(0, (a.dur - a.t) / 0.15);
+    LIGHTS.scare.intensity = (a.quiet ? 0.5 : 1.4) * fade;
+    this.face.userData.mat.color.setScalar((a.quiet ? 0.55 : 0.8) * fade * (0.8 + Math.random() * 0.25));
+    if (a.t >= a.dur) this.end();
+  },
+  applyCamera() {
+    if (this.shake <= 0) return;
+    const s = this.shake * this.shake;
+    camera.position.x += rr(-1, 1) * 0.05 * s; camera.position.y += rr(-1, 1) * 0.04 * s; camera.rotation.z += rr(-1, 1) * 0.06 * s;
   },
 };
 
@@ -3611,7 +3796,7 @@ const Game = {
   focus: null, arrivedMsg: {},
 
   boot() {
-    initRenderer(); initMaterials(); Monster.init();
+    initRenderer(); initMaterials(); Monster.init(); Scare.init();
     Save.loadSettings();
     G.door2B = { open: false, locked: false, chain: false };
     buildFloor(2);
@@ -3635,6 +3820,8 @@ const Game = {
     $('btnRestart').onclick = () => { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; this.restart(); };
     $('btnUnstuck').onclick = () => { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; this.unstuck(); UI.lockPointer(true); };
     $('gfx').value = G.settings.quality || 'high';
+    $('jumps').checked = G.settings.jumps !== false;
+    $('jumps').onchange = () => { G.settings.jumps = $('jumps').checked; Save.saveSettings(); };
     $('gfx').onchange = () => { G.settings.quality = $('gfx').value; POST.scale = 1; applyQuality(); Save.saveSettings(); };
     $('btnNew').onclick = () => { $('pause').classList.add('hidden'); if (AudioSys.ctx) AudioSys.ctx.resume(); G.ui = null; Save.clear(); this.newGame(); };
     const sl = (id, key) => { const e = $(id); e.value = G.settings[key]; e.oninput = () => { G.settings[key] = +e.value; AudioSys.setVolumes(); Save.saveSettings(); }; };
@@ -3696,7 +3883,7 @@ const Game = {
     Timers.clear(); G.cut = null; G.power = true; G.dawnAt = null; G.sleepOK = false; G.busy = false; G.t = 0;
     G.door2B = { open: false, locked: false, chain: false };
     Lift.target = 0; Lift.open = 0; Lift.moving = false; Lift.floor = ri(3, 11);
-    Director.resetPhase(); this.arrivedMsg = {};
+    Director.resetPhase(); Scare.reset(); this.arrivedMsg = {};
     Player.pos.set(31.3, 0, -3.4); Player.yaw = Math.PI; Player.pitch = 0; Player.hidden = null; Player.torch = false; Player.phoneLight = false; Player.crouch = false; Player.breath = CFG.BREATH_MAX;
     UI.hideOverlay(null); AudioSys.duck = 1;
     if (Monster.mesh) Monster.mesh.visible = false;
@@ -3814,10 +4001,13 @@ const Game = {
     const f = World.f;
     G.phase = 'dead'; G.busy = true; Timers.clear(); UI.releasePointer();
     if (G.ui === 'dialogue') UI.endDialogue(true); ['notebook', 'phone'].forEach(id => $(id).classList.add('hidden')); G.ui = 'fade';
-    Player.hidden = null; UI.hideOverlay(null); Player.torch = false;
-    const fd = $('fade'); fd.style.transition = 'none'; $('fadeText').textContent = ''; $('fadeSub').textContent = ''; $('fadeBtns').innerHTML = ''; fd.classList.add('on');
+    Player.hidden = null; UI.hideOverlay(null);
+    const fd = $('fade'); fd.style.transition = 'none'; $('fadeText').textContent = ''; $('fadeSub').textContent = ''; $('fadeBtns').innerHTML = '';
+    // it lunges at you, then black
+    if (Scare.enabled()) { Scare.end(true); Scare.jump('death', { d0: 1.1, d1: 0.22, lunge: 0.13, dur: 0.8 }); Timers.add(0.75, () => { fd.classList.add('on'); Player.torch = false; }); }
+    else { fd.classList.add('on'); Player.torch = false; }
     AudioSys.duck = 0; AudioSys.setLoop('breath', 0, 0.05); AudioSys.setLoop('fridge', 0); AudioSys.setLoop('tv', 0);
-    [1.2, 3.0, 4.8].forEach(t => Timers.add(t, () => AudioSys.deathStep()));
+    [1.6, 3.4, 5.2].forEach(t => Timers.add(t, () => AudioSys.deathStep()));
     Timers.add(6.5, () => {
       fd.style.transition = '';
       $('fadeText').textContent = `You were found on ${floorName(f)}.`;
@@ -3979,7 +4169,7 @@ const Game = {
       this.updateLights(dt); return;
     }
     Timers.update();
-    if (G.phase === 'dead' || G.phase === 'ending') { this.updateAudio(dt); return; }
+    if (G.phase === 'dead' || G.phase === 'ending') { Scare.update(dt); Scare.applyCamera(); this.updateAudio(dt); this.updatePost(dt); return; }
     if (G.phase === 'cine') { this.cineUpdate(dt); Monster.update(dt); updateDoors(dt); this.updateLights(dt); this.updateAudio(dt); this.updatePost(dt); return; }
     G.t += dt;
     // ---- soft-lock watchdogs ----
@@ -3990,6 +4180,7 @@ const Game = {
     if (!G.ui && UI.dlg) UI.endDialogue(true);
     if (G.ui === 'peephole') { camera.position.set(30, 1.58, -1.36); camera.rotation.set(0, Math.PI, 0); if (camera.fov !== 115) { camera.fov = 115; camera.updateProjectionMatrix(); } }
     else Player.update(dt);
+    Scare.update(dt); Scare.applyCamera();
     Monster.update(dt);
     if (G.phase !== 'day' && G.phase !== 'night') return; // caught this frame
     Power.update(dt); Lift.update(dt); updateDoors(dt);
