@@ -1,0 +1,455 @@
+{
+ "a-short-hike": {
+  "steam": 1055540
+ },
+ "affinity": {
+  "wiki": "Affinity (software)"
+ },
+ "among-us": {
+  "steam": 945360
+ },
+ "animal-crossing-new-horizons": {
+  "wiki": "Animal Crossing: New Horizons"
+ },
+ "animal-well": {
+  "steam": 813230
+ },
+ "apex-legends": {
+  "steam": 1172470
+ },
+ "astro-bot": {
+  "wiki": "Astro Bot"
+ },
+ "audacity": {
+  "wiki": "Audacity (audio editor)"
+ },
+ "balatro": {
+  "steam": 2379780
+ },
+ "baldur-s-gate-3": {
+  "steam": 1086940
+ },
+ "beat-saber": {
+  "steam": 620980
+ },
+ "blender": {
+  "wiki": "Blender (software)"
+ },
+ "blue-prince": {
+  "steam": 1569580
+ },
+ "brawl-stars": {
+  "wiki": "Brawl Stars"
+ },
+ "call-of-duty-black-ops-6": {
+  "wiki": "Call of Duty: Black Ops 6"
+ },
+ "call-of-duty-warzone": {
+  "wiki": "Call of Duty: Warzone"
+ },
+ "candy-crush-saga": {
+  "wiki": "Candy Crush Saga"
+ },
+ "celeste": {
+  "steam": 504230
+ },
+ "cities-skylines": {
+  "steam": 255710
+ },
+ "civilization-vi": {
+  "steam": 289070
+ },
+ "clair-obscur-expedition-33": {
+  "steam": 1903340
+ },
+ "clash-royale": {
+  "wiki": "Clash Royale"
+ },
+ "counter-strike-2": {
+  "steam": 730
+ },
+ "cult-of-the-lamb": {
+  "steam": 1313140
+ },
+ "cuphead": {
+  "steam": 268910
+ },
+ "cyberpunk-2077": {
+  "steam": 1091500
+ },
+ "davinci-resolve": {
+  "wiki": "DaVinci Resolve"
+ },
+ "dead-cells": {
+  "steam": 588650
+ },
+ "death-stranding-2-on-the-beach": {
+  "wiki": "Death Stranding 2: On the Beach"
+ },
+ "deep-rock-galactic": {
+  "steam": 548430
+ },
+ "destiny-2": {
+  "steam": 1085660
+ },
+ "diablo-iv": {
+  "steam": 2344520
+ },
+ "disco-elysium": {
+  "steam": 632470
+ },
+ "dispatch": {
+  "steam": 2592160
+ },
+ "donkey-kong-bananza": {
+  "wiki": "Donkey Kong Bananza"
+ },
+ "doom-the-dark-ages": {
+  "steam": 3017860
+ },
+ "dredge": {
+  "steam": 1562430
+ },
+ "ea-sports-fc-26": {
+  "wiki": "EA Sports FC 26"
+ },
+ "elden-ring": {
+  "steam": 1245620
+ },
+ "elden-ring-nightreign": {
+  "steam": 2622380
+ },
+ "epic-games-store": {
+  "wiki": "Epic Games Store"
+ },
+ "factorio": {
+  "steam": 427520
+ },
+ "fall-guys": {
+  "steam": 1097150
+ },
+ "final-fantasy-vii-rebirth": {
+  "steam": 2909400
+ },
+ "final-fantasy-xvi": {
+  "steam": 2515020
+ },
+ "firefox": {
+  "wiki": "Firefox"
+ },
+ "fortnite": {
+  "wiki": "Fortnite"
+ },
+ "forza-horizon-5": {
+  "steam": 1551360
+ },
+ "frostpunk-2": {
+  "steam": 1601580
+ },
+ "geforce-now": {
+  "wiki": "GeForce Now"
+ },
+ "genshin-impact": {
+  "wiki": "Genshin Impact"
+ },
+ "geometry-dash": {
+  "steam": 322170
+ },
+ "ghost-of-tsushima": {
+  "steam": 2215430
+ },
+ "ghost-of-yotei": {
+  "wiki": "Ghost of Yōtei"
+ },
+ "god-of-war-ragnarok": {
+  "steam": 2322010
+ },
+ "google-chrome": {
+  "wiki": "Google Chrome"
+ },
+ "gran-turismo-7": {
+  "wiki": "Gran Turismo 7"
+ },
+ "grand-theft-auto-v": {
+  "steam": 271590
+ },
+ "hades": {
+  "steam": 1145360
+ },
+ "hades-ii": {
+  "steam": 1145350
+ },
+ "helldivers-2": {
+  "steam": 553850
+ },
+ "hi-fi-rush": {
+  "steam": 1817230
+ },
+ "hogwarts-legacy": {
+  "steam": 990080
+ },
+ "hollow-knight": {
+  "steam": 367520
+ },
+ "hollow-knight-silksong": {
+  "steam": 1030300
+ },
+ "honkai-star-rail": {
+  "wiki": "Honkai: Star Rail"
+ },
+ "horizon-forbidden-west": {
+  "steam": 2420110
+ },
+ "indiana-jones-and-the-great-circle": {
+  "steam": 2677660
+ },
+ "inside": {
+  "steam": 304430
+ },
+ "it-takes-two": {
+  "steam": 1426210
+ },
+ "journey": {
+  "steam": 638230
+ },
+ "just-dance-2025-edition": {
+  "wiki": "Just Dance 2025 Edition"
+ },
+ "kingdom-come-deliverance-ii": {
+  "steam": 1771300
+ },
+ "kirby-and-the-forgotten-land": {
+  "wiki": "Kirby and the Forgotten Land"
+ },
+ "krita": {
+  "wiki": "Krita"
+ },
+ "league-of-legends": {
+  "wiki": "League of Legends"
+ },
+ "lego-star-wars-the-skywalker-saga": {
+  "steam": 920210
+ },
+ "lethal-company": {
+  "steam": 1966720
+ },
+ "lies-of-p": {
+  "steam": 1627720
+ },
+ "mario-kart-8-deluxe": {
+  "wiki": "Mario Kart 8"
+ },
+ "mario-kart-world": {
+  "wiki": "Mario Kart World"
+ },
+ "marvel-rivals": {
+  "steam": 2767030
+ },
+ "marvel-s-spider-man-2": {
+  "steam": 2651280
+ },
+ "metaphor-refantazio": {
+  "steam": 2679460
+ },
+ "metroid-prime-4-beyond": {
+  "wiki": "Metroid Prime 4: Beyond"
+ },
+ "minecraft": {
+  "wiki": "Minecraft"
+ },
+ "monster-hunter-wilds": {
+  "steam": 2246340
+ },
+ "monument-valley": {
+  "wiki": "Monument Valley (video game)"
+ },
+ "nba-2k26": {
+  "wiki": "NBA 2K26"
+ },
+ "nintendo-switch-sports": {
+  "wiki": "Nintendo Switch Sports"
+ },
+ "no-man-s-sky": {
+  "steam": 275850
+ },
+ "obs-studio": {
+  "wiki": "OBS Studio"
+ },
+ "ori-and-the-will-of-the-wisps": {
+  "steam": 1057090
+ },
+ "outer-wilds": {
+  "steam": 753640
+ },
+ "overcooked-2": {
+  "steam": 728880
+ },
+ "overwatch-2": {
+  "steam": 2357570
+ },
+ "palworld": {
+  "steam": 1623730
+ },
+ "path-of-exile-2": {
+  "steam": 2694490
+ },
+ "peak": {
+  "steam": 3527290
+ },
+ "pentiment": {
+  "steam": 1205520
+ },
+ "persona-5-royal": {
+  "steam": 1687950
+ },
+ "phasmophobia": {
+  "steam": 739630
+ },
+ "pikmin-4": {
+  "wiki": "Pikmin 4"
+ },
+ "pokemon-go": {
+  "wiki": "Pokémon Go"
+ },
+ "pokemon-legends-z-a": {
+  "wiki": "Pokémon Legends: Z-A"
+ },
+ "portal-2": {
+  "steam": 620
+ },
+ "r-e-p-o": {
+  "steam": 3241660
+ },
+ "rainbow-six-siege": {
+  "steam": 359550
+ },
+ "raycast": {
+  "wiki": "Raycast"
+ },
+ "red-dead-redemption-2": {
+  "steam": 1174180
+ },
+ "resident-evil-4": {
+  "steam": 2050650
+ },
+ "ring-fit-adventure": {
+  "wiki": "Ring Fit Adventure"
+ },
+ "roblox": {
+  "wiki": "Roblox"
+ },
+ "rocket-league": {
+  "steam": 252950
+ },
+ "satisfactory": {
+  "steam": 526870
+ },
+ "sea-of-thieves": {
+  "steam": 1172620
+ },
+ "sekiro-shadows-die-twice": {
+  "steam": 814380
+ },
+ "sifu": {
+  "steam": 2138710
+ },
+ "silent-hill-2": {
+  "steam": 2124490
+ },
+ "slay-the-spire": {
+  "steam": 646570
+ },
+ "spiritfarer": {
+  "steam": 972660
+ },
+ "splatoon-3": {
+  "wiki": "Splatoon 3"
+ },
+ "split-fiction": {
+  "steam": 2001120
+ },
+ "stardew-valley": {
+  "steam": 413150
+ },
+ "steam": {
+  "wiki": "Steam (service)"
+ },
+ "stray": {
+  "steam": 1332010
+ },
+ "street-fighter-6": {
+  "steam": 1364780
+ },
+ "subnautica": {
+  "steam": 264710
+ },
+ "super-mario-bros-wonder": {
+  "wiki": "Super Mario Bros. Wonder"
+ },
+ "super-mario-odyssey": {
+  "wiki": "Super Mario Odyssey"
+ },
+ "super-smash-bros-ultimate": {
+  "wiki": "Super Smash Bros. Ultimate"
+ },
+ "tailscale": {
+  "wiki": "Tailscale"
+ },
+ "tekken-8": {
+  "steam": 1778820
+ },
+ "terraria": {
+  "steam": 105600
+ },
+ "tetris-effect-connected": {
+  "steam": 1003590
+ },
+ "the-last-of-us-part-i": {
+  "steam": 1888930
+ },
+ "the-last-of-us-part-ii-remastered": {
+  "steam": 2531310
+ },
+ "the-sims-4": {
+  "steam": 1222670
+ },
+ "the-witcher-3-wild-hunt": {
+  "steam": 292030
+ },
+ "tunic": {
+  "steam": 553420
+ },
+ "unpacking": {
+  "steam": 1135690
+ },
+ "valheim": {
+  "steam": 892970
+ },
+ "valorant": {
+  "wiki": "Valorant"
+ },
+ "vampire-survivors": {
+  "steam": 1794680
+ },
+ "visual-studio-code": {
+  "wiki": "Visual Studio Code"
+ },
+ "vlc": {
+  "wiki": "VLC media player"
+ },
+ "warframe": {
+  "steam": 230410
+ },
+ "what-remains-of-edith-finch": {
+  "steam": 501300
+ },
+ "xcom-2": {
+  "steam": 268500
+ },
+ "zelda-breath-of-the-wild": {
+  "wiki": "The Legend of Zelda: Breath of the Wild"
+ },
+ "zelda-tears-of-the-kingdom": {
+  "wiki": "The Legend of Zelda: Tears of the Kingdom"
+ }
+}

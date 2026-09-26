@@ -1,0 +1,250 @@
+# Apps: name|maker|category|platforms|price|score|themes|blurb|review|pros|cons
+# Platform codes: i iPhone & iPad, a Android, w Web, m Mac, p Windows
+Notion|Notion Labs|Notes & docs|iawmp|Free, paid plans|8.6|organized focus|Docs, wikis, databases and project boards in one workspace.|Endlessly flexible, which is its superpower and its trap. Great for teams and planners, overkill for a grocery list.|Databases for anything;Great templates;Real-time collaboration|Slow on large pages;Limited offline mode
+Obsidian|Obsidian|Notes|iamp|Free, paid Sync|9.0|organized focus|Linked notes stored as plain files you own.|Your notes are plain Markdown files on your device, forever. Thousands of plugins can turn it into almost anything.|Local files you own;Huge plugin library;Links and graph view|Setup takes effort;Sync costs extra
+Todoist|Doist|Tasks|iawmp|Free, Pro plan|8.8|organized|Type a task the way you would say it and it lands on the right day.|Natural-language dates and fast capture make it the least-friction task app around. Syncs instantly everywhere.|Natural-language input;Fast on every device;Clean design|Reminders need Pro
+Evernote|Bending Spoons|Notes|iawmp|Free, paid plans|7.4|organized|The original everything-notebook, now with AI search.|Still powerful for clipping and searching, but price rises and a tight free tier have pushed many users away.|Great web clipper;Powerful search|Expensive;Free tier limited to one notebook
+Microsoft OneNote|Microsoft|Notes|iawmp|Free|8.2|organized focus|Free-form digital notebooks with pen support.|A generous, free notebook that works well with a stylus and syncs through OneDrive.|Free;Great pen support;Free-form pages|Sync can be slow;Messy organization
+Apple Notes|Apple|Notes|im|Free|8.4|organized|The notes app that is already on your iPhone.|Fast, free and much more capable than it looks, with checklists, scanning, tables and shared folders.|Built in and free;Document scanning;Shared notes|Apple devices only
+Google Keep|Google|Notes|iaw|Free|8.1|organized|Sticky-note style lists and reminders.|Perfect for quick lists and reminders that sync with your Google account. Not built for long documents.|Quick and simple;Location reminders;Free|Weak for long notes
+Things 3|Cultured Code|Tasks|im|$9.99 iPhone, $49.99 Mac|9.1|organized|A beautiful task manager for Apple devices.|The most pleasant task app to use every day, with a clear Today view and no subscription.|Beautiful design;No subscription;Great Today view|Apple only;Paid separately per device
+TickTick|Appest|Tasks|iawmp|Free, Premium|8.7|organized focus|Tasks, habits, calendar and a focus timer in one.|Packs a to-do list, habit tracker and Pomodoro timer into one tidy app at a fair price.|All-in-one;Great value;Habit tracker|Busy interface
+Microsoft To Do|Microsoft|Tasks|iawmp|Free|8.2|organized|A simple, free to-do list with a My Day view.|A clean, free task app that works well with Outlook. It lacks advanced features.|Free;Simple;Outlook integration|Basic features
+Trello|Atlassian|Project boards|iawmp|Free, paid plans|8.2|organized|Move cards across boards to track anything.|The easiest way to start with Kanban boards for projects and teams.|Very easy to learn;Visual boards;Great integrations|Gets messy for big projects
+Asana|Asana|Project management|iawmp|Free, paid plans|8.1|organized|Plan and track team work.|A powerful project manager for teams with lists, boards, timelines and goals.|Powerful for teams;Many views|Expensive for small teams
+Linear|Linear|Issue tracking|iwmp|Free, paid plans|8.9|organized|Fast, keyboard-first issue tracking for software teams.|The fastest project tool around, designed for software teams that care about speed and polish.|Incredibly fast;Beautiful design;Keyboard-first|Built mainly for software teams
+Google Calendar|Google|Calendar|iaw|Free|8.6|organized|Your schedule, synced everywhere.|Simple, reliable and free, with great sharing and Gmail event detection.|Reliable;Easy sharing;Free|Basic design
+Fantastical|Flexibits|Calendar|im|Free, Premium|8.8|organized|A powerful calendar with natural-language input.|Type "lunch with Sam Friday at noon" and it creates the event. Beautiful and powerful, but subscription only for most features.|Natural-language events;Great design;Works with all calendars|Subscription
+Microsoft Outlook|Microsoft|Email & calendar|iawmp|Free|8.0|organized social|Email, calendar and contacts together.|Solid email and calendar that works with any account. The new Windows version is still divisive.|Email and calendar in one;Works with any account|Busy interface
+Gmail|Google|Email|iaw|Free|8.5|organized social|Google's email with great spam filtering.|Spam filtering and search remain the best around, and it works with every device.|Excellent spam filtering;Great search;Free|Ads in the free version
+Spark Mail|Readdle|Email|iamp|Free, Premium|8.3|organized|Smart email that sorts what matters.|Groups newsletters and notifications so your inbox stays calmer. Team features cost extra.|Smart inbox;Nice design|Premium features cost extra
+Google Drive|Google|Cloud storage|iawmp|Free, Google One|8.5|organized|Store and share files, with 15 GB free.|The easiest way to share files and folders, and it works with Docs and Sheets.|15 GB free;Easy sharing|Storage shared with Gmail and Photos
+Dropbox|Dropbox|Cloud storage|iawmp|Free, paid plans|7.9|organized|Reliable file sync across every device.|Sync is still excellent, but the free tier is only 2 GB.|Reliable sync;Great file previews|Small free tier
+Microsoft Word|Microsoft|Documents|iawmp|Free, Microsoft 365|8.5|organized|The standard for documents.|The most compatible word processor in the world. The web version is free.|Industry standard;Free web version|Full features need Microsoft 365
+Microsoft Excel|Microsoft|Spreadsheets|iawmp|Free, Microsoft 365|8.7|organized money|The most powerful spreadsheet around.|Nothing matches Excel for serious number crunching. The web version is free.|Extremely powerful;Industry standard|Steep learning curve
+Google Docs|Google|Documents|iaw|Free|8.6|organized social|Write and collaborate in real time.|The best way to write with others at the same time, and it is free.|Real-time collaboration;Free;Works in the browser|Fewer layout features than Word
+Google Sheets|Google|Spreadsheets|iaw|Free|8.5|organized money|Spreadsheets that live in the browser.|Great for shared budgets and trackers, and free.|Easy sharing;Free|Slower with huge sheets
+Airtable|Airtable|Databases|iawmp|Free, paid plans|8.2|organized|A spreadsheet that works like a database.|Build your own tools without code, from content calendars to inventory trackers.|Very flexible;Great views|Expensive for teams
+Craft|Craft Docs|Docs|iwmp|Free, Plus|8.6|organized create|Beautiful documents and notes.|The prettiest docs app around, with great sharing and a smooth feel.|Beautiful design;Great sharing|Fewer integrations
+Bear|Shiny Frog|Notes|im|Free, Pro|8.7|organized|A beautiful Markdown notes app for Apple devices.|Gorgeous writing experience with tags instead of folders. Apple only.|Beautiful writing;Tag system|Apple only
+Readwise Reader|Readwise|Read-later|iawm|Subscription|8.6|focus|Save articles, PDFs and videos to read later, with highlights.|The best read-later app for heavy readers, with great highlight syncing.|Handles everything;Great highlights|Subscription only
+1Password|AgileBits|Password manager|iawmp|Subscription|9.1|safe|A secure home for passwords, passkeys and cards.|The most polished password manager, with great family sharing and passkey support.|Excellent design;Family sharing;Passkey support|No free plan
+Bitwarden|Bitwarden|Password manager|iawmp|Free, Premium|9.0|safe free|An open-source password manager with a great free plan.|Unlimited passwords on unlimited devices for free, and it is open source.|Great free plan;Open source;Cheap Premium|Less polished design
+Proton VPN|Proton|VPN|iamp|Free, Plus|8.6|safe travel|A privacy-focused VPN with a free plan.|One of the only trustworthy free VPNs, with no data limits.|Unlimited free plan;Strong privacy|Free plan has fewer locations
+Proton Mail|Proton|Email|iawmp|Free, paid plans|8.5|safe|Encrypted email from Switzerland.|Private email with end-to-end encryption. The free plan is limited.|Strong privacy;Encrypted|Limited free storage
+Mullvad VPN|Mullvad|VPN|iamp|€5 per month|8.8|safe|An anonymous VPN with a flat price.|No email needed to sign up, and one flat monthly price. Excellent privacy.|No account details needed;Flat price|Fewer streaming features
+NordVPN|Nord Security|VPN|iamp|Subscription|7.9|safe travel|A fast VPN with lots of servers.|Fast and easy to use, but renewal prices are much higher than the first year.|Fast;Lots of servers|Pricey renewals
+Google Authenticator|Google|Two-factor codes|ia|Free|8.0|safe|Two-factor codes for your accounts.|Simple, free two-factor codes, now with cloud backup.|Free;Simple|Basic features
+Ente Auth|Ente|Two-factor codes|iawmp|Free|8.6|safe|Open-source two-factor codes with encrypted backup.|Free, open source and encrypted backups across devices.|Encrypted backup;Free;Open source|Less known
+Signal|Signal Foundation|Messaging|iamp|Free|9.2|social safe|Private messaging with end-to-end encryption.|The gold standard for private chats and calls, and free with no ads.|Best privacy;Free and no ads;Great calls|Fewer friends use it
+WhatsApp|Meta|Messaging|iawmp|Free|8.5|social travel|The world's most popular messaging app.|Chances are everyone you know is already on it. Great for group chats and calls abroad.|Everyone uses it;Encrypted chats;Free calls|Owned by Meta
+Telegram|Telegram|Messaging|iawmp|Free, Premium|8.4|social|Fast messaging with huge groups and channels.|Fast and full of features, but chats are not end-to-end encrypted by default.|Very fast;Big groups and channels|Not encrypted by default
+Discord|Discord|Chat & voice|iawmp|Free, Nitro|8.5|friends social|Voice, video and text for your friends and communities.|Low-latency voice and screen sharing make it the default for playing together.|Great voice quality;Screen share;Free|Notification overload;Nitro upsells
+Slack|Salesforce|Team chat|iawmp|Free, paid plans|8.3|organized social|Team chat with channels and huddles.|The best team chat for most companies, but the free plan hides old messages.|Great integrations;Easy channels|Free plan hides history
+Microsoft Teams|Microsoft|Team chat|iawmp|Free, Microsoft 365|7.2|organized|Chat and meetings for Microsoft 365 teams.|It works if your workplace uses it, but it is slower and busier than rivals.|Office integration|Slow;Busy interface
+Zoom|Zoom|Video calls|iawmp|Free, paid plans|8.0|social|Reliable video meetings.|Still one of the most reliable video call apps. The free plan limits group calls to 40 minutes.|Reliable;Easy to join|40-minute free limit
+FaceTime|Apple|Video calls|im|Free|8.6|social|Video and audio calls on Apple devices.|The simplest high-quality video calls on Apple devices, with links for Android friends.|Great quality;Built in|Apple-first
+Messenger|Meta|Messaging|iaw|Free|7.5|social|Chat with Facebook friends.|Fine for reaching Facebook friends, but cluttered.|Reaches Facebook friends|Cluttered
+Instagram|Meta|Social|iaw|Free|7.8|social create|Photos, Stories and Reels.|Still the best place to share photos with friends, though Reels and ads dominate.|Great for photos;Stories|Ads and Reels everywhere
+TikTok|ByteDance|Short video|iaw|Free|7.9|social watch|Short videos picked for you.|The most addictive recommendation feed ever made. Set screen time limits.|Incredible recommendations;Creative tools|Very addictive
+Snapchat|Snap|Social|iaw|Free, Snapchat+|7.5|social|Disappearing photos and chats.|Great for casual chats with close friends, with fun lenses.|Fun lenses;Casual chats|Cluttered interface
+X|X Corp|Social|iaw|Free, Premium|6.4|social|Short posts and real-time news.|Still fast for breaking news, but the feed is more chaotic than it used to be.|Fast news|Chaotic feed
+Threads|Meta|Social|iaw|Free|7.4|social|Text-based conversations from Instagram.|An easy text-first social feed linked to Instagram.|Easy start via Instagram|Feed can feel random
+Bluesky|Bluesky Social|Social|iaw|Free|8.0|social|A calmer social feed with custom feeds.|Custom feeds and good moderation tools make it feel calmer than other networks.|Custom feeds;Good moderation tools|Smaller audience
+Reddit|Reddit|Communities|iaw|Free|7.9|social|Communities for every interest.|Whatever your hobby, there is a subreddit full of experts.|Communities for everything|Can be toxic
+Pinterest|Pinterest|Inspiration|iaw|Free|8.0|create cozy|Save ideas for recipes, homes and outfits.|The best place to collect ideas for your next project.|Great inspiration|Lots of ads
+LinkedIn|Microsoft|Professional network|iaw|Free, Premium|7.2|social organized|Professional networking and jobs.|Useful for jobs and contacts, but the feed can be noisy.|Great for jobs|Noisy feed
+BeReal|Voodoo|Social|ia|Free|7.2|social|One daily photo at a random time.|A simple, honest way to share your day with close friends.|Authentic;Simple|Less active than before
+Facebook|Meta|Social|iaw|Free|6.9|social|Groups, Marketplace and family updates.|Most useful now for groups and Marketplace.|Great groups and Marketplace|Cluttered feed
+Mastodon|Mastodon gGmbH|Social|iaw|Free|7.8|social safe|Decentralized social media.|No ads and no algorithm, but choosing a server confuses newcomers.|No ads;No algorithm|Confusing setup
+Spotify|Spotify|Music & podcasts|iawmp|Free, Premium|8.7|watch cozy focus|Music, podcasts and audiobooks with great recommendations.|Discover Weekly alone justifies it. Works on every device you own.|Excellent recommendations;Works everywhere;Free tier|Low artist payouts;Busy home screen
+Apple Music|Apple|Music|iawmp|Subscription|8.6|watch|Lossless music with lyrics and radio.|Lossless and spatial audio at no extra cost, and great lyrics.|Lossless audio;Great lyrics|No free tier
+YouTube Music|Google|Music|iaw|Free, Premium|8.1|watch|Music with every remix and live version on YouTube.|Has songs no one else has, from remixes to covers. Premium removes YouTube ads too.|Huge library;Includes YouTube Premium|Messy library
+Tidal|Tidal|Hi-fi music|iawmp|Subscription|8.2|watch|High-quality music streaming.|Great sound quality and fair artist payouts.|Hi-fi audio;Artist friendly|Weaker recommendations
+Amazon Music|Amazon|Music|iawmp|Free, Unlimited|7.6|watch|Music included with Prime.|Good value if you already have Prime.|Included with Prime|Clunky app
+SoundCloud|SoundCloud|Music|iaw|Free, Go+|7.8|watch create|Find new artists and upload your own music.|The best place for underground artists and DJ mixes.|Discover new artists;Upload music free|Messy app
+Shazam|Apple|Song ID|ia|Free|8.9|watch quick|Name that song in seconds.|Does one thing perfectly: tells you what song is playing.|Fast and accurate;Free|None really
+Pocket Casts|Automattic|Podcasts|iawmp|Free, Plus|8.8|watch|A powerful podcast player.|The best cross-platform podcast player, with great playback controls.|Great features;Cross-platform|Some features in Plus
+Overcast|Overcast Radio|Podcasts|i|Free, Premium|8.8|watch|A smart podcast player for iPhone.|Smart Speed and Voice Boost make podcasts sound better and take less time.|Smart Speed;Voice Boost|iPhone only
+Audible|Amazon|Audiobooks|iaw|Subscription|8.3|watch focus|The biggest audiobook store.|The biggest audiobook library, with monthly credits.|Huge library;Great exclusives|Expensive
+Libby|OverDrive|Library books|iaw|Free|9.1|focus free|Borrow e-books and audiobooks from your local library.|Free books with your library card. It is simply great.|Free books;Easy to use|Waitlists for popular books
+GarageBand|Apple|Music making|im|Free|8.9|create free|Make music on your iPhone, iPad or Mac.|The best free way to start making music, with great virtual instruments.|Free;Great instruments|Apple only
+BandLab|BandLab Technologies|Music making|iaw|Free|8.3|create free|Make music with others online.|A free recording studio in your browser and phone.|Free;Collaborate online|Busy interface
+Endel|Endel Sound|Focus sounds|iam|Subscription|7.9|focus health|Soundscapes that adapt to your day.|Generated sounds help you focus or sleep.|Great for focus|Subscription
+Moises|Moises Systems|Music practice|iaw|Free, Premium|8.2|create|Separate vocals and instruments from any song.|Perfect for practicing, letting you mute any instrument.|Great for practice|Premium needed for more
+Simply Piano|Simply|Music lessons|ia|Subscription|7.8|create kids|Learn piano with your real keyboard.|Listens to your playing and teaches you step by step.|Listens to you play|Expensive subscription
+YouTube|Google|Video|iaw|Free, Premium|8.6|watch free|The world's video library.|Anything you want to learn or watch is on YouTube. Premium removes ads.|Endless content;Free|Lots of ads
+Netflix|Netflix|Streaming|iawp|Subscription|8.4|watch cozy|Movies, series and games.|Still the best-designed streaming app with a huge library.|Great originals;Great app|Price increases
+Disney+|Disney|Streaming|iaw|Subscription|8.0|watch kids|Disney, Pixar, Marvel and Star Wars.|Essential for families and Marvel and Star Wars fans.|Great for families|Fewer new releases
+HBO Max|Warner Bros. Discovery|Streaming|iaw|Subscription|8.2|watch|HBO, Warner movies and more.|Home of many of the best shows on TV.|Excellent shows|Expensive
+Prime Video|Amazon|Streaming|iawmp|Prime or subscription|7.7|watch|Movies and shows included with Prime.|Good value with Prime, but ads and rentals are mixed in.|Included with Prime|Confusing app
+Apple TV|Apple|Streaming|iawm|Subscription|8.3|watch|Apple Originals and more.|A smaller library with very high quality shows.|High-quality originals|Small library
+Hulu|Disney|Streaming|iaw|Subscription|7.8|watch|Next-day TV and originals.|Great for current TV shows in the US.|Next-day TV|US only
+Crunchyroll|Sony|Anime streaming|iaw|Free, Premium|8.1|watch|The biggest anime library.|The home of anime streaming, with new episodes soon after Japan.|Huge anime library|App can be clunky
+Twitch|Amazon|Live streaming|iaw|Free|7.9|watch friends|Watch live gaming streams.|The home of live gaming and chatting with streamers.|Live community|Lots of ads
+Plex|Plex|Media server|iawmp|Free, Plex Pass|8.3|watch|Stream your own movies anywhere.|The best way to stream your own media library.|Stream your own media|Setup needed
+VLC|VideoLAN|Media player|iamp|Free|9.0|watch free|Plays any video file.|Free, open source and plays nearly everything.|Plays everything;Free|Plain design
+Letterboxd|Letterboxd|Film diary|iaw|Free, Pro|8.8|watch social|Log, rate and review movies.|The best social app for movie lovers.|Great community|Some features paid
+JustWatch|JustWatch|Where to watch|iaw|Free|8.5|watch|Find where to stream anything.|Tells you which service has the show you want.|Saves time|Ads
+Paramount+|Paramount|Streaming|iaw|Subscription|7.3|watch|CBS, Paramount movies and sports.|Good for sports and Star Trek fans.|Sports and Star Trek|Weaker app
+Peacock|NBCUniversal|Streaming|iaw|Subscription|7.2|watch|NBC shows, movies and sports.|Good for The Office and Premier League in the US.|Sports|Weaker app
+Tubi|Fox|Free streaming|iaw|Free|7.6|watch free|Free movies and shows with ads.|A surprisingly good free library.|Free|Ads
+PBS Kids Video|PBS|Kids video|iaw|Free|8.5|kids free|Free shows for kids.|Safe, free and educational.|Free and safe|Limited to PBS shows
+Procreate|Savage Interactive|Drawing|i|$12.99 once|9.4|create|A professional painting studio for iPad.|Pro-grade brushes and animation tools for a one-time price.|No subscription;Superb brushes;Animation built in|iPad only
+Adobe Lightroom|Adobe|Photo editing|iawmp|Subscription|8.7|create|Professional photo editing and organizing.|The standard for photographers, with great AI masks.|Powerful editing;Great masks|Subscription
+Adobe Photoshop|Adobe|Photo editing|iawmp|Subscription|8.8|create|The world's best-known image editor.|Still the most powerful image editor, with great AI fill.|Most powerful|Subscription;Steep learning curve
+Adobe Premiere Pro|Adobe|Video editing|imp|Subscription|8.5|create|Professional video editing.|A professional editor used by filmmakers and YouTubers.|Professional features|Subscription
+DaVinci Resolve|Blackmagic Design|Video editing|imp|Free, Studio $295|9.2|create free|Hollywood-grade editing and color, free.|The free version is better than most paid editors.|Amazing free version;Pro color tools|Needs a powerful computer
+CapCut|ByteDance|Video editing|iawmp|Free, Pro|8.1|create social|Quick video edits with auto captions.|The fastest way to edit short videos, with great auto captions.|Auto captions;Templates|Features moving to Pro
+Canva|Canva|Design|iawmp|Free, Pro|8.8|create|Design anything with templates.|Makes great-looking designs easy for anyone.|Easy templates;Free plan|Designs can look samey
+Figma|Figma|Interface design|iawmp|Free, paid plans|9.2|create organized|Design apps and websites together.|The standard for interface design with real-time collaboration.|Real-time collaboration;Free plan|Steep for beginners
+Affinity|Canva|Design suite|imp|Free|8.9|create free|Pro photo, vector and layout tools in one app.|A professional design suite that is now free.|Free;Professional tools|Learning curve
+Snapseed|Google|Photo editing|ia|Free|8.4|create free|Powerful free photo editing on your phone.|Free and powerful, with no ads.|Free;Powerful|Not updated often
+VSCO|VSCO|Photo editing|ia|Free, Membership|7.8|create|Film-style photo filters.|Beautiful filters, but most are in the membership.|Beautiful filters|Membership needed
+Halide|Lux Optics|Camera|i|Subscription or one-time|8.8|create|A pro camera for iPhone.|Manual controls and RAW photos for iPhone photographers.|Pro controls|iPhone only
+Google Photos|Google|Photo library|iaw|Free, Google One|8.7|organized|Back up and search your photos.|Search your photos by what is in them, and edit easily.|Great search;Easy backup|Storage costs
+Pixelmator Pro|Apple|Photo editing|m|$49.99|8.8|create|A beautiful Mac photo editor.|Powerful editing with no subscription.|No subscription|Mac only
+Final Cut Pro|Apple|Video editing|im|$299.99 Mac|8.9|create|Professional video editing for Mac and iPad.|Fast, powerful and a one-time price on Mac.|Fast;One-time price|Apple only
+iMovie|Apple|Video editing|im|Free|8.0|create kids|Simple video editing on Apple devices.|The easiest way to make a video on Apple devices.|Easy;Free|Basic
+Blender|Blender Foundation|3D creation|mp|Free|9.4|create free|Free 3D modeling, animation and rendering.|A professional 3D suite that is completely free.|Free;Very powerful|Steep learning curve
+Krita|Krita Foundation|Painting|amp|Free|8.8|create free|Free digital painting.|A great free painting app for artists.|Free;Great brushes|Less polished
+ibis Paint X|ibis|Drawing|ia|Free, Prime|8.3|create|Drawing on your phone with tons of brushes.|A popular drawing app with lots of brushes.|Tons of brushes|Ads in free
+Clip Studio Paint|Celsys|Illustration|iamp|Subscription or one-time|8.9|create|The favorite app for comics and manga.|The best tool for comics and illustration.|Great for comics|Complex
+OBS Studio|OBS Project|Streaming & recording|mp|Free|9.1|create free|Record and stream your screen.|The free standard for streaming and recording.|Free;Powerful|Setup needed
+Audacity|Muse Group|Audio editing|mp|Free|8.4|create free|Free audio recording and editing.|Simple and free for podcasts and recordings.|Free|Dated design
+Adobe Express|Adobe|Quick design|iaw|Free, Premium|7.9|create|Quick social graphics and videos.|Adobe's easy design tool for quick posts.|Easy|Less than Canva
+Picsart|Picsart|Photo editing|iaw|Free, Gold|7.5|create|Photo editing with stickers and effects.|Lots of tools, but many are paid.|Lots of effects|Many features paid
+Strava|Strava|Fitness tracking|iaw|Free, subscription|8.2|health explore|Track runs and rides and see what your friends are up to.|The social feed keeps you moving and route heatmaps help you find new places.|Motivating feed;Route heatmaps|Key features need a subscription
+Nike Run Club|Nike|Running|ia|Free|8.4|health free|Free guided runs and training plans.|Free guided runs with great coaches.|Free;Guided runs|Nike focused
+Apple Fitness|Apple|Workouts|i|Fitness+ subscription|8.0|health|Workouts with Apple Watch stats.|Great classes that show your stats on screen.|Great classes|Apple only
+MyFitnessPal|MyFitnessPal|Calorie tracking|iaw|Free, Premium|7.6|health|Track what you eat.|The biggest food database, but the free version is limited.|Huge food database|Barcode scanning is paid
+Peloton|Peloton|Workouts|iaw|Subscription|8.1|health|Classes for running, cycling and strength.|Great instructors, no bike needed.|Great instructors|Expensive
+Garmin Connect|Garmin|Fitness tracking|ia|Free|8.0|health|Stats from your Garmin watch.|Free and detailed, but busy.|Detailed data;Free|Busy
+Fitbit|Google|Fitness tracking|ia|Free, Premium|7.4|health|Stats from your Fitbit.|Simple stats, but key insights are in Premium.|Simple|Premium needed
+Strong|Strong Fitness|Gym log|ia|Free, Pro|8.7|health|Track your gym workouts.|A simple, fast workout logger.|Fast logging|Pro needed for more
+Hevy|Hevy Studios|Gym log|ia|Free, Pro|8.6|health free|Track workouts and follow friends.|A great free workout logger with social features.|Great free plan|Pro for more
+Zwift|Zwift|Indoor cycling|iamp|Subscription|8.3|health friends|Ride virtual worlds on your indoor bike.|Makes indoor cycling fun with friends.|Fun rides|Needs equipment
+AllTrails|AllTrails|Hiking maps|iaw|Free, Plus|8.6|explore health travel|Find trails, check conditions, and navigate offline.|The biggest trail library around, with recent reviews.|Huge trail database;Recent reports|Offline maps need Plus
+Yuka|Yuka|Food scanner|ia|Free, Premium|8.2|health|Scan food and cosmetics for health scores.|Quick health scores for groceries.|Easy scanning|Premium for more
+Flo|Flo Health|Cycle tracking|ia|Free, Premium|7.8|health|Track your cycle and health.|Popular and easy to use, with lots of content.|Easy to use|Premium needed
+Clue|BioWink|Cycle tracking|ia|Free, Plus|8.0|health safe|Science-based cycle tracking.|Clear, science-based tracking with strong privacy.|Science-based|Plus for more
+Headspace|Headspace|Meditation|iaw|Subscription|8.3|health cozy focus|Guided meditations, sleepcasts and wind-down routines.|The friendliest way into meditation.|Beginner friendly;Great sleep content|Subscription
+Calm|Calm|Meditation & sleep|iaw|Subscription|8.2|health cozy|Sleep stories and meditations.|Sleep stories are the standout.|Great sleep stories|Subscription
+Insight Timer|Insight Network|Meditation|iaw|Free, Member Plus|8.7|health free|The biggest free meditation library.|Thousands of free meditations.|Huge free library|Mixed quality
+Sleep Cycle|Sleep Cycle AB|Sleep tracking|ia|Free, Premium|7.9|health|Wakes you at the right moment.|A smart alarm that tracks your sleep.|Smart alarm|Premium needed
+Waking Up|Waking Up LLC|Meditation|iaw|Subscription|8.6|health focus|Meditation and big ideas.|A thoughtful course in meditation.|Great course|Subscription
+Medisafe|Medisafe|Medication reminders|ia|Free, Premium|8.1|health organized|Never miss a pill.|Simple, helpful medication reminders.|Helpful reminders|Premium for more
+Finch|Finch Care|Self-care pet|ia|Free, Plus|8.4|health cozy|Care for a pet bird by caring for yourself.|A cute, gentle way to build self-care habits.|Cute;Gentle|Plus for more
+Oura|Oura|Sleep & readiness|ia|Needs Oura Ring|8.1|health|Sleep and readiness scores from your ring.|Great sleep insights with an Oura Ring.|Great sleep data|Needs ring and subscription
+Streaks|Crunchy Bagel|Habit tracker|im|$5.99|8.6|health organized|Build up to 24 habits.|A simple habit tracker with no subscription.|No subscription|Apple only
+Gentler Streak|Gentler Stories|Fitness|i|Free, Premium|8.5|health|A kinder fitness tracker.|Focuses on rest and recovery.|Kind approach|iPhone only
+Duolingo|Duolingo|Language learning|iaw|Free, Super|8.4|focus quick|Bite-sized language lessons with streaks.|The best habit builder in any app.|Keeps you consistent;Many languages|Won't make you fluent alone
+Babbel|Babbel|Language learning|iaw|Subscription|8.1|focus|Practical language lessons.|More practical conversations than Duolingo.|Practical lessons|Fewer languages
+Busuu|Busuu|Language learning|iaw|Free, Premium|7.8|focus|Lessons with feedback from native speakers.|Native speaker feedback helps.|Native feedback|Premium needed
+Anki|Ankitects|Flashcards|iawmp|Free, $24.99 on iOS|8.7|focus|Spaced-repetition flashcards.|Looks dated and works brilliantly.|Proven method;Shared decks|Old-fashioned
+Quizlet|Quizlet|Flashcards|iaw|Free, Plus|8.0|focus|Flashcards and study games.|Great shared decks for school.|Lots of shared decks|Many features paid
+Khan Academy|Khan Academy|Learning|iaw|Free|9.2|focus free kids|Free lessons in math, science and more.|World-class learning, totally free.|Free;High quality|Less for adults
+Khan Academy Kids|Khan Academy|Kids learning|ia|Free|9.0|kids free|Free learning for ages 2 to 8.|The best free learning app for young kids.|Free;No ads|Young kids only
+Brilliant|Brilliant|Math & science|iaw|Subscription|8.3|focus|Learn math and science by doing.|Interactive lessons that stick.|Interactive|Subscription
+Coursera|Coursera|Online courses|iaw|Free, paid|8.0|focus|University courses online.|Courses from top universities.|Top universities|Certificates cost
+Photomath|Google|Math help|ia|Free, Plus|8.2|focus|Point your camera at a math problem.|Explains how to solve problems step by step.|Step-by-step help|Plus for more
+Mimo|Mimo|Learn to code|iaw|Free, Pro|7.9|focus|Learn to code on your phone.|Short lessons for beginners.|Great for beginners|Pro needed
+Speechify|Speechify|Text to speech|iaw|Free, Premium|7.6|focus|Listen to any text.|Turns reading into listening.|Good voices|Expensive
+Elevate|Elevate Labs|Brain training|ia|Subscription|7.8|focus quick|Daily brain games.|Fun games for reading and math.|Fun|Subscription
+Seek by iNaturalist|iNaturalist|Nature ID|ia|Free|8.9|explore kids free|Identify plants and animals with your camera.|Free, private and great for families.|Free;Kid friendly|Needs good photos
+Sky Guide|Fifth Star Labs|Stargazing|i|$2.99|8.8|explore kids|Point your phone at the sky.|Beautiful stargazing app.|Beautiful|iPhone only
+Merlin Bird ID|Cornell Lab|Bird ID|ia|Free|9.3|explore free|Identify birds by sound and photo.|Identifies birdsong in real time for free.|Free;Amazing sound ID|None
+PictureThis|Glority|Plant ID|ia|Subscription|7.4|explore|Identify plants.|Accurate but pushy about subscriptions.|Accurate|Pushy subscription
+Toca Boca World|Toca Boca|Kids play|ia|Free, in-app|8.4|kids create|A digital dollhouse world.|Creative, open-ended play for kids.|Creative play|In-app purchases
+ScratchJr|Scratch Foundation|Kids coding|ia|Free|8.7|kids create free|Coding for young kids.|Free, fun first steps in coding.|Free|Young kids only
+PBS Kids Games|PBS|Kids games|ia|Free|8.4|kids free|Free games with PBS characters.|Safe and educational.|Free and safe|Simple games
+YouTube Kids|Google|Kids video|ia|Free|7.4|kids watch|YouTube for kids.|Safer, but still needs parental checks.|Parental controls|Some bad videos slip in
+Kindle|Amazon|E-books|iawp|Free app|8.3|focus cozy|Read Kindle books on any device.|The biggest e-book store.|Huge store|Amazon only
+Goodreads|Amazon|Book tracking|iaw|Free|7.2|social focus|Track and review books.|The biggest book community, but dated.|Big community|Dated
+StoryGraph|The StoryGraph|Book tracking|iaw|Free, Plus|8.5|focus|Track books and get recommendations by mood.|A modern Goodreads alternative.|Mood-based picks|Smaller community
+Apple Books|Apple|E-books|im|Free app|8.2|focus cozy|Books and audiobooks on Apple devices.|A clean reading app.|Clean design|Apple only
+Instapaper|Instapaper|Read-later|iaw|Free, Premium|8.1|focus|Save articles for later.|Simple and clean read-later app.|Clean|Basic
+Apple News|Apple|News|im|Free, News+|7.8|watch|News from many sources.|Good for top stories.|Many sources|News+ costs
+Google News|Google|News|iaw|Free|7.9|watch|Personalized news.|A useful mix of sources.|Free|Algorithmic
+Ground News|Snapwise|News bias|iaw|Free, subscription|8.2|watch safe|See how outlets cover the same story.|Shows bias across sources.|Shows bias|Subscription
+NYT Games|The New York Times|Puzzles|iaw|Free, subscription|8.8|quick cozy focus|Wordle, Connections, the Crossword and more.|The best daily puzzles.|Great puzzles|Subscription for all
+Feedly|Feedly|RSS reader|iaw|Free, Pro|8.0|focus|Follow websites with RSS.|A popular RSS reader.|Easy|Pro for more
+Reeder|Silvio Rizzi|RSS reader|im|Subscription|8.4|focus|A beautiful RSS reader.|Beautiful design.|Beautiful|Apple only
+Webtoon|Naver|Comics|iaw|Free|8.1|cozy watch|Read vertical comics.|Thousands of free comics.|Free comics|Pay for early chapters
+Revolut|Revolut|Banking|iaw|Free, plans|8.1|money travel|Banking, spending abroad and savings.|Great for travel and budgeting.|Great abroad|Plans can be confusing
+Wise|Wise|Money transfers|iaw|Free app, low fees|9.0|money travel|Send money abroad with low fees.|The cheapest way to send money abroad.|Low fees;Honest rates|None major
+PayPal|PayPal|Payments|iaw|Free|7.6|money|Pay online and send money.|Widely accepted and safe for buyers.|Widely accepted|Fees
+Venmo|PayPal|Payments|ia|Free|7.9|money social|Pay friends in the US.|The easiest way to split costs in the US.|Easy|US only
+Cash App|Block|Payments|ia|Free|7.6|money|Send money and invest.|Simple payments.|Simple|US and UK only
+YNAB|YNAB|Budgeting|iaw|Subscription|8.9|money organized|Give every dollar a job.|A budgeting method that changes habits.|Works;Great method|Subscription
+Monarch Money|Monarch|Budgeting|iaw|Subscription|8.6|money organized|Track all your money in one place.|The best Mint replacement.|All accounts in one place|Subscription
+Copilot Money|Copilot|Budgeting|im|Subscription|8.5|money|A beautiful budgeting app.|Beautiful and smart.|Beautiful|Apple only
+Robinhood|Robinhood|Investing|iaw|Free, Gold|7.5|money|Commission-free investing.|Easy investing, maybe too easy.|Easy|Encourages trading
+Coinbase|Coinbase|Crypto|iaw|Free app, trading fees|7.3|money|Buy and sell crypto.|Easy crypto trading with fees.|Easy|Fees
+Splitwise|Splitwise|Split bills|iaw|Free, Pro|8.6|money friends travel|Split bills with friends.|The easiest way to share costs.|Easy splitting|Limits on free
+Monzo|Monzo|Banking|ia|Free, plans|8.6|money|A popular UK bank app.|Great budgeting tools.|Great budgeting|UK only
+Credit Karma|Intuit|Credit scores|iaw|Free|7.6|money|Check your credit score.|Free credit scores.|Free|Ads
+Fidelity|Fidelity|Investing|iaw|Free|8.0|money|Investing and retirement.|A trusted investing app.|Trusted|Busy app
+Rocket Money|Rocket Companies|Subscriptions & bills|iaw|Free, Premium|7.7|money organized|Find and cancel subscriptions.|Useful for finding subscriptions.|Finds subscriptions|Premium needed
+Amazon Shopping|Amazon|Shopping|iaw|Free|7.8|money|Shop Amazon.|Everything, delivered fast.|Huge selection|Cluttered
+eBay|eBay|Marketplace|iaw|Free|7.6|money|Buy and sell used items.|Great for used and rare items.|Rare finds|Fees for sellers
+Vinted|Vinted|Second-hand fashion|iaw|Free|8.0|money|Buy and sell used clothes.|No seller fees.|No seller fees|Buyer fees
+Etsy|Etsy|Handmade marketplace|iaw|Free|7.8|create|Handmade and vintage items.|Great for unique gifts.|Unique items|Mixed quality
+Too Good To Go|Too Good To Go|Surplus food|ia|Free|8.5|money|Rescue unsold food cheaply.|Great deals and less waste.|Cheap food|Surprise bags
+Uber Eats|Uber|Food delivery|iaw|Free app|7.4|cozy|Food delivery.|Fast delivery with fees.|Many restaurants|Fees
+DoorDash|DoorDash|Food delivery|iaw|Free app|7.4|cozy|Food delivery.|The biggest US delivery app.|Many restaurants|Fees
+Instacart|Instacart|Groceries|iaw|Free app|7.5|organized|Grocery delivery.|Convenient grocery delivery.|Convenient|Fees
+Paprika Recipe Manager|Hindsight Labs|Recipes|iamp|$4.99 mobile, $29.99 desktop|8.8|organized cozy|Save recipes from any site.|The best recipe manager with no subscription.|No subscription|Paid per platform
+Mela|Silvio Rizzi|Recipes|im|$4.99|8.5|organized cozy|A beautiful recipe manager.|Clean and simple.|Beautiful|Apple only
+NYT Cooking|The New York Times|Recipes|iaw|Subscription|8.6|cozy|Great recipes.|High-quality recipes.|Great recipes|Subscription
+Vivino|Vivino|Wine|iaw|Free|8.0|social|Scan wine labels.|Great for choosing wine.|Easy|Ads
+AnyList|Purple Cover|Grocery lists|iaw|Free, Complete|8.8|organized|Shared grocery lists.|The best shared grocery list.|Shared lists|Complete for more
+Google Maps|Google|Maps|iaw|Free|9.2|travel explore|Maps, directions and reviews.|The best maps app.|Best maps|Privacy
+Apple Maps|Apple|Maps|imw|Free|8.4|travel|Apple's maps.|Much improved and private.|Private|Fewer reviews
+Waze|Google|Driving|ia|Free|8.4|travel|Driving with live traffic.|Great live traffic.|Live traffic|Ads
+Citymapper|Citymapper|Transit|iaw|Free, Club|8.9|travel|The best transit directions.|Great for big cities.|Great transit|Big cities only
+Airbnb|Airbnb|Stays|iaw|Free app|7.8|travel|Book homes and experiences.|Great for longer stays.|Unique stays|Fees
+Booking.com|Booking Holdings|Hotels|iaw|Free app|7.9|travel|Book hotels.|The biggest hotel app.|Huge choice|Pushy
+Google Translate|Google|Translation|iaw|Free|8.8|travel focus free|Translate text, speech and signs.|Essential for travel.|Camera translation|Mistakes
+DeepL|DeepL|Translation|iawmp|Free, Pro|8.9|travel focus|Natural translations.|More natural than rivals.|Natural|Fewer languages
+Flighty|Flighty|Flight tracking|im|Free, Pro|9.0|travel|Track your flights.|The best flight tracker.|Great info|Pro for more
+Hopper|Hopper|Flight deals|iaw|Free|7.4|travel money|Predict flight prices.|Useful predictions, pushy extras.|Predictions|Pushy extras
+Skyscanner|Skyscanner|Flight search|iaw|Free|8.1|travel money|Find cheap flights.|Great flight search.|Cheap flights|Third-party sites
+TripIt|SAP Concur|Itineraries|iaw|Free, Pro|8.2|travel organized|All your trip plans in one place.|Forward emails and it builds your itinerary.|Automatic itineraries|Pro for alerts
+Organic Maps|Organic Maps|Offline maps|ia|Free|8.8|travel explore safe|Free offline maps.|Private and offline.|Offline;Private|Basic
+Uber|Uber|Rides|iaw|Free app|7.6|travel|Book a ride.|Works in many cities.|Everywhere|Surge prices
+Lyft|Lyft|Rides|ia|Free app|7.5|travel|Book a ride in the US.|A friendly Uber rival.|Friendly|US and Canada only
+Trainline|Trainline|Train tickets|iaw|Free app|8.0|travel|Book trains in Europe.|Easy train tickets.|Easy|Booking fees
+ChatGPT|OpenAI|AI assistant|iawmp|Free, paid plans|8.7|focus create|Chat, write, code and create images with AI.|The best-known AI assistant.|Many features|Can be wrong
+Claude|Anthropic|AI assistant|iawmp|Free, paid plans|8.7|focus create organized|An AI assistant for writing, research and coding.|Strong at writing and coding.|Great writing|Can be wrong
+Google Gemini|Google|AI assistant|iaw|Free, Google AI plans|8.3|focus|Google's AI assistant.|Works well with Google apps.|Google integration|Can be wrong
+Perplexity|Perplexity AI|AI search|iawmp|Free, Pro|8.4|focus|AI answers with sources.|Great for research with sources.|Shows sources|Can be wrong
+Raycast|Raycast|Launcher|m|Free, Pro|9.1|organized focus|A fast launcher for your Mac.|Makes your Mac faster to use.|Very fast|Mac only
+Visual Studio Code|Microsoft|Code editor|wmp|Free|9.4|create|The most popular code editor.|Free, fast and extendable.|Free;Extensions|Can get heavy
+GitHub|GitHub|Code hosting|iaw|Free, paid plans|8.8|create organized|Host and collaborate on code.|The home of open source.|Everyone uses it|Complex
+Termius|Termius|SSH client|iamp|Free, Pro|8.4|organized|SSH from any device.|The best SSH client.|Cross-platform|Pro for sync
+Carrot Weather|Grailr|Weather|im|Subscription|8.7|travel|Weather with attitude.|Funny and accurate.|Funny|Subscription
+Apple Weather|Apple|Weather|im|Free|8.3|travel|Built-in weather.|Great built-in weather.|Free|Apple only
+Windy|Windy.com|Weather maps|iaw|Free, Premium|8.8|travel explore|Detailed weather maps.|Beautiful and detailed.|Great maps|Complex
+Google Lens|Google|Visual search|ia|Free|8.5|explore quick|Search what you see.|Identify anything with your camera.|Very useful|Privacy
+Adobe Scan|Adobe|Document scanner|ia|Free, Premium|8.1|organized|Scan documents to PDF.|Great free scanning.|Free|Premium for more
+Life360|Life360|Family location|ia|Free, plans|7.2|kids safe|See where family members are.|Useful for families, but privacy concerns.|Family safety|Privacy
+Google Home|Google|Smart home|ia|Free|7.6|organized|Control smart home devices.|Controls Google devices.|Free|Clunky
+Apple Home|Apple|Smart home|im|Free|7.9|organized|Control HomeKit devices.|Clean smart home control.|Clean|Apple only
+Philips Hue|Signify|Smart lights|ia|Free|8.2|cozy|Control Hue lights.|Great lighting control.|Great scenes|Needs Hue lights
+Tailscale|Tailscale|Private network|iamp|Free, paid plans|9.1|safe|Connect your devices securely.|Easy private networks.|Easy|Technical
+Speedtest|Ookla|Network test|iawmp|Free|8.2|quick|Test your internet speed.|The standard speed test.|Fast|Ads
+Opal|Opal|Screen time|iam|Free, Pro|8.2|focus|Block distracting apps.|Helps you focus.|Works|Pro needed
+Forest|Seekrtech|Focus timer|ia|$3.99 iOS, free Android|8.5|focus|Plant a virtual tree that grows while you stay off your phone.|A focus timer with just enough guilt to work.|Simple;Plants real trees|Basic stats
+Freedom|Freedom|Site blocker|iawmp|Subscription|8.2|focus|Block distractions on every device.|Blocks sites everywhere at once.|All devices|Subscription
+Brave|Brave Software|Browser|iamp|Free|8.4|safe|A browser that blocks ads.|Fast and private.|Blocks ads|Crypto extras
+Firefox|Mozilla|Browser|iamp|Free|8.5|safe free|An independent browser.|Private and independent.|Private|Slower
+Google Chrome|Google|Browser|iamp|Free|8.4|free|The most popular browser.|Fast and works with everything.|Fast|Privacy
+DuckDuckGo|DuckDuckGo|Private browser|iamp|Free|8.3|safe|A private browser and search.|Private by default.|Private|Weaker search
+Steam|Valve|Game store|iamp|Free|8.7|friends compete|Buy and play PC games.|The biggest PC game store.|Huge library;Great sales|Cluttered
+PlayStation App|Sony|Game companion|ia|Free|7.8|friends|Chat and buy PlayStation games.|Useful for chats and remote downloads.|Remote downloads|Basic
+Xbox|Microsoft|Game companion|ia|Free|7.9|friends|Game Pass and remote play.|Great for Game Pass.|Game Pass|Busy
+Nintendo Switch App|Nintendo|Game companion|ia|Free|6.8|friends kids|Voice chat for Switch.|Needed for some features.|Needed|Clunky
+Epic Games Store|Epic Games|Game store|amp|Free|7.6|free|Free games every week.|Free games every week.|Free games|Fewer features
+Medal|Medal.tv|Game clips|iap|Free|8.0|friends create|Record and share game clips.|Easy clip sharing.|Easy|Ads
+GeForce NOW|NVIDIA|Cloud gaming|awmp|Free, paid tiers|8.3|compete|Play PC games in the cloud.|Great cloud gaming.|No gaming PC needed|Needs fast internet
