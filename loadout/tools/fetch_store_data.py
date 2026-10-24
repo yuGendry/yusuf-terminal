@@ -42,6 +42,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 CACHE = os.path.join(ROOT, ".cache")
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+WIKI_UA = "LoadoutCatalog/1.0 (https://github.com/yuGendry/yusuf-terminal; catalog picture import)"
 REFRESH = False
 QUIET = False
 
@@ -93,11 +94,16 @@ def http(url, binary=False, headers=None, tries=3):
             data = f.read()
         return data if binary else data.decode("utf-8", "replace")
     host = urllib.parse.urlparse(url).netloc
-    wait = 0.35 - (time.time() - _last.get(host, 0))
+    gap = 1.2 if host.endswith("wikipedia.org") else 0.35
+    wait = gap - (time.time() - _last.get(host, 0))
     if wait > 0:
         time.sleep(wait)
-    h = {"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"}
+    ua = WIKI_UA if host.endswith("wikipedia.org") or host.endswith("wikimedia.org") else UA
+    h = {"User-Agent": ua, "Accept-Language": "en-US,en;q=0.9"}
+    if "steampowered.com" in host or "steamcommunity.com" in host:
+        h["Cookie"] = "birthtime=0; lastagecheckage=1-0-1990; wants_mature_content=1; Steam_Language=english"
     h.update(headers or {})
+    tries = max(tries, 5) if host.endswith("wikipedia.org") else tries
     for n in range(tries):
         try:
             _last[host] = time.time()
@@ -110,6 +116,9 @@ def http(url, binary=False, headers=None, tries=3):
         except urllib.error.HTTPError as e:
             if e.code in (404, 410):
                 return None
+            if e.code == 429:
+                time.sleep(6 * (n + 1))
+                continue
             if n == tries - 1:
                 log(f"  ! {e.code} {url}")
                 return None
@@ -180,24 +189,43 @@ def steam(item, pinned):
     data = details.get("data") or {}
     title = data.get("name") or title
     header = data.get("header_image") or f"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{appid}/header.jpg"
-    summ = (http_json(f"https://store.steampowered.com/appreviews/{appid}?json=1&language=all&purchase_type=all&num_per_page=0") or {}).get("query_summary") or {}
-    total = int(summ.get("total_reviews") or 0)
+    page = http(f"https://store.steampowered.com/app/{appid}/?cc=us&l=english") or ""
+    tips = [html.unescape(t) for t in re.findall(r'data-tooltip-html="([^"]*user reviews[^"]*)"', page)]
+    summary = None
+    for want in ("for this game", "in your language"):
+        for t in tips:
+            m = re.search(r"(\d+)% of the ([\d,]+) user reviews " + want, t)
+            if m:
+                summary = (int(m.group(1)), int(m.group(2).replace(",", "")), "all" if want == "for this game" else "english")
+                break
+        if summary:
+            break
     out = None
-    if total > 0:
-        pos = int(summ.get("total_positive") or 0)
-        ex = http_json(f"https://store.steampowered.com/appreviews/{appid}?json=1&language=english&purchase_type=all&filter=summary&num_per_page=8") or {}
+    if summary:
+        pct, total, scope = summary
+        desc = re.search(r'game_review_summary[^"]*" itemprop="description">([^<]+)', page)
         reviews = []
-        for r in ex.get("reviews", []):
-            t = clean(r.get("review"))
+        cpage = http(f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=toprated&l=english&filterLanguage=english") or ""
+        for m in re.finditer(r'<div class="title">(Recommended|Not Recommended)</div>(.*?)<div class="apphub_CardTextContent">\s*'
+                             r'<div class="date_posted">Posted:\s*([^<]+)</div>(.*?)</div>', cpage, re.S):
+            t = clean(m.group(4))
             if len(t) < 60:
                 continue
-            reviews.append({"text": t, "up": bool(r.get("voted_up")),
-                            "date": datetime.fromtimestamp(r.get("timestamp_created", 0), timezone.utc).date().isoformat(),
-                            "hours": round((r.get("author", {}).get("playtime_forever") or 0) / 60)})
+            hrs = re.search(r"([\d,.]+) hrs on record", m.group(2))
+            date = ""
+            for fmt in ("%B %d, %Y", "%d %B, %Y", "%B %d", "%d %B"):
+                try:
+                    d = datetime.strptime(m.group(3).strip(), fmt)
+                    date = (d.replace(year=datetime.now().year) if "%Y" not in fmt else d).date().isoformat()
+                    break
+                except ValueError:
+                    pass
+            reviews.append({"text": t, "up": m.group(1) == "Recommended", "date": date,
+                            "hours": round(float(hrs.group(1).replace(",", ""))) if hrs else 0})
             if len(reviews) == 3:
                 break
-        out = {"appid": appid, "title": title, "desc": summ.get("review_score_desc", ""), "positive": pos, "total": total,
-               "pct": round(pos * 100 / total), "url": f"https://store.steampowered.com/app/{appid}/#app_reviews_hash", "reviews": reviews}
+        out = {"appid": appid, "title": title, "desc": desc.group(1).strip() if desc else "", "positive": round(total * pct / 100),
+               "total": total, "pct": pct, "scope": scope, "url": f"https://store.steampowered.com/app/{appid}/#app_reviews_hash", "reviews": reviews}
     return out, header
 
 
@@ -291,32 +319,29 @@ def gplay(item, pinned):
 # ---------------------------------------------------------------- PlayStation Store (best effort)
 
 def psn(item, pinned):
-    urls = []
     if pinned:
-        urls = [f"https://store.playstation.com/en-us/concept/{pinned}"]
+        urls = [f"https://store.playstation.com/en-us/product/{pinned}"]
     else:
-        q = urllib.parse.quote(item["name"])
-        page = http(f"https://store.playstation.com/en-us/search/{q}")
+        base = slug(item["name"].replace("'", "").replace("\u2019", ""))
+        page = http(f"https://www.playstation.com/en-us/games/{base}/")
         if not page:
             return None
-        for m in re.findall(r'/en-us/(concept/\d+|product/[A-Z0-9_-]+)', page):
-            u = "https://store.playstation.com/en-us/" + m
-            if u not in urls:
-                urls.append(u)
-        urls = urls[:3]
+        found = []
+        for m in re.findall(r"store\.playstation\.com/en-us/(product/[A-Z0-9_-]+|concept/\d+)", page):
+            if m not in found:
+                found.append(m)
+        found.sort(key=lambda m: (not m.endswith("0000000000000000"), not m.startswith("product")))
+        urls = ["https://store.playstation.com/en-us/" + m for m in found[:2]]
     for u in urls:
         page = http(u)
         if not page:
             continue
         title = html.unescape((re.search(r"<title>(.*?)</title>", page, re.S) or [None, ""])[1]).split("|")[0].strip()
-        if not pinned and similar(item["name"], title) < 0.9:
+        m = re.search(r'"averageRating"\s*:\s*([\d.]+)', page)
+        c = re.search(r'"totalRatingsCount"\s*:\s*(\d+)', page)
+        if not (m and c):
             continue
-        m = re.search(r'"averageRating"\s*:\s*([\d.]+)\s*,\s*"totalRatingsCount"\s*:\s*(\d+)', page) or \
-            re.search(r'"totalRatingsCount"\s*:\s*(\d+)[^{}]*?"averageRating"\s*:\s*([\d.]+)', page)
-        if not m:
-            continue
-        a, b = m.groups()
-        rating, count = (float(a), int(b)) if "." in a or float(a) <= 5 else (float(b), int(a))
+        rating, count = float(m.group(1)), int(c.group(1))
         if count and 0 < rating <= 5:
             return {"title": title, "rating": round(rating, 2), "count": count, "url": u, "reviews": []}
     return None

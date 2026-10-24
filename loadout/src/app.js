@@ -412,7 +412,7 @@ const fmtDate = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleD
 const asOf = () => STORE && STORE.fetchedAt ? `as of ${fmtDate(STORE.fetchedAt)}` : "";
 function playerSummary(i) {
   if (!i.players.length) return `<p class="tiny" style="margin:0">Real player ratings for this ${i.kind} haven't been imported yet.</p>`;
-  return `<div class="psum">${i.players.map(p => `<div class="psrc"><b>${p.k === "steam" ? p.v.pct + "%" : "★ " + p.v.rating.toFixed(1)}</b><span>${SOURCE_NAME[p.k]}${p.k === "steam" && p.v.desc ? " · " + esc(p.v.desc) : ""}</span><small>${compact(p.count)} ratings</small></div>`).join("")}</div><p class="tiny" style="margin:6px 0 0">Real ratings ${asOf()}.</p>`;
+  return `<div class="psum">${i.players.map(p => `<div class="psrc"><b>${p.k === "steam" ? p.v.pct + "%" : "★ " + p.v.rating.toFixed(1)}</b><span>${SOURCE_NAME[p.k]}${p.k === "steam" && p.v.desc ? " · " + esc(p.v.desc) : ""}</span><small>${compact(p.count)} ${p.k === "steam" && p.v.scope === "english" ? "English reviews" : "ratings"}</small></div>`).join("")}</div><p class="tiny" style="margin:6px 0 0">Real ratings ${asOf()}.</p>`;
 }
 function advancedTab(i) {
   const a = ADV[i.id];
@@ -430,7 +430,7 @@ function playersTab(i) {
   return i.players.map(p => {
     const v = p.v;
     const head = p.k === "steam"
-      ? `<div class="pbig"><b>${v.pct}%</b><span>positive · ${esc(v.desc || "")}<br>${compact(v.total)} Steam reviews</span></div>`
+      ? `<div class="pbig"><b>${v.pct}%</b><span>positive · ${esc(v.desc || "")}<br>${compact(v.total)} ${v.scope === "english" ? "English-language " : ""}Steam reviews</span></div>`
       : `<div class="pbig"><b>★ ${v.rating.toFixed(1)}</b><span>out of 5<br>${compact(v.count)} ratings on ${SOURCE_NAME[p.k]}</span></div>`;
     const revs = (v.reviews || []).slice(0, 4).map(r => `<blockquote class="prev"><div class="prev-h">${p.k === "steam" ? (r.up ? `<span class="up">Recommended</span>` : `<span class="down">Not recommended</span>`) : `<span class="st">${"★".repeat(Math.max(0, Math.min(5, r.stars || 0)))}</span>`}${r.title ? ` <b>${esc(r.title)}</b>` : ""}<small>${fmtDate(r.date)}${r.hours ? ` · ${r.hours} h played` : ""}</small></div><p>${esc(r.text)}</p></blockquote>`).join("");
     return `<div class="d-section psec"><h3>${SOURCE_NAME[p.k]}${v.title && v.title !== i.name ? ` <small style="text-transform:none;letter-spacing:0;font-weight:500">(listed as “${esc(v.title)}”)</small>` : ""}</h3>${head}${revs}${v.url ? `<a class="srclink" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">See all on ${SOURCE_NAME[p.k]} ↗</a>` : ""}</div>`;
