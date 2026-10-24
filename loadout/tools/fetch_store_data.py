@@ -31,6 +31,7 @@ import os
 import re
 import ssl
 import sys
+import threading
 import time
 import unicodedata
 import urllib.error
@@ -84,6 +85,19 @@ def load_catalog():
 
 _ctx = ssl.create_default_context(cafile=os.environ.get("SSL_CERT_FILE") or None)
 _last = {}
+_host_locks = {}
+_locks_guard = threading.Lock()
+
+
+def _pace(host):
+    gap = 1.2 if host.endswith("wikipedia.org") else 0.3
+    with _locks_guard:
+        lock = _host_locks.setdefault(host, threading.Lock())
+    with lock:
+        wait = gap - (time.time() - _last.get(host, 0))
+        if wait > 0:
+            time.sleep(wait)
+        _last[host] = time.time()
 
 
 def http(url, binary=False, headers=None, tries=3):
@@ -94,10 +108,6 @@ def http(url, binary=False, headers=None, tries=3):
             data = f.read()
         return data if binary else data.decode("utf-8", "replace")
     host = urllib.parse.urlparse(url).netloc
-    gap = 1.2 if host.endswith("wikipedia.org") else 0.35
-    wait = gap - (time.time() - _last.get(host, 0))
-    if wait > 0:
-        time.sleep(wait)
     ua = WIKI_UA if host.endswith("wikipedia.org") or host.endswith("wikimedia.org") else UA
     h = {"User-Agent": ua, "Accept-Language": "en-US,en;q=0.9"}
     if "steampowered.com" in host or "steamcommunity.com" in host:
@@ -106,7 +116,7 @@ def http(url, binary=False, headers=None, tries=3):
     tries = max(tries, 5) if host.endswith("wikipedia.org") else tries
     for n in range(tries):
         try:
-            _last[host] = time.time()
+            _pace(host)
             with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=25, context=_ctx) as r:
                 data = r.read()
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -151,6 +161,11 @@ def clean(text, limit=320):
     return text
 
 
+# Review quotes with strong language are skipped so the page stays family friendly.
+PROFANITY = re.compile(r"\b(f+u+c+k\w*|sh[i1]t\w*|bitch\w*|cunt\w*|n[i1]gg\w*|fag\w*|retard\w*|whore\w*|dick\w*|"
+                       r"piss\w*|bastard\w*|slut\w*|rape\w*|kys)\b", re.I)
+
+
 def similar(a, b):
     a, b = norm(a), norm(b)
     if not a or not b:
@@ -163,10 +178,20 @@ def similar(a, b):
     return len(wa & wb) / max(len(wa), 1) * 0.8
 
 
-def maker_match(maker, seller):
+def maker_match(maker, seller, name=None):
     m = [w for w in norm(maker).split() if len(w) > 2 and w not in ("inc", "llc", "ltd", "the", "and", "games", "studio", "studios")]
     s = norm(seller)
+    if name and norm(name) and re.search(r"\b" + re.escape(norm(name)) + r"\b", s):
+        return True  # e.g. TikTok Ltd., Waze Inc.
     return not m or any(w in s for w in m)
+
+
+def name_then_subtitle(name, title):
+    """True for store titles like "TikTok - Videos, Shop & LIVE" or "Twitch: Live Streaming"."""
+    if not title.lower().startswith(name.lower()):
+        return False
+    rest = title[len(name):].lstrip()
+    return rest == "" or rest[:1] in (":", "-", "\u2013", "\u2014", "|", "\u30fb")
 
 
 # ---------------------------------------------------------------- Steam
@@ -209,7 +234,7 @@ def steam(item, pinned):
         for m in re.finditer(r'<div class="title">(Recommended|Not Recommended)</div>(.*?)<div class="apphub_CardTextContent">\s*'
                              r'<div class="date_posted">Posted:\s*([^<]+)</div>(.*?)</div>', cpage, re.S):
             t = clean(m.group(4))
-            if len(t) < 60:
+            if len(t) < 60 or PROFANITY.search(t):
                 continue
             hrs = re.search(r"([\d,.]+) hrs on record", m.group(2))
             date = ""
@@ -243,8 +268,8 @@ def appstore(item, pinned):
         cands = []
         for r in res.get("results", []):
             sc = similar(item["name"], r.get("trackName", ""))
-            mk = maker_match(item["maker"], r.get("sellerName", "") + " " + r.get("artistName", ""))
-            if sc == 1 or (sc >= 0.9 and (mk or item["kind"] == "game")) or (sc >= 0.5 and mk):
+            mk = maker_match(item["maker"], r.get("sellerName", "") + " " + r.get("artistName", ""), item["name"])
+            if sc == 1 or name_then_subtitle(item["name"], r.get("trackName", "")) or (sc >= 0.9 and (mk or item["kind"] == "game")) or (sc >= 0.5 and mk):
                 cands.append((sc + (0.2 if mk else 0), r))
         cands = [r for _, r in sorted(cands, key=lambda x: -x[0])]
     if not cands:
@@ -264,7 +289,7 @@ def appstore(item, pinned):
         if "im:rating" not in e:
             continue
         t = clean(e.get("content", {}).get("label", ""))
-        if len(t) < 60:
+        if len(t) < 60 or PROFANITY.search(t + " " + e.get("title", {}).get("label", "")):
             continue
         reviews.append({"title": clean(e.get("title", {}).get("label", ""), 80), "text": t,
                         "stars": int(e["im:rating"]["label"]), "date": (e.get("updated", {}).get("label", "") or "")[:10]})
@@ -304,15 +329,18 @@ def gplay(item, pinned):
                 continue
             name = d.get("name", "")
             author = (d.get("author") or {}).get("name", "")
-            if not pinned and not (similar(item["name"], name) >= 0.9 and (maker_match(item["maker"], author) or similar(item["name"], name) == 1)):
+            if not pinned and not (similar(item["name"], name) >= 0.9 and (maker_match(item["maker"], author, item["name"])
+                                                                          or similar(item["name"], name) == 1 or name_then_subtitle(item["name"], name))):
                 continue
             ag = d["aggregateRating"]
             try:
                 rating, count = float(ag.get("ratingValue")), int(ag.get("ratingCount"))
             except (TypeError, ValueError):
                 continue
+            icon = re.search(r'<meta property="og:image" content="([^"]+)"', page)
             return {"id": p, "title": name, "rating": round(rating, 2), "count": count,
-                    "url": f"https://play.google.com/store/apps/details?id={p}", "reviews": []}
+                    "url": f"https://play.google.com/store/apps/details?id={p}", "reviews": [],
+                    "_icon": html.unescape(icon.group(1)) if icon else None}
     return None
 
 
@@ -454,63 +482,76 @@ def main():
     only = set(args.only.split(",")) if args.only else None
 
     results, wide_imgs, square_imgs = {}, {}, {}
-    for n, it in enumerate(items, 1):
+    todo = [it for it in items if not only or it["id"] in only]
+
+    def work(it):
         iid, ov = it["id"], overrides.get(it["id"], {})
-        if only and iid not in only:
-            continue
-        log(f"[{n}/{len(items)}] {it['name']}")
         src, wide_url, square_url = {}, None, None
         codes = it["codes"]
         try:
             if it["kind"] == "game":
                 if ov.get("steam") is not False and ("P" in codes or "A" in codes):
-                    s, header = steam(it, ov.get("steam"))
-                    if s:
-                        src["steam"] = s
+                    st, header = steam(it, ov.get("steam"))
+                    if st:
+                        src["steam"] = st
                     wide_url = header
                 if ov.get("appstore") is not False and "M" in codes:
-                    a, icon = appstore(it, ov.get("appstore"))
-                    if a:
-                        src["appstore"] = a
+                    ap, icon = appstore(it, ov.get("appstore"))
+                    if ap:
+                        src["appstore"] = ap
                     square_url = icon
                 if not args.no_scrape and ov.get("psn") is not False and ("5" in codes or "4" in codes):
-                    p = psn(it, ov.get("psn"))
-                    if p:
-                        src["psn"] = p
+                    ps = psn(it, ov.get("psn"))
+                    if ps:
+                        src["psn"] = ps
                 if not args.no_scrape and ov.get("gplay") is not False and "M" in codes:
-                    g = gplay(it, ov.get("gplay"))
-                    if g:
-                        src["gplay"] = g
+                    gp = gplay(it, ov.get("gplay"))
+                    if gp:
+                        src["gplay"] = gp
                 if not wide_url:
                     wide_url = wiki_image(it, ov.get("wiki"))
             else:
                 if ov.get("appstore") is not False and ("i" in codes or "m" in codes):
-                    a, icon = appstore(it, ov.get("appstore"))
-                    if a:
-                        src["appstore"] = a
+                    ap, icon = appstore(it, ov.get("appstore"))
+                    if ap:
+                        src["appstore"] = ap
                     square_url = icon
                 if not args.no_scrape and ov.get("gplay") is not False and "a" in codes:
-                    g = gplay(it, ov.get("gplay"))
-                    if g:
-                        src["gplay"] = g
+                    gp = gplay(it, ov.get("gplay"))
+                    if gp:
+                        src["gplay"] = gp
+                        square_url = square_url or gp.get("_icon")
                 if not square_url:
                     square_url = wiki_image(it, ov.get("wiki"))
         except Exception as e:  # keep going; one bad page should not stop the import
-            log(f"  ! {type(e).__name__}: {e}")
-        img = None
+            log(f"  ! {it['name']}: {type(e).__name__}: {e}")
+        wide = square = None
         if wide_url:
             im = open_image(wide_url)
             if im:
-                wide_imgs[iid] = wide_tile(im)
-                img = "wide"
-        if not img and square_url:
+                wide = wide_tile(im)
+        if wide is None and square_url:
             im = open_image(square_url)
             if im:
-                square_imgs[iid] = square_tile(im)
-                img = "square"
-        results[iid] = {"sources": src}
-        found = ", ".join(k + " " + str(v.get("pct", v.get("rating"))) for k, v in src.items()) or "no ratings"
-        log(f"    {found}; picture: {img or 'none'}")
+                square = square_tile(im)
+        return iid, src, wide, square
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    done = 0
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for fut in as_completed([pool.submit(work, it) for it in todo]):
+            iid, src, wide, square = fut.result()
+            done += 1
+            for v in src.values():
+                v.pop("_icon", None)
+            results[iid] = {"sources": src}
+            if wide is not None:
+                wide_imgs[iid] = wide
+            elif square is not None:
+                square_imgs[iid] = square
+            found = ", ".join(k + " " + str(v.get("pct", v.get("rating"))) for k, v in src.items()) or "no ratings"
+            pic = "wide" if wide is not None else "square" if square is not None else "none"
+            log(f"[{done}/{len(todo)}] {iid}: {found}; picture: {pic}")
 
     # Keep earlier data for items not fetched this run (with --only), including their pictures.
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")

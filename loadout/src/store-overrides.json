@@ -42,7 +42,8 @@
   "wiki": "Brawl Stars"
  },
  "call-of-duty-black-ops-6": {
-  "wiki": "Call of Duty: Black Ops 6"
+  "wiki": "Call of Duty: Black Ops 6",
+  "psn": false
  },
  "call-of-duty-warzone": {
   "wiki": "Call of Duty: Warzone"
@@ -90,7 +91,8 @@
   "steam": 548430
  },
  "destiny-2": {
-  "steam": 1085660
+  "steam": 1085660,
+  "psn": false
  },
  "diablo-iv": {
   "steam": 2344520
@@ -128,6 +130,9 @@
  "fall-guys": {
   "steam": 1097150
  },
+ "final-cut-pro": {
+  "appstore": 424389933
+ },
  "final-fantasy-vii-rebirth": {
   "steam": 2909400
  },
@@ -137,11 +142,19 @@
  "firefox": {
   "wiki": "Firefox"
  },
+ "fitbit": {
+  "gplay": "com.fitbit.FitbitMobile"
+ },
  "fortnite": {
-  "wiki": "Fortnite"
+  "wiki": "Fortnite",
+  "psn": false
  },
  "forza-horizon-5": {
   "steam": 1551360
+ },
+ "freedom": {
+  "appstore": false,
+  "gplay": false
  },
  "frostpunk-2": {
   "steam": 1601580
@@ -150,7 +163,8 @@
   "wiki": "GeForce Now"
  },
  "genshin-impact": {
-  "wiki": "Genshin Impact"
+  "wiki": "Genshin Impact",
+  "psn": false
  },
  "geometry-dash": {
   "steam": 322170
@@ -159,13 +173,18 @@
   "steam": 2215430
  },
  "ghost-of-yotei": {
-  "wiki": "Ghost of Yōtei"
+  "wiki": "Ghost of Yōtei",
+  "psn": false
  },
  "god-of-war-ragnarok": {
   "steam": 2322010
  },
  "google-chrome": {
   "wiki": "Google Chrome"
+ },
+ "google-lens": {
+  "appstore": false,
+  "gplay": "com.google.ar.lens"
  },
  "gran-turismo-7": {
   "wiki": "Gran Turismo 7"
@@ -195,7 +214,8 @@
   "steam": 1030300
  },
  "honkai-star-rail": {
-  "wiki": "Honkai: Star Rail"
+  "wiki": "Honkai: Star Rail",
+  "psn": false
  },
  "horizon-forbidden-west": {
   "steam": 2420110
@@ -214,6 +234,10 @@
  },
  "just-dance-2025-edition": {
   "wiki": "Just Dance 2025 Edition"
+ },
+ "kindle": {
+  "appstore": 302584613,
+  "gplay": "com.amazon.kindle"
  },
  "kingdom-come-deliverance-ii": {
   "steam": 1771300
@@ -255,7 +279,8 @@
   "wiki": "Metroid Prime 4: Beyond"
  },
  "minecraft": {
-  "wiki": "Minecraft"
+  "wiki": "Minecraft",
+  "steam": false
  },
  "monster-hunter-wilds": {
   "steam": 2246340
@@ -300,7 +325,8 @@
   "steam": 1205520
  },
  "persona-5-royal": {
-  "steam": 1687950
+  "steam": 1687950,
+  "psn": false
  },
  "phasmophobia": {
   "steam": 739630
@@ -316,6 +342,9 @@
  },
  "portal-2": {
   "steam": 620
+ },
+ "procreate": {
+  "appstore": 425073498
  },
  "r-e-p-o": {
   "steam": 3241660
@@ -339,7 +368,8 @@
   "wiki": "Roblox"
  },
  "rocket-league": {
-  "steam": 252950
+  "steam": 252950,
+  "psn": false
  },
  "satisfactory": {
   "steam": 526870
@@ -399,7 +429,8 @@
   "steam": 1778820
  },
  "terraria": {
-  "steam": 105600
+  "steam": 105600,
+  "psn": "UP4040-CUSA00740_00-TERRARIA00000001"
  },
  "tetris-effect-connected": {
   "steam": 1003590
@@ -426,10 +457,12 @@
   "steam": 892970
  },
  "valorant": {
-  "wiki": "Valorant"
+  "wiki": "Valorant",
+  "psn": false
  },
  "vampire-survivors": {
-  "steam": 1794680
+  "steam": 1794680,
+  "psn": false
  },
  "visual-studio-code": {
   "wiki": "Visual Studio Code"
