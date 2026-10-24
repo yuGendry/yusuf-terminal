@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boostball Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="in-menu">
+<canvas id="game" tabindex="0"></canvas>
+<div id="nameplates"></div>
+
+<div id="loading">Loading arena…</div>
+<div id="fatal" class="hidden"></div>
+
+<!-- ============================ HUD ============================ -->
+<div id="hud" class="hidden">
+  <div id="scorebug">
+    <div class="team blue"><span id="scoreBlue">0</span></div>
+    <div id="clock">5:00</div>
+    <div class="team orange"><span id="scoreOrange">0</span></div>
+  </div>
+  <div id="modeLabel"></div>
+  <div id="boostMeter">
+    <svg viewBox="0 0 120 120">
+      <circle class="bg" cx="60" cy="60" r="52"/>
+      <circle id="boostRing" cx="60" cy="60" r="52"/>
+    </svg>
+    <div id="boostNum">33</div>
+    <div id="speedo">0 km/h</div>
+  </div>
+  <div id="ballSpeed"></div>
+  <div id="flipInd"></div>
+  <div id="camInd">BALL CAM</div>
+  <div id="centerMsg"></div>
+  <div id="subMsg"></div>
+  <div id="toast"></div>
+  <div id="trainInfo" class="hidden"></div>
+  <div id="freeplayHelp" class="hidden">
+    <b>FREE PLAY</b>
+    <span><kbd>R</kbd> reset ball</span>
+    <span><kbd>T</kbd> lob to me</span>
+    <span><kbd>G</kbd> air dribble pop</span>
+    <span><kbd>Y</kbd> wall shot</span>
+    <span><kbd>B</kbd> freeze ball</span>
+    <span><kbd>U</kbd> ∞ boost</span>
+    <span><kbd>⌫</kbd> reset car</span>
+    <span><kbd>H</kbd> hide</span>
+    <span class="pad">🎮 D-pad ↑ pop · ↓ lob · ← wall · → reset car · Back = reset ball</span>
+  </div>
+  <div id="fps" class="hidden"></div>
+</div>
+
+<div id="scoreboard" class="hidden"><table id="scoreRows"></table></div>
+<div id="results" class="hidden"></div>
+
+<!-- ============================ MENUS ============================ -->
+<div id="menus">
+  <section class="screen" data-screen="main">
+    <div class="brand">
+      <div class="logo">BOOST<span>BALL</span></div>
+      <div class="tag">ARENA · rocket-car soccer</div>
+    </div>
+    <div class="menu-col">
+      <button class="btn big" data-go="play" data-autofocus>Play Match</button>
+      <button class="btn big" data-start="freeplay">Free Play</button>
+      <button class="btn" data-go="training">Training</button>
+      <button class="btn" data-go="garage">Garage</button>
+      <button class="btn" data-go="settings">Settings</button>
+      <button class="btn" data-go="help">Controls &amp; Mechanics</button>
+    </div>
+    <div class="foot">Soccar arena 8192 × 10240 × 2044 uu · 120 Hz physics · keyboard, mouse &amp; controller</div>
+  </section>
+
+  <section class="screen" data-screen="play">
+    <h2>Play Match</h2>
+    <div class="play-grid">
+      <div class="modes">
+        <h4>Exhibition vs bots</h4>
+        <div class="cards wide">
+          <button class="card mode" data-start="exhibition:1" data-autofocus><b>1v1</b><small>Duel</small></button>
+          <button class="card mode" data-start="exhibition:2"><b>2v2</b><small>Doubles</small></button>
+          <button class="card mode" data-start="exhibition:3"><b>3v3</b><small>Standard</small></button>
+        </div>
+        <h4>Extra modes</h4>
+        <div class="cards wide">
+          <button class="card mode" data-start="heatseeker:1"><b>Heatseeker 1v1</b><small>Ball homes to goal</small></button>
+          <button class="card mode" data-start="heatseeker:2"><b>Heatseeker 2v2</b><small>Faster every hit</small></button>
+          <button class="card mode" data-start="kickoff:bot"><b>Kickoff</b><small>Practice vs bot</small></button>
+        </div>
+      </div>
+      <div class="panel">
+        <h4>Match settings &amp; mutators</h4>
+        <div id="matchSettings"></div>
+      </div>
+    </div>
+    <button class="btn back" data-back>‹ Back</button>
+  </section>
+
+  <section class="screen" data-screen="training">
+    <h2>Training</h2>
+    <div class="cards grid2">
+      <button class="card mode" data-start="freeplay" data-autofocus><b>Free Play</b><small>Open arena, unlimited boost, ball tools</small></button>
+      <button class="card mode" data-start="training:striker"><b>Striker</b><small>10 rolling / bouncing shots</small></button>
+      <button class="card mode" data-start="training:aerial"><b>Aerial</b><small>10 high balls to finish</small></button>
+      <button class="card mode" data-start="training:goalie"><b>Goalie</b><small>10 shots on your net — save them</small></button>
+      <button class="card mode" data-start="training:dribble"><b>Air Dribble</b><small>Pop it up, carry it in the air, score</small></button>
+      <button class="card mode" data-start="kickoff:solo"><b>Kickoff (solo)</b><small>Practice speed to the ball</small></button>
+    </div>
+    <p class="note">Training shots stay frozen until you press throttle, boost, jump or steer. Reset with <b>R</b> / Back, change shot with <b>← →</b> / D-pad.</p>
+    <button class="btn back" data-back>‹ Back</button>
+  </section>
+
+  <section class="screen" data-screen="garage">
+    <div class="garage-panel">
+      <h2>Garage</h2>
+      <div class="tabs" id="garageTabs"></div>
+      <div id="garageBody"></div>
+      <div id="garageInfo" class="note"></div>
+      <button class="btn back" data-back>‹ Save &amp; Back</button>
+    </div>
+    <div class="garage-hint">Drag / right stick to rotate · scroll to zoom · LB/RB switch tabs</div>
+  </section>
+
+  <section class="screen" data-screen="settings">
+    <h2>Settings</h2>
+    <div class="tabs" id="settingsTabs"></div>
+    <div id="settingsBody" class="panel scroll"></div>
+    <button class="btn back" data-back>‹ Back</button>
+  </section>
+
+  <section class="screen" data-screen="help">
+    <h2>Controls &amp; Mechanics</h2>
+    <div id="helpBody" class="panel scroll"></div>
+    <button class="btn back" data-back data-autofocus>‹ Back</button>
+  </section>
+
+  <section class="screen" data-screen="pause">
+    <h2>Paused</h2>
+    <div class="menu-col">
+      <button class="btn big" id="btnResume" data-autofocus>Resume</button>
+      <button class="btn" id="btnRestart">Restart</button>
+      <button class="btn" id="btnPauseSettings">Settings</button>
+      <button class="btn" data-go="help">Controls</button>
+      <button class="btn" id="btnQuit">Exit to Main Menu</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="results">
+    <h2 id="resultsTitle">VICTORY</h2>
+    <div id="resultsScore"></div>
+    <table id="resultsRows" class="stats"></table>
+    <div class="menu-row">
+      <button class="btn" id="btnRematch" data-autofocus>Play Again</button>
+      <button class="btn" id="btnResultsMenu">Main Menu</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/arena.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
