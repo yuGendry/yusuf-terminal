@@ -364,6 +364,7 @@ const PHYS = {
   BALL_DRAG: -0.0305,
   BALL_REST: 0.6,
   BALL_MU: 2.0,
+  BALL_WORLD_MU: 0.35,
   BALL_SPIN_A: 0.0003,
 
   CAR_MASS: 180,
@@ -417,9 +418,9 @@ const PHYS = {
 
   DEMO_RESPAWN: 3,
   STICKY: 0.5,
-  // feel tuning (see README): soft touches ramp the extra impulse in, ball spins less off car contacts
-  PSY_CURVE: [[0, 0], [300, 0.12], [900, 0.65], [2300, 0.55], [4600, 0.30]],
-  CARBALL_SPIN_INERTIA: 4,
+  // feel tuning (see README): only resting contacts (<150 uu/s) soften the extra impulse; ball spins less off car contacts
+  PSY_CURVE: [[0, 0], [150, 0.65], [2300, 0.55], [4600, 0.30]],
+  CARBALL_SPIN_INERTIA: 2,
 };
 
 const THROTTLE_CURVE = [[0, 1600], [1400, 160], [1410, 0], [2300, 0]];
@@ -785,9 +786,12 @@ function ballArenaStep(b, dt, gravity, events) {
     const sy = vay + R * (c.nz * w.x - c.nx * w.z);
     const sz = vaz + R * (c.nx * w.y - c.ny * w.x);
     const sLen = Math.sqrt(sx * sx + sy * sy + sz * sz);
-    const ratio = Math.abs(vn) / Math.max(sLen, 0.0001);
-    const e = Math.abs(vn) < 30 ? 0 : b.restitution;
-    const fr = Math.min(1, PHYS.BALL_MU * ratio);
+    const resting = Math.abs(vn) < 30;
+    const e = resting ? 0 : b.restitution;
+    // Coulomb friction: limited by the normal impulse, and never more than a solid sphere
+    // needs to start rolling (2/7 of the slip), so glancing bounces keep their speed
+    const tangential = Math.min(PHYS.BALL_WORLD_MU * (1 + e) * Math.abs(vn), sLen * 2 / 7);
+    const fr = sLen > 1e-4 ? tangential / sLen : 0;
     const dpx = -(1 + e) * vpx, dpy = -(1 + e) * vpy, dpz = -(1 + e) * vpz;
     const dax = -fr * sx, day = -fr * sy, daz = -fr * sz;
     const A = PHYS.BALL_SPIN_A * PHYS.BALL_R; // spin coupling scaled for standard radius
@@ -1474,12 +1478,20 @@ class World {
     this.checkPinch(car, n, p, Lc);
     // ball changes are accumulated and applied after every car is resolved (order independent)
     if (!this._bd.pinched) {
+      // overlap is resolved with a little separating speed (like Bullet's penetration recovery),
+      // so a pushed ball rolls off the nose instead of gluing to it
+      this._bd.dv.addScaledVector(n, Math.min(Math.max(pen - 1, 0) * 18, 160));
       this._bd.dw.add(new THREE.Vector3().crossVectors(Lb, J1).divideScalar(Ib));
       this._bd.dv.addScaledVector(J1, 1 / mb).addScaledVector(J2, 1 / mb);
     }
     // car reaction
     const Jc = J1.clone().negate();
-    car.applyImpulseAt(Jc, Lc);
+    if (car.numArenaWheels >= 2) {
+      // a grounded car is held down by its wheels: the ball can't lever it off the floor
+      const lift = Jc.dot(car.up);
+      if (lift > 0) Jc.addScaledVector(car.up, -lift);
+      car.applyImpulseAt(Jc, Lc.clone().addScaledVector(car.up, -Lc.dot(car.up)));
+    } else car.applyImpulseAt(Jc, Lc);
     if (fresh) {
       const hitStrength = J1.add(J2).length() / mb;
       this.events.push({ type: 'hit', car, strength: hitStrength, x: p.x, y: p.y, z: p.z });
@@ -1492,9 +1504,27 @@ class World {
     const ball = this.ball;
     if (this.time - (car.lastPinch || -9) < 0.3) return;
     const vc = new THREE.Vector3().crossVectors(car.angVel, Lc).add(car.vel);
-    const approach = vc.sub(ball.vel).dot(n); // car closing speed along contact normal
-    if (approach < 450) return;
+    const rel = vc.clone().sub(ball.vel);
+    const approach = rel.dot(n); // car closing speed along contact normal
     const cs = queryContacts(ball.pos.x, ball.pos.y, ball.pos.z, ball.radius + 6);
+    // ball wedged under the car: it squirts out instead of the car riding on it
+    if (n.dot(car.up) < -0.55) {
+      for (let i = 0; i < cs.length; i++) {
+        const na = new THREE.Vector3(cs[i].nx, cs[i].ny, cs[i].nz);
+        if (na.dot(car.up) < 0.5) continue;
+        const slide = rel.clone().addScaledVector(na, -rel.dot(na));
+        const sp = slide.length();
+        if (sp < 200) return;
+        const dir = slide.divideScalar(sp).addScaledVector(na, 0.2).normalize();
+        const speed = Math.min(ball.maxSpeed, sp * 1.6 + 300);
+        this._bd.dv.copy(dir.multiplyScalar(speed)).sub(ball.vel);
+        this._bd.pinched = true;
+        car.lastPinch = this.time;
+        this.events.push({ type: 'pinch', car, speed, x: ball.pos.x, y: ball.pos.y, z: ball.pos.z });
+        return;
+      }
+    }
+    if (approach < 450) return;
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
       const na = new THREE.Vector3(c.nx, c.ny, c.nz);
@@ -3361,9 +3391,9 @@ class Sfx {
 'use strict';
 
 const BOT_LEVELS = {
-  rookie:  { name: 'Rookie',   throttle: 0.82, boost: false, boostMin: 99, aerial: false, jumpShots: false, react: 0.45, speedEst: 1050, flip: true },
-  pro:     { name: 'Pro',      throttle: 1.0,  boost: true,  boostMin: 0,  aerial: true,  aerialMax: 900, jumpShots: true, react: 0.18, speedEst: 1350, flip: true },
-  allstar: { name: 'All-Star', throttle: 1.0,  boost: true,  boostMin: 0,  aerial: true,  aerialMax: 1900, jumpShots: true, react: 0.06, speedEst: 1550, flip: true },
+  rookie:  { name: 'Rookie',   aimNoise: 1100, throttle: 0.82, boost: false, boostMin: 99, aerial: false, jumpShots: false, react: 0.45, speedEst: 1050, flip: true },
+  pro:     { name: 'Pro',      aimNoise: 350, throttle: 1.0,  boost: true,  boostMin: 0,  aerial: true,  aerialMax: 900, jumpShots: true, react: 0.18, speedEst: 1350, flip: true },
+  allstar: { name: 'All-Star', aimNoise: 0, throttle: 1.0,  boost: true,  boostMin: 0,  aerial: true,  aerialMax: 1900, jumpShots: true, react: 0.06, speedEst: 1550, flip: true },
 };
 
 const BOT_NAMES = ['Viper', 'Rex', 'Jester', 'Bandit', 'Sundown', 'Hound', 'Casper', 'Maverick', 'Fury', 'Shepard', 'Junker', 'Squall', 'Tusk', 'Gerwin', 'Sabretooth', 'Raja', 'Caveman', 'Imp', 'Myrtle', 'Poncho'];
@@ -3465,6 +3495,7 @@ class Bot {
     const C = c.controls;
     const w = game.world, ball = w.ball, L = this.level;
     const keepSeq = this.seq;
+    const prevThrottle = C.throttle;
     this.clear();
     if (game.state === 'countdown') return;
     const dirY = c.team === 0 ? 1 : -1;
@@ -3500,6 +3531,23 @@ class Bot {
       return;
     }
 
+    // stuck (nose in a wall/corner, pinned on the ball): back out, then jump if that fails
+    if (this.unstickT > 0) {
+      this.unstickT -= dt;
+      C.throttle = -1; C.steer = this.unstickSteer;
+      return;
+    }
+    if (c.numArenaWheels >= 2 && c.vel.length() < 120 && Math.abs(prevThrottle) > 0.5 && !isKickoff) {
+      this.stuckT = (this.stuckT || 0) + dt;
+      if (this.stuckT > 0.9) {
+        this.stuckT = 0;
+        this.stuckCount = (this.stuckCount || 0) + 1;
+        if (this.stuckCount % 2 === 1) { this.unstickT = 0.7; this.unstickSteer = Math.random() < 0.5 ? -1 : 1; }
+        else { const lb = this.local(ball.pos); this.dodge(1, clamp(-Math.atan2(lb.y, lb.x), -1, 1), false); }
+        return;
+      }
+    } else { this.stuckT = 0; if (c.vel.length() > 500) this.stuckCount = 0; }
+
     // on a wall with nothing to do there: drive back down toward the play
     if (c.numArenaWheels >= 3 && c.up.z < 0.55 && !(ball.pos.z > 300 && c.pos.distanceTo(ball.pos) < 900)) {
       const down = new THREE.Vector3(0, 0, -1).addScaledVector(c.up, c.up.z).normalize();
@@ -3510,107 +3558,160 @@ class Bot {
       return;
     }
 
-    // stuck pushing against something: dodge out of it
-    if (c.numArenaWheels >= 3 && c.vel.length() < 150 && c.controls) {
-      this.stuckT = (this.stuckT || 0) + dt;
-      if (this.stuckT > 1.1) {
-        this.stuckT = 0;
-        const lb = this.local(ball.pos);
-        this.dodge(1, clamp(-Math.atan2(lb.y, lb.x), -1, 1), false);
-        return;
-      }
-    } else this.stuckT = 0;
-
+    if (!this.aimT || game.world.time > this.aimT) { this.aimT = game.world.time + 2.5; this.aimOffset = (Math.random() - 0.5) * 2 * (L.aimNoise || 0); }
     const role = game.roleOf(c);
-    // pick an intercept slice
-    let slice = null;
-    const spd = c.vel.length();
-    const maxZ = L.aerial ? (L.aerialMax || 900) : (L.jumpShots ? 330 : 170);
-    for (let i = 3; i < pred.length; i += 3) {
+    const ownDanger = this.ownGoalThreat(game);
+    if ((role === 'attack' || ownDanger) && this.attack(game, dt, dirY, ownDanger)) return;
+    this.position(game, role, dirY, ownGoal);
+  }
+
+  // Where to put the ball: a point inside the opponent goal, or away from our own goal when clearing
+  shotTarget(bx, by, dirY, clearing) {
+    if (clearing) return new THREE.Vector3(bx >= 0 ? 3800 : -3800, by + dirY * 2500, 0);
+    // tight angle from the corner: cross it into the middle in front of goal instead
+    const depth = ARENA.L - by * dirY;
+    if (Math.abs(bx) > 1900 && depth < 1700) return new THREE.Vector3(0, dirY * (ARENA.L - 700), 0);
+    return new THREE.Vector3(clamp(bx * 0.3, -600, 600), dirY * (ARENA.L + 400), 0);
+  }
+
+  // Rough time for this car to reach P arriving along heading H
+  timeTo(P, H) {
+    const c = this.car, L = this.level;
+    const dx = P.x - c.pos.x, dy = P.y - c.pos.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 1) return 0;
+    const fx = c.fwd.x, fy = c.fwd.y, fl = Math.hypot(fx, fy) || 1;
+    const a1 = Math.acos(clamp((fx * dx + fy * dy) / (fl * d), -1, 1));
+    const a2 = Math.acos(clamp((H.x * dx + H.y * dy) / d, -1, 1));
+    const v0 = Math.max(0, c.vel.dot(c.fwd));
+    const boosting = L.boost && c.boost > 15;
+    const vmax = boosting ? 2250 : 1410, acc = boosting ? 1500 : 650;
+    const tAcc = Math.max(0, (vmax - v0) / acc);
+    const dAcc = v0 * tAcc + 0.5 * acc * tAcc * tAcc;
+    const tStraight = d <= dAcc ? (-v0 + Math.sqrt(v0 * v0 + 2 * acc * d)) / acc : tAcc + (d - dAcc) / vmax;
+    return tStraight + a1 * 0.42 + a2 * 0.3 + L.react * 0.5;
+  }
+
+  ownGoalThreat(game) {
+    const c = this.car, dirY = c.team === 0 ? 1 : -1;
+    for (let i = 0; i < game.ballPred.length; i += 6) {
+      const s = game.ballPred[i];
+      if (s.y * dirY < -(ARENA.L + 60) && Math.abs(s.x) < ARENA.GW + 150) return s.t;
+    }
+    return 0;
+  }
+
+  attack(game, dt, dirY, danger) {
+    const c = this.car, C = c.controls, L = this.level, ball = game.world.ball;
+    const pred = game.ballPred;
+    const R = ball.radius;
+    const maxZ = L.jumpShots ? 320 : 150;
+    let pick = null;
+    for (let i = 2; i < pred.length; i += 2) {
       const s = pred[i];
       if (s.z > maxZ) continue;
-      const dx = s.x - c.pos.x, dy = s.y - c.pos.y;
-      const dist = Math.max(0, Math.hypot(dx, dy) - 120);
-      const l = this.local(_a3.set(s.x, s.y, s.z));
-      const ang = Math.abs(Math.atan2(l.y, l.x));
-      const vAvg = Math.max(500, (spd + L.speedEst + (c.boost > 20 && L.boost ? 500 : 0)) / 2);
-      const tNeed = dist / vAvg + ang * 0.35 + (s.z > 200 ? 0.35 + s.z / 1500 : 0) + L.react;
-      if (tNeed <= s.t) { slice = s; break; }
+      if (Math.abs(s.x) > 3900 || Math.abs(s.y) > ARENA.L + 50) continue;
+      const clearing = s.y * dirY < -ARENA.L * 0.55 || !!danger;
+      const tgt = this.shotTarget(s.x, s.y, dirY, clearing);
+      tgt.x += this.aimOffset || 0;
+      const H = new THREE.Vector3(tgt.x - s.x, tgt.y - s.y, 0).normalize();
+      const P = new THREE.Vector3(s.x - H.x * (R + 70), s.y - H.y * (R + 70), 0);
+      const t = this.timeTo(P, H);
+      if (t <= s.t) { pick = { s, H, P, t, clearing }; break; }
     }
-    if (!slice) slice = pred[pred.length - 1] || { x: ball.pos.x, y: ball.pos.y, z: ball.pos.z, t: 0 };
-    const sp = new THREE.Vector3(slice.x, slice.y, slice.z);
+    if (!pick) {
+      // nothing reachable soon: chase the ball's landing point if it's on our side, else defend
+      if (danger) {
+        const s = pred[Math.min(pred.length - 1, 90)];
+        this.driveTo(new THREE.Vector3(s.x, s.y, 0), 1, true);
+        return true;
+      }
+      return false;
+    }
+    const { s, H, P } = pick;
+    const toP = new THREE.Vector3(P.x - c.pos.x, P.y - c.pos.y, 0);
+    const dist = toP.length();
+    // wrong side of the ball: rotate around it instead of pushing it toward our own net
+    const ahead = new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0).dot(H);
+    if (ahead > -60 && dist < 2200) {
+      const side = (new THREE.Vector3(-H.y, H.x, 0).dot(new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0)) >= 0) ? 1 : -1;
+      const wp = new THREE.Vector3(s.x - H.x * 900 - H.y * side * 700, s.y - H.y * 900 + H.x * side * 700, 0);
+      wp.x = clamp(wp.x, -3700, 3700); wp.y = clamp(wp.y, -4900, 4900);
+      this.driveTo(wp, 1, true);
+      return true;
+    }
+    // curve in: aim at a point behind P along the shot line, converging as we get close
+    const lead = clamp(dist * 0.42, 0, 1000);
+    const aim = new THREE.Vector3(P.x - H.x * lead, P.y - H.y * lead, 0);
+    aim.x = clamp(aim.x, -3900, 3900); aim.y = clamp(aim.y, -5000, 5000);
+    const r = this.driveTo(aim, 1, false);
+    // speed control: arrive when the ball does
+    const tLeft = Math.max(0.05, s.t);
+    const want = dist / tLeft;
+    const vf = c.vel.dot(c.fwd);
+    if (vf > want + 250 && dist > 300 && tLeft > 0.4) { C.throttle = vf > want + 600 ? -0.6 : 0; C.boost = false; }
+    else if (want > vf + 150 && Math.abs(r.ang) < 0.35 && L.boost && c.boost > 0 && c.numArenaWheels >= 3 && vf < 2250) C.boost = true;
 
-    if (role === 'defend' || role === 'support') {
-      // stay goal-side of the ball
-      const back = role === 'defend' ? 0.75 : 0.45;
-      const tgt = new THREE.Vector3().lerpVectors(ball.pos, ownGoal, back);
-      tgt.x *= 0.6; tgt.z = 0;
-      const toBall = Math.hypot(ball.pos.x - c.pos.x, ball.pos.y - c.pos.y);
-      const ballDanger = (ball.pos.y * dirY < -ARENA.L * 0.45) && toBall < 1600;
-      if (!ballDanger) {
-        const d = this.local(tgt);
-        const dist = Math.hypot(d.x, d.y);
-        const r = this.driveTo(tgt, dist < 600 ? clamp(dist / 900, 0, 1) : 1, dist > 2000);
-        if (dist < 250) {
-          // face the ball while waiting
-          const lb = this.local(ball.pos);
-          C.steer = clamp(-Math.atan2(lb.y, lb.x) * 2, -1, 1);
-          C.throttle = Math.abs(Math.atan2(lb.y, lb.x)) > 0.6 ? 0.4 : 0;
-        }
-        this.collectBoost(game, r);
-        return;
+    // finishing moves
+    if (c.numArenaWheels >= 3) {
+      const bl = this.local(ball.pos);
+      const bDist = Math.hypot(bl.x, bl.y);
+      const bAng = Math.atan2(bl.y, bl.x);
+      if (L.flip && ball.pos.z < 180 && bDist < 140 + Math.max(0, vf) * 0.22 && bDist > 120 && Math.abs(bAng) < 0.5 && vf > 400) {
+        this.dodge(1, clamp(-bAng * 2.2, -1, 1), true);
+        return true;
+      }
+      if (L.jumpShots && s.z > 170 && s.t < 0.55 && s.t > 0.2 && dist < 400 + vf * s.t) {
+        const dbl = s.z > 260;
+        this.startSeq(dbl ? [{ t: 0.18, jump: true }, { t: 0.04, jump: false }, { t: 0.05, jump: true }, { t: 0.6, jump: false }]
+          : [{ t: 0.2, jump: true }, { t: 0.06, jump: false }, { t: 0.05, jump: true, pitch: -1 }, { t: 0.5, jump: false }]);
+        return true;
+      }
+      // aerial for high balls on the way
+      if (L.aerial && this.tryAerial(game, dirY)) return true;
+    }
+    return true;
+  }
+
+  tryAerial(game, dirY) {
+    const c = this.car, L = this.level, pred = game.ballPred;
+    if (c.boost < 30) return false;
+    for (let i = 30; i < pred.length; i += 4) {
+      const s = pred[i];
+      if (s.z < 450 || s.z > (L.aerialMax || 900)) continue;
+      const hd = Math.hypot(s.x - c.pos.x, s.y - c.pos.y);
+      const l = this.local(new THREE.Vector3(s.x, s.y, s.z));
+      if (Math.abs(Math.atan2(l.y, l.x)) > 0.35) continue;
+      // average acceleration needed must be within what boost can give
+      const need = 2 * Math.hypot(hd - c.vel.length() * s.t * 0.9, s.z - 17 - 300 * s.t) / (s.t * s.t);
+      if (need < 900 && s.t > 0.8 && s.t < 2.8) {
+        this.aerial = { target: new THREE.Vector3(s.x, s.y, s.z), t0: game.world.time, T: s.t };
+        this.startSeq([{ t: 0.2, jump: true }, { t: 0.03, jump: false }, { t: 0.05, jump: true }, { t: 2.8, jump: false }]);
+        return true;
       }
     }
+    return false;
+  }
 
-    // attacking: approach the ball from behind relative to the opponent goal
-    const toGoal = new THREE.Vector3(oppGoal.x - sp.x, oppGoal.y - sp.y, 0).normalize();
-    // clear the ball away from own goal if it's deep in our half
-    if (sp.y * dirY < -ARENA.L * 0.55) {
-      toGoal.set(sp.x >= 0 ? 0.6 : -0.6, dirY, 0).normalize();
-    }
-    const carToBall = new THREE.Vector3(sp.x - c.pos.x, sp.y - c.pos.y, 0);
-    const ahead = carToBall.dot(toGoal) < -100; // car is on the wrong side
-    let aim;
-    if (ahead) {
-      // circle around: go to a point behind the ball, offset sideways
-      const side = (c.pos.x - sp.x) >= 0 ? 1 : -1;
-      aim = new THREE.Vector3(sp.x - toGoal.x * 900 + side * 500, sp.y - toGoal.y * 900, 0);
-      aim.x = clamp(aim.x, -3600, 3600);
-      aim.y = clamp(aim.y, -4900, 4900);
+  // Off-ball positioning: defenders sit between ball and net, support stays a bit back, grabs boost
+  position(game, role, dirY, ownGoal) {
+    const c = this.car, C = c.controls, ball = game.world.ball;
+    let tgt;
+    if (role === 'defend') {
+      tgt = new THREE.Vector3(clamp(ball.pos.x * 0.35, -700, 700), -dirY * (ARENA.L - 350), 0);
     } else {
-      const off = 110 + Math.min(500, carToBall.length() * 0.35);
-      aim = new THREE.Vector3(sp.x - toGoal.x * off, sp.y - toGoal.y * off, 0);
+      tgt = new THREE.Vector3(ball.pos.x * 0.5, ball.pos.y - dirY * 2400, 0);
+      tgt.y = clamp(tgt.y, -(ARENA.L - 400), ARENA.L - 400);
     }
-    const r = this.driveTo(aim, 1, true);
-    if (!ahead && slice.t < 1.2 && Math.abs(r.ang) < 0.4 && c.boost > 0 && L.boost && c.numArenaWheels >= 3) C.boost = true;
-
-    // shots
-    const bl = this.local(ball.pos);
-    const bDist = Math.hypot(bl.x, bl.y);
-    const bAng = Math.atan2(bl.y, bl.x);
-    const closing = c.vel.dot(c.fwd);
-    if (!ahead && c.numArenaWheels >= 3) {
-      if (L.flip && ball.pos.z < 190 && bDist < 260 + closing * 0.12 && Math.abs(bAng) < 0.45 && closing > 300) {
-        this.dodge(1, clamp(-bAng * 2, -1, 1), true);
-        return;
-      }
-      if (L.jumpShots && ball.pos.z > 220 && ball.pos.z < 520 && bDist < 280 && Math.abs(bAng) < 0.5) {
-        const dbl = ball.pos.z > 360;
-        this.startSeq(dbl ? [
-          { t: 0.2, jump: true }, { t: 0.04, jump: false }, { t: 0.06, jump: true }, { t: 0.6, jump: false },
-        ] : [{ t: 0.2, jump: true }, { t: 0.08, jump: false }, { t: 0.05, jump: true, pitch: -1 }, { t: 0.5, jump: false }]);
-        return;
-      }
-      // aerial
-      if (L.aerial && slice.z > 450 && slice.z < (L.aerialMax || 900) && slice.t > 0.7 && slice.t < 3.2 && c.boost > 25 && Math.abs(r.ang) < 0.35) {
-        const hd = Math.hypot(slice.x - c.pos.x, slice.y - c.pos.y);
-        if (hd / slice.t < 1400) {
-          this.aerial = { target: sp.clone(), t0: game.world.time, T: slice.t };
-          this.startSeq([{ t: 0.2, jump: true }, { t: 0.03, jump: false }, { t: 0.05, jump: true }, { t: 2.8, jump: false }]);
-          return;
-        }
-      }
-    }
+    const d = this.local(tgt);
+    const dist = Math.hypot(d.x, d.y);
+    const r = this.driveTo(tgt, dist < 700 ? clamp(dist / 900, 0.15, 1) : 1, dist > 2200);
+    if (dist < 300) {
+      const lb = this.local(ball.pos);
+      const ang = Math.atan2(lb.y, lb.x);
+      C.steer = clamp(-ang * 2, -1, 1);
+      C.throttle = Math.abs(ang) > 0.5 ? 0.5 : 0;
+    } else if (c.boost < 50) this.collectBoost(game, r);
   }
 
   collectBoost(game, r) {

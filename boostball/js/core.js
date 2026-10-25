@@ -13,6 +13,7 @@ const PHYS = {
   BALL_DRAG: -0.0305,
   BALL_REST: 0.6,
   BALL_MU: 2.0,
+  BALL_WORLD_MU: 0.35,
   BALL_SPIN_A: 0.0003,
 
   CAR_MASS: 180,
@@ -66,9 +67,9 @@ const PHYS = {
 
   DEMO_RESPAWN: 3,
   STICKY: 0.5,
-  // feel tuning (see README): soft touches ramp the extra impulse in, ball spins less off car contacts
-  PSY_CURVE: [[0, 0], [300, 0.12], [900, 0.65], [2300, 0.55], [4600, 0.30]],
-  CARBALL_SPIN_INERTIA: 4,
+  // feel tuning (see README): only resting contacts (<150 uu/s) soften the extra impulse; ball spins less off car contacts
+  PSY_CURVE: [[0, 0], [150, 0.65], [2300, 0.55], [4600, 0.30]],
+  CARBALL_SPIN_INERTIA: 2,
 };
 
 const THROTTLE_CURVE = [[0, 1600], [1400, 160], [1410, 0], [2300, 0]];

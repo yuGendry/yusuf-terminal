@@ -64,9 +64,12 @@ function ballArenaStep(b, dt, gravity, events) {
     const sy = vay + R * (c.nz * w.x - c.nx * w.z);
     const sz = vaz + R * (c.nx * w.y - c.ny * w.x);
     const sLen = Math.sqrt(sx * sx + sy * sy + sz * sz);
-    const ratio = Math.abs(vn) / Math.max(sLen, 0.0001);
-    const e = Math.abs(vn) < 30 ? 0 : b.restitution;
-    const fr = Math.min(1, PHYS.BALL_MU * ratio);
+    const resting = Math.abs(vn) < 30;
+    const e = resting ? 0 : b.restitution;
+    // Coulomb friction: limited by the normal impulse, and never more than a solid sphere
+    // needs to start rolling (2/7 of the slip), so glancing bounces keep their speed
+    const tangential = Math.min(PHYS.BALL_WORLD_MU * (1 + e) * Math.abs(vn), sLen * 2 / 7);
+    const fr = sLen > 1e-4 ? tangential / sLen : 0;
     const dpx = -(1 + e) * vpx, dpy = -(1 + e) * vpy, dpz = -(1 + e) * vpz;
     const dax = -fr * sx, day = -fr * sy, daz = -fr * sz;
     const A = PHYS.BALL_SPIN_A * PHYS.BALL_R; // spin coupling scaled for standard radius
@@ -753,12 +756,20 @@ class World {
     this.checkPinch(car, n, p, Lc);
     // ball changes are accumulated and applied after every car is resolved (order independent)
     if (!this._bd.pinched) {
+      // overlap is resolved with a little separating speed (like Bullet's penetration recovery),
+      // so a pushed ball rolls off the nose instead of gluing to it
+      this._bd.dv.addScaledVector(n, Math.min(Math.max(pen - 1, 0) * 18, 160));
       this._bd.dw.add(new THREE.Vector3().crossVectors(Lb, J1).divideScalar(Ib));
       this._bd.dv.addScaledVector(J1, 1 / mb).addScaledVector(J2, 1 / mb);
     }
     // car reaction
     const Jc = J1.clone().negate();
-    car.applyImpulseAt(Jc, Lc);
+    if (car.numArenaWheels >= 2) {
+      // a grounded car is held down by its wheels: the ball can't lever it off the floor
+      const lift = Jc.dot(car.up);
+      if (lift > 0) Jc.addScaledVector(car.up, -lift);
+      car.applyImpulseAt(Jc, Lc.clone().addScaledVector(car.up, -Lc.dot(car.up)));
+    } else car.applyImpulseAt(Jc, Lc);
     if (fresh) {
       const hitStrength = J1.add(J2).length() / mb;
       this.events.push({ type: 'hit', car, strength: hitStrength, x: p.x, y: p.y, z: p.z });
@@ -771,9 +782,27 @@ class World {
     const ball = this.ball;
     if (this.time - (car.lastPinch || -9) < 0.3) return;
     const vc = new THREE.Vector3().crossVectors(car.angVel, Lc).add(car.vel);
-    const approach = vc.sub(ball.vel).dot(n); // car closing speed along contact normal
-    if (approach < 450) return;
+    const rel = vc.clone().sub(ball.vel);
+    const approach = rel.dot(n); // car closing speed along contact normal
     const cs = queryContacts(ball.pos.x, ball.pos.y, ball.pos.z, ball.radius + 6);
+    // ball wedged under the car: it squirts out instead of the car riding on it
+    if (n.dot(car.up) < -0.55) {
+      for (let i = 0; i < cs.length; i++) {
+        const na = new THREE.Vector3(cs[i].nx, cs[i].ny, cs[i].nz);
+        if (na.dot(car.up) < 0.5) continue;
+        const slide = rel.clone().addScaledVector(na, -rel.dot(na));
+        const sp = slide.length();
+        if (sp < 200) return;
+        const dir = slide.divideScalar(sp).addScaledVector(na, 0.2).normalize();
+        const speed = Math.min(ball.maxSpeed, sp * 1.6 + 300);
+        this._bd.dv.copy(dir.multiplyScalar(speed)).sub(ball.vel);
+        this._bd.pinched = true;
+        car.lastPinch = this.time;
+        this.events.push({ type: 'pinch', car, speed, x: ball.pos.x, y: ball.pos.y, z: ball.pos.z });
+        return;
+      }
+    }
+    if (approach < 450) return;
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
       const na = new THREE.Vector3(c.nx, c.ny, c.nz);

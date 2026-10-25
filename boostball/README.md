@@ -5,7 +5,7 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 **Play:** open `dist/boostball.html` in a browser. It's a single file. Three.js and the fonts load from CDNs. You can also open `index.html` from a local web server, for example `npx serve boostball`.
 
 ## Modes
-- **Exhibition** 1v1, 2v2 or 3v3 against bots. There are three bot levels: Rookie, Pro and All-Star. Matches include kickoffs, a 5:00 clock, overtime, demolitions, a scoreboard (Tab) and a results screen with MVP.
+- **Exhibition** 1v1, 2v2 or 3v3 against bots. There are three bot levels: Rookie, Pro and All-Star. Bots pick the earliest reachable ball-prediction moment, curve in lined up with the goal, time their arrival, finish with dodges / jump shots / aerials, cross balls from the corners, rotate back when on the wrong side, defend shots on their net and back out when stuck. Matches include kickoffs, a 5:00 clock, overtime, demolitions, a scoreboard (Tab) and a results screen with MVP.
 - **Heatseeker** 1v1 and 2v2. After each touch the ball homes toward the opponent's goal and gets faster with every hit.
 - **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, ball on roof (V), wall shot, freeze ball and reset car.
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
@@ -34,8 +34,10 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 | Hitboxes | Octane, Dominus, Plank, Breakout, Hybrid and Merc, with their real dimensions and offsets |
 
 Gameplay tuning on top of the measured constants:
-- **Soft touches:** the extra "Psyonix" impulse ramps in from zero below 900 uu/s of relative speed (full strength above that), so the ball can rest on your roof and a ball rolling into you climbs onto the hood.
-- **Dribbling:** car contacts treat the ball as 4× harder to spin, so it rides the roof instead of rolling straight off.
+- **Ball bounces:** Coulomb friction (μ 0.35) limited to what a rolling sphere can lose, so glancing wall/floor bounces keep 70–80% of their speed along the surface, and ground balls roll far instead of dying.
+- **Touches:** the extra "Psyonix" impulse is only softened for resting contacts (under 150 uu/s of relative speed), so the ball can sit on your roof; overlap is resolved with a little separating speed so a pushed ball rolls off your nose instead of gluing to it.
+- **Grounded cars:** a ball can't lever a car off its wheels, and a ball wedged under the car squirts out instead of pinning it.
+- **Dribbling:** car contacts treat the ball as 2× harder to spin, so it rides the roof a bit better.
 - **Flicks:** the extra impulse re-applies every other tick while touching, which gives flicks their pop.
 - **Pinches:** a ball squeezed between a car and the floor, wall or ceiling shoots out of the gap at up to max ball speed.
 - **Wavedash / zap dash:** landing mid-dodge stops the flip rotation and keeps the dodge speed.
