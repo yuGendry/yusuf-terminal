@@ -287,10 +287,10 @@ const TUTORIALS = [
     },
     success(ctx) {
       const c = ctx.car;
-      if (c.speed >= PHYS.SUPERSONIC && ctx.t < 1.45 && c.up.z > 0.8) return 'Supersonic in ' + ctx.t.toFixed(2) + 's';
+      if (c.speed >= PHYS.SUPERSONIC && ctx.t < 1.6 && c.up.z > 0.8) return 'Supersonic in ' + ctx.t.toFixed(2) + 's';
       return null;
     },
-    fail(ctx) { return ctx.t > 1.45 ? 'Too slow — aim for supersonic before 1.45 s' : null; },
+    fail(ctx) { return ctx.t > 1.6 ? 'Too slow — aim for supersonic before 1.6 s' : null; },
   },
   {
     id: 'flick', title: 'Hood Dribble & 45° Flick', level: 'Intermediate',

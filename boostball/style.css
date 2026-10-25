@@ -57,6 +57,8 @@ h4 { margin: 18px 0 10px; font-size: 15px; letter-spacing: 2px; text-transform: 
 .card b { font-size: 20px; letter-spacing: 1px; }
 .card small { color: var(--muted); font-size: 14px; }
 .card.mode { min-height: 92px; border-bottom: 3px solid var(--blue); }
+.card.lesson .done { color: var(--muted); letter-spacing: 1px; text-transform: none; }
+.card.lesson .done.won { color: var(--good); }
 .card.lesson small.lvl { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); }
 .card.lesson.lvl-intermediate { border-bottom-color: var(--good); } .card.lesson.lvl-intermediate small.lvl { color: var(--good); }
 .card.lesson.lvl-advanced { border-bottom-color: var(--orange); } .card.lesson.lvl-advanced small.lvl { color: var(--orange); }

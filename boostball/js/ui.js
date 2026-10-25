@@ -135,6 +135,7 @@ class UI {
     document.body.classList.toggle('in-menu', !!name && !this.game.player);
     if (name === 'garage') this.refreshGarage();
     if (name === 'settings') this.renderSettingsTab();
+    if (name === 'academy') this.refreshAcademy();
     setTimeout(() => this.focusFirst(), 0);
   }
   go(name) { this.stack.push(this.screen); this.show(name); }
@@ -336,9 +337,21 @@ class UI {
       const b = document.createElement('button');
       b.className = 'card mode lesson lvl-' + l.level.toLowerCase();
       if (i === 0) b.dataset.autofocus = '';
-      b.innerHTML = `<b>${l.title}</b><small class="lvl">${l.level}</small><small>${l.blurb}</small>`;
+      b.dataset.lesson = l.id;
+      b.innerHTML = `<b>${l.title}</b><small class="lvl">${l.level}<span class="done"></span></small><small>${l.blurb}</small>`;
       b.addEventListener('click', () => { this.sfx.init(); this.sfx.click(); this.startGame('tutorial', { lesson: l.id }); });
       box.appendChild(b);
+    });
+  }
+
+  refreshAcademy() {
+    let st = this.game.tutStats;
+    if (!st) { try { st = JSON.parse(localStorage.getItem('bb_academy') || '{}') || {}; } catch (e) { st = {}; } }
+    document.querySelectorAll('#academyList [data-lesson]').forEach(b => {
+      const s = st[b.dataset.lesson];
+      const d = b.querySelector('.done');
+      d.textContent = s && s.wins ? ` · ✓ landed ${s.wins}×` : s && s.tries ? ` · ${s.tries} tries` : '';
+      d.classList.toggle('won', !!(s && s.wins));
     });
   }
 

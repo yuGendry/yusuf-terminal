@@ -277,7 +277,7 @@ class Game {
     } else if (mode === 'tutorial') {
       this.lesson = lessonById(opts.lesson) || TUTORIALS[0];
       this.tut = new TutorialRun(this.world, this.player, this.lesson);
-      this.tutStats = this.tutStats || {};
+      if (!this.tutStats) { try { this.tutStats = JSON.parse(localStorage.getItem('bb_academy') || '{}') || {}; } catch (e) { this.tutStats = {}; } }
       this.tutGhosts = this.tutGhosts || {};
       if (this.ghostOn === undefined) this.ghostOn = true;
       this.hud.modeLabel.textContent = 'Academy · ' + this.lesson.title;
@@ -326,6 +326,7 @@ class Game {
     if (this.tutMode === 'try') {
       const st = this.tutStats[this.lesson.id] = this.tutStats[this.lesson.id] || { tries: 0, wins: 0 };
       st.tries++; if (res.ok) st.wins++;
+      try { localStorage.setItem('bb_academy', JSON.stringify(this.tutStats)); } catch (e) { /* private mode */ }
       this.showCenter(res.ok ? 'NAILED IT!' : 'TRY AGAIN', res.text, res.ok ? 'good' : 'bad');
       if (res.ok) this.sfx.goal();
       this.tutAfterT = 2.2;

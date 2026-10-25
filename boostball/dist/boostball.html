@@ -67,6 +67,8 @@ h4 { margin: 18px 0 10px; font-size: 15px; letter-spacing: 2px; text-transform: 
 .card b { font-size: 20px; letter-spacing: 1px; }
 .card small { color: var(--muted); font-size: 14px; }
 .card.mode { min-height: 92px; border-bottom: 3px solid var(--blue); }
+.card.lesson .done { color: var(--muted); letter-spacing: 1px; text-transform: none; }
+.card.lesson .done.won { color: var(--good); }
 .card.lesson small.lvl { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); }
 .card.lesson.lvl-intermediate { border-bottom-color: var(--good); } .card.lesson.lvl-intermediate small.lvl { color: var(--good); }
 .card.lesson.lvl-advanced { border-bottom-color: var(--orange); } .card.lesson.lvl-advanced small.lvl { color: var(--orange); }
@@ -4277,10 +4279,10 @@ const TUTORIALS = [
     },
     success(ctx) {
       const c = ctx.car;
-      if (c.speed >= PHYS.SUPERSONIC && ctx.t < 1.45 && c.up.z > 0.8) return 'Supersonic in ' + ctx.t.toFixed(2) + 's';
+      if (c.speed >= PHYS.SUPERSONIC && ctx.t < 1.6 && c.up.z > 0.8) return 'Supersonic in ' + ctx.t.toFixed(2) + 's';
       return null;
     },
-    fail(ctx) { return ctx.t > 1.45 ? 'Too slow — aim for supersonic before 1.45 s' : null; },
+    fail(ctx) { return ctx.t > 1.6 ? 'Too slow — aim for supersonic before 1.6 s' : null; },
   },
   {
     id: 'flick', title: 'Hood Dribble & 45° Flick', level: 'Intermediate',
@@ -4841,7 +4843,7 @@ class Game {
     } else if (mode === 'tutorial') {
       this.lesson = lessonById(opts.lesson) || TUTORIALS[0];
       this.tut = new TutorialRun(this.world, this.player, this.lesson);
-      this.tutStats = this.tutStats || {};
+      if (!this.tutStats) { try { this.tutStats = JSON.parse(localStorage.getItem('bb_academy') || '{}') || {}; } catch (e) { this.tutStats = {}; } }
       this.tutGhosts = this.tutGhosts || {};
       if (this.ghostOn === undefined) this.ghostOn = true;
       this.hud.modeLabel.textContent = 'Academy · ' + this.lesson.title;
@@ -4890,6 +4892,7 @@ class Game {
     if (this.tutMode === 'try') {
       const st = this.tutStats[this.lesson.id] = this.tutStats[this.lesson.id] || { tries: 0, wins: 0 };
       st.tries++; if (res.ok) st.wins++;
+      try { localStorage.setItem('bb_academy', JSON.stringify(this.tutStats)); } catch (e) { /* private mode */ }
       this.showCenter(res.ok ? 'NAILED IT!' : 'TRY AGAIN', res.text, res.ok ? 'good' : 'bad');
       if (res.ok) this.sfx.goal();
       this.tutAfterT = 2.2;
@@ -5654,6 +5657,7 @@ class UI {
     document.body.classList.toggle('in-menu', !!name && !this.game.player);
     if (name === 'garage') this.refreshGarage();
     if (name === 'settings') this.renderSettingsTab();
+    if (name === 'academy') this.refreshAcademy();
     setTimeout(() => this.focusFirst(), 0);
   }
   go(name) { this.stack.push(this.screen); this.show(name); }
@@ -5855,9 +5859,21 @@ class UI {
       const b = document.createElement('button');
       b.className = 'card mode lesson lvl-' + l.level.toLowerCase();
       if (i === 0) b.dataset.autofocus = '';
-      b.innerHTML = `<b>${l.title}</b><small class="lvl">${l.level}</small><small>${l.blurb}</small>`;
+      b.dataset.lesson = l.id;
+      b.innerHTML = `<b>${l.title}</b><small class="lvl">${l.level}<span class="done"></span></small><small>${l.blurb}</small>`;
       b.addEventListener('click', () => { this.sfx.init(); this.sfx.click(); this.startGame('tutorial', { lesson: l.id }); });
       box.appendChild(b);
+    });
+  }
+
+  refreshAcademy() {
+    let st = this.game.tutStats;
+    if (!st) { try { st = JSON.parse(localStorage.getItem('bb_academy') || '{}') || {}; } catch (e) { st = {}; } }
+    document.querySelectorAll('#academyList [data-lesson]').forEach(b => {
+      const s = st[b.dataset.lesson];
+      const d = b.querySelector('.done');
+      d.textContent = s && s.wins ? ` · ✓ landed ${s.wins}×` : s && s.tries ? ` · ${s.tries} tries` : '';
+      d.classList.toggle('won', !!(s && s.wins));
     });
   }
 
