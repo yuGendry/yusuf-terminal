@@ -11,12 +11,12 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
 - **Kickoff practice**, solo or against a bot.
 - **Academy**: 14 lessons where a bot demonstrates a mechanic on your car, then you try it from the same start: Air Roll Landing, Wavedash, Half Flip, Speed Flip, Hood Dribble & 45° Flick, Musty Flick, Ground Pinch, Corner Redirect, Air Dribble, Wall Air Dribble, Flip Reset, Air Dribble → Flip Reset, Double Flip Reset (using a stall) and Sidewall Psycho. The demos adapt to your car body, and lessons always use standard physics (mutators off). The panel shows the steps (the current one highlights during the demo), and an input display shows the bot's stick and buttons, then yours. When you try, a see-through ghost car and ball replay the bot's run so you can follow its line. Keys: **1** / D-pad ← watch again, **2** / D-pad → try, **3** / D-pad ↑ toggle the ghost, **R** / Back restart. In try mode the world waits frozen until your first input.
-- **Mutators**: gravity, ball size, ball max speed, bounciness, boost amount, ceiling height (Standard 2044 / High 2500 / Very High 3000), game speed, demolitions, goal replays and match length.
+- **Mutators**: gravity, ball size, ball max speed, bounciness, boost amount, ceiling height (Tall 2800 by default / Very Tall 3400 / Rocket League 2044), game speed, demolitions, goal replays and match length.
 
 ## Physics (120 Hz fixed step, Unreal units)
 | | value |
 |---|---|
-| Arena | 8192 × 10240 × 2044 uu, 45° corners, curved floor/wall/ceiling transitions |
+| Arena | 8192 × 10240 uu, 2800 uu ceiling by default (the real 2044 is the "Rocket League" ceiling option), 45° corners, curved floor/wall/ceiling transitions |
 | Goal | 1786 × 642.775 × 880 uu |
 | Gravity | −650 uu/s² |
 | Ball | radius 91.25, mass 30, max speed 6000, restitution 0.6, drag −0.0305, max spin 6 rad/s |

@@ -1,4 +1,5 @@
-// Soccar arena: 8192 x 10240 x 2044 uu, goals 1786 x 642.775 x 880.
+// Soccar arena: 8192 x 10240 uu floor, goals 1786 x 642.775 x 880. The ceiling defaults to
+// 2800 uu (taller than the real 2044, which is available as the 'Rocket League' mutator).
 // Collision is analytic: a 2D rounded octagon (walls + 45deg corners) extruded
 // vertically with curved floor->wall and wall->ceiling transitions, plus goal boxes.
 'use strict';
@@ -6,7 +7,7 @@
 const ARENA = {
   W: 4096,          // half width (x)
   L: 5120,          // half length (y) - back wall / goal line
-  H: 2044,          // ceiling
+  H: 2800,          // ceiling (changed by the Ceiling Height mutator)
   C: 8064,          // corner planes: |x| + |y| = C
   RV: 450,          // vertical rounding where walls meet corner planes
   RF: 440,          // floor -> wall ramp radius
@@ -17,6 +18,7 @@ const ARENA = {
   SCALE: 1,
 };
 
+const ARENA_DEFAULT_H = 2800;
 const SQRT2 = Math.SQRT2;
 
 function arenaDerived() {

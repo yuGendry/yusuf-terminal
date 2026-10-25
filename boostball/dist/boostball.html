@@ -289,7 +289,7 @@ body.in-menu #nameplates { display: none; }
       <button class="btn" data-go="settings">Settings</button>
       <button class="btn" data-go="help">Controls &amp; Mechanics</button>
     </div>
-    <div class="foot">Soccar arena 8192 × 10240 × 2044 uu · 120 Hz physics · keyboard, mouse &amp; controller</div>
+    <div class="foot">Soccar arena 8192 × 10240 uu, tall ceiling · 120 Hz physics · keyboard, mouse &amp; controller</div>
   </section>
 
   <section class="screen" data-screen="play">
@@ -524,7 +524,8 @@ function safeStore(key, val) {
 }
 </script>
 <script>
-// Soccar arena: 8192 x 10240 x 2044 uu, goals 1786 x 642.775 x 880.
+// Soccar arena: 8192 x 10240 uu floor, goals 1786 x 642.775 x 880. The ceiling defaults to
+// 2800 uu (taller than the real 2044, which is available as the 'Rocket League' mutator).
 // Collision is analytic: a 2D rounded octagon (walls + 45deg corners) extruded
 // vertically with curved floor->wall and wall->ceiling transitions, plus goal boxes.
 'use strict';
@@ -532,7 +533,7 @@ function safeStore(key, val) {
 const ARENA = {
   W: 4096,          // half width (x)
   L: 5120,          // half length (y) - back wall / goal line
-  H: 2044,          // ceiling
+  H: 2800,          // ceiling (changed by the Ceiling Height mutator)
   C: 8064,          // corner planes: |x| + |y| = C
   RV: 450,          // vertical rounding where walls meet corner planes
   RF: 440,          // floor -> wall ramp radius
@@ -543,6 +544,7 @@ const ARENA = {
   SCALE: 1,
 };
 
+const ARENA_DEFAULT_H = 2800;
 const SQRT2 = Math.SQRT2;
 
 function arenaDerived() {
@@ -4686,7 +4688,7 @@ function lessonById(id) { return TUTORIALS.find(l => l.id === id); }
 const _demoPlans = {};
 // precomputed by tools/plan-demos.js (a dry run still verifies them at runtime)
 // DEMO_PLANS_BEGIN
-const DEMO_PLANS = {"flick":{"octane":{"bt":8,"jh":0.2},"dominus":{"bt":16,"jh":0.2},"plank":{"bt":16,"jh":0.2},"breakout":{"bt":8,"jh":0.2},"hybrid":{"bt":8,"jh":0.2},"merc":{"bt":8,"jh":0.2}},"musty":{"octane":{"bt":8,"jh":0.1},"dominus":{"bt":16,"jh":0.1},"plank":{"bt":24,"jh":0.1},"breakout":{"bt":24,"jh":0.1},"hybrid":{"bt":16,"jh":0.1},"merc":{"bt":8,"jh":0.1}},"pinch":{"octane":{"jd":700,"fd":0.15,"jh":0.1},"dominus":{"jd":800,"fd":0.2,"jh":0.1},"plank":{"jd":800,"fd":0.2,"jh":0.1},"breakout":{"jd":700,"fd":0.25,"jh":0.1},"hybrid":{"jd":700,"fd":0.15,"jh":0.1},"merc":{"jd":700,"fd":0.15,"jh":0.1}},"redirect":{"octane":{"off":40,"jt":1.6,"amax":900,"tz":450},"dominus":{"off":40,"jt":1.6,"amax":900,"tz":450},"plank":{"off":40,"jt":1.6,"amax":900,"tz":450},"breakout":{"off":40,"jt":1.6,"amax":900,"tz":450},"hybrid":{"off":40,"jt":1.6,"amax":900,"tz":450},"merc":{"off":40,"jt":1.6,"amax":900,"tz":450}},"walldribble":{"octane":{"wd":230,"jh":0.1,"cv":950,"wz":30,"bv":1250},"dominus":{"wd":200,"jh":0.1,"cv":950,"wz":30,"bv":1250},"plank":{"wd":200,"jh":0.05,"cv":950,"wz":30,"bv":1250},"merc":{"wd":260,"jh":0.2,"cv":800,"wz":0,"bv":1250}},"flipreset":{"octane":{"lf":0.8,"va":60,"limp":1,"cz":400},"dominus":{"lf":0.8,"va":60,"limp":1,"cz":400},"plank":{"lf":0.8,"va":60,"limp":1,"cz":400},"breakout":{"lf":0.8,"va":60,"limp":1,"cz":400},"hybrid":{"lf":0.8,"va":60,"limp":1,"cz":400},"merc":{"lf":0.8,"va":60,"limp":1,"cz":400}},"dribblereset":{"octane":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"dominus":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"plank":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"breakout":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"hybrid":{"lf":0.8,"va":60,"limp":0,"at":3,"az":700},"merc":{"lf":0.8,"va":60,"limp":1,"at":2,"az":700}},"doublereset":{"octane":{"lf":0.5,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"dominus":{"lf":0.4,"limp":0,"cv2":400,"fw2":0.06,"sw":0.02,"cz":400},"plank":{"lf":0.5,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"breakout":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":380},"hybrid":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"merc":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400}},"psycho":{"octane":{"ft":0.15,"dz":40,"cv":900},"dominus":{"ft":0.15,"dz":40,"cv":900},"plank":{"ft":0.15,"dz":40,"cv":900},"breakout":{"ft":0.15,"dz":40,"cv":900},"hybrid":{"ft":0.15,"dz":40,"cv":900},"merc":{"ft":0.15,"dz":40,"cv":900}}};
+const DEMO_PLANS = {"flick":{"octane":{"bt":8,"jh":0.2},"dominus":{"bt":16,"jh":0.2},"plank":{"bt":16,"jh":0.2},"breakout":{"bt":8,"jh":0.2},"hybrid":{"bt":8,"jh":0.2},"merc":{"bt":8,"jh":0.2}},"musty":{"octane":{"bt":8,"jh":0.1},"dominus":{"bt":16,"jh":0.1},"plank":{"bt":24,"jh":0.1},"breakout":{"bt":24,"jh":0.1},"hybrid":{"bt":16,"jh":0.1},"merc":{"bt":8,"jh":0.1}},"pinch":{"octane":{"jd":700,"fd":0.15,"jh":0.1},"dominus":{"jd":800,"fd":0.2,"jh":0.1},"plank":{"jd":800,"fd":0.2,"jh":0.1},"breakout":{"jd":700,"fd":0.25,"jh":0.1},"hybrid":{"jd":700,"fd":0.15,"jh":0.1},"merc":{"jd":700,"fd":0.15,"jh":0.1}},"redirect":{"octane":{"off":40,"jt":1.6,"amax":900,"tz":450},"dominus":{"off":40,"jt":1.6,"amax":900,"tz":450},"plank":{"off":40,"jt":1.6,"amax":900,"tz":450},"breakout":{"off":40,"jt":1.6,"amax":900,"tz":450},"hybrid":{"off":40,"jt":1.6,"amax":900,"tz":450},"merc":{"off":40,"jt":1.6,"amax":900,"tz":450}},"walldribble":{"octane":{"wd":230,"jh":0.2,"cv":1250,"wz":0,"bv":1100},"dominus":{"wd":230,"jh":0.05,"cv":1100,"wz":30,"bv":1250},"plank":{"wd":200,"jh":0.1,"cv":1100,"wz":0,"bv":1250},"breakout":{"wd":200,"jh":0.15,"cv":950,"wz":30,"bv":1250},"hybrid":{"wd":230,"jh":0.05,"cv":1100,"wz":30,"bv":1250},"merc":{"wd":230,"jh":0.05,"cv":950,"wz":30,"bv":1250}},"flipreset":{"octane":{"lf":0.8,"va":60,"limp":1,"cz":400},"dominus":{"lf":0.8,"va":60,"limp":1,"cz":400},"plank":{"lf":0.8,"va":60,"limp":1,"cz":400},"breakout":{"lf":0.8,"va":60,"limp":1,"cz":400},"hybrid":{"lf":0.8,"va":60,"limp":1,"cz":400},"merc":{"lf":0.8,"va":60,"limp":1,"cz":400}},"dribblereset":{"octane":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"dominus":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"plank":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"breakout":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"hybrid":{"lf":0.8,"va":60,"limp":0,"at":3,"az":700},"merc":{"lf":0.8,"va":60,"limp":1,"at":2,"az":700}},"doublereset":{"octane":{"lf":0.5,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"dominus":{"lf":0.4,"limp":0,"cv2":400,"fw2":0.06,"sw":0.02,"cz":400},"plank":{"lf":0.5,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"breakout":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.08,"cz":420},"hybrid":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"merc":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400}},"psycho":{"octane":{"ft":0.15,"dz":40,"cv":900},"dominus":{"ft":0.15,"dz":40,"cv":900},"plank":{"ft":0.15,"dz":40,"cv":900},"breakout":{"ft":0.15,"dz":40,"cv":900},"hybrid":{"ft":0.15,"dz":40,"cv":900},"merc":{"ft":0.15,"dz":40,"cv":900}}};
 // DEMO_PLANS_END
 function dryRunDemo(lesson, car, tune) {
   const w = new World();
@@ -4812,7 +4814,7 @@ const MUTATORS = {
   ballSpeed: { default: 6000, slow: 2600, fast: 9000, super: 14000 },
   bounce: { default: 0.6, low: 0.3, high: 0.85, super: 1.0 },
   gameSpeed: { default: 1, slow: 0.7, slowmo: 0.5 },
-  ceiling: { default: 2044, high: 2500, veryhigh: 3000 },
+  ceiling: { default: 2800, standard: 2044, veryhigh: 3400 },
 };
 
 function deepMerge(base, over) {
@@ -4976,7 +4978,7 @@ class Game {
 
   // An idle world used behind the menus
   menuWorld() {
-    this.setCeiling(2044);
+    this.setCeiling(ARENA_DEFAULT_H);
     if (this.hud.replayTag) this.hud.replayTag.classList.add('hidden');
     this.world = new World();
     this.r.clearCars();
@@ -5000,7 +5002,7 @@ class Game {
     world.boostMode = G.boost === 'default' ? 'normal' : G.boost;
     world.demolitions = G.demos;
     this.timeScale = MUTATORS.gameSpeed[G.gameSpeed] || 1;
-    this.setCeiling(MUTATORS.ceiling[G.ceiling] || 2044);
+    this.setCeiling(MUTATORS.ceiling[G.ceiling] || ARENA_DEFAULT_H);
   }
   setCeiling(h) {
     if (ARENA.H === h) return;
@@ -5895,7 +5897,7 @@ const MATCH_SCHEMA = [
   ['bounce', 'Ball Bounciness', ['default', 'low', 'high', 'super'], { default: 'Default', low: 'Low', high: 'High', super: 'Super High' }],
   ['boost', 'Boost Amount', ['default', 'unlimited', 'recharge', 'none'], { default: 'Default', unlimited: 'Unlimited', recharge: 'Recharge', none: 'No Boost' }],
   ['replays', 'Goal Replays', 'bool'],
-  ['ceiling', 'Ceiling Height', ['default', 'high', 'veryhigh'], { default: 'Standard (2044)', high: 'High (2500)', veryhigh: 'Very High (3000)' }],
+  ['ceiling', 'Ceiling Height', ['default', 'veryhigh', 'standard'], { default: 'Tall (2800)', veryhigh: 'Very Tall (3400)', standard: 'Rocket League (2044)' }],
   ['gameSpeed', 'Game Speed', ['default', 'slow', 'slowmo'], { default: 'Default', slow: 'Slow', slowmo: 'Slo-mo' }],
   ['freeplayBoost', 'Unlimited Boost in Free Play', 'bool'],
 ];
