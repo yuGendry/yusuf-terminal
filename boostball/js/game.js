@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS = {
   video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true, bloom: true, showHitbox: false },
   audio: { master: 0.7, sfx: 0.9, engine: 0.6 },
   bindings: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD },
-  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', ceiling: 'default', demos: true, freeplayBoost: true, showPrediction: false },
+  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', ceiling: 'default', replays: true, demos: true, freeplayBoost: true, showPrediction: false },
 };
 const DEFAULT_LOADOUT = { name: 'You', body: 'octane', primary: '#1e6bff', accent: '#ffffff', wheel: 'Classic', wheelColor: '#c9ced8', boostColor: '#ff9a2a', boostStyle: 'Flame', topper: 'None', antenna: 'None' };
 
@@ -114,6 +114,7 @@ class CameraRig {
     if (this.r.hfov !== 100) this.r.setFov(100);
   }
 }
+const _rq = new THREE.Quaternion(), _rv = new THREE.Vector3(), _rw = new THREE.Vector3(), _rx = new THREE.Vector3();
 const _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3(), _c3 = new THREE.Vector3(), _c4 = new THREE.Vector3(), _c5 = new THREE.Vector3(), _c6 = new THREE.Vector3();
 
 // --------------------------------------------------------------- training packs
@@ -169,7 +170,7 @@ class Game {
     this.timeMenu = 0;
     this.toastT = 0;
     this.hud = {};
-    for (const id of ['hud', 'scoreBlue', 'scoreOrange', 'clock', 'boostNum', 'boostRing', 'speedo', 'centerMsg', 'subMsg', 'toast', 'trainInfo', 'freeplayHelp', 'fps', 'camInd', 'scoreboard', 'scoreRows', 'results', 'flipInd', 'modeLabel', 'ballSpeed', 'tutPanel', 'inputViz'])
+    for (const id of ['hud', 'scoreBlue', 'scoreOrange', 'clock', 'boostNum', 'boostRing', 'speedo', 'centerMsg', 'subMsg', 'toast', 'trainInfo', 'freeplayHelp', 'fps', 'camInd', 'scoreboard', 'scoreRows', 'results', 'flipInd', 'modeLabel', 'ballSpeed', 'tutPanel', 'inputViz', 'replayTag'])
       this.hud[id] = document.getElementById(id);
     this.fpsAcc = 0; this.fpsN = 0;
     this.menuWorld();
@@ -181,6 +182,7 @@ class Game {
   // An idle world used behind the menus
   menuWorld() {
     this.setCeiling(2044);
+    if (this.hud.replayTag) this.hud.replayTag.classList.add('hidden');
     this.world = new World();
     this.r.clearCars();
     this.world.ball.reset(0, 0, PHYS.BALL_R + 300);
@@ -230,6 +232,7 @@ class Game {
 
   start(mode, opts = {}) {
     this.mode = mode; this.opts = opts;
+    this.replayBuf = []; this.replayPending = false; this.hud.replayTag.classList.add('hidden');
     this.centerT = 0; this.hud.centerMsg.className = ''; this.hud.subMsg.className = '';
     this.world = new World();
     this.r.clearCars();
@@ -447,7 +450,85 @@ class Game {
     this.showCenter(team === 0 ? 'BLUE SCORES!' : 'ORANGE SCORES!', name + ' · ' + kmh + ' km/h', team === 0 ? 'blue' : 'orange');
     this.state = 'goal';
     this.goalTimer = 3.2;
+    this.replayPending = this.settings.gameplay.replays !== false && (this.mode === 'exhibition' || this.mode === 'heatseeker') && this.replayBuf && this.replayBuf.length > 60;
+    this.replayGoal = { team, x: b.pos.x, y: b.pos.y, z: b.pos.z };
     this.updateScoreHud();
+  }
+
+  // ------------------------------------------------------------ goal replays
+  // Every tick of play is stored (last 6 s): ball pose, then per car pose + boost + demo flag.
+  recordFrame() {
+    const w = this.world, b = w.ball, cars = w.cars;
+    if (!this.replayBuf || this.replayCars !== cars.length) { this.replayBuf = []; this.replayCars = cars.length; }
+    const f = new Float32Array(7 + cars.length * 9);
+    f[0] = b.pos.x; f[1] = b.pos.y; f[2] = b.pos.z; f[3] = b.rot.x; f[4] = b.rot.y; f[5] = b.rot.z; f[6] = b.rot.w;
+    cars.forEach((c, i) => {
+      const o = 7 + i * 9;
+      f[o] = c.pos.x; f[o + 1] = c.pos.y; f[o + 2] = c.pos.z;
+      f[o + 3] = c.quat.x; f[o + 4] = c.quat.y; f[o + 5] = c.quat.z; f[o + 6] = c.quat.w;
+      f[o + 7] = c.isBoosting ? 1 : 0; f[o + 8] = c.demolished ? 1 : 0;
+    });
+    this.replayBuf.push(f);
+    if (this.replayBuf.length > 720) this.replayBuf.shift();
+  }
+  startReplay() {
+    this.replayPending = false;
+    this.replayFrames = this.replayBuf.slice(-540);
+    this.replayBuf = [];
+    this.replayIdx = 0;
+    this.state = 'replay';
+    this.r.ballMesh.visible = true;
+    this.hud.centerMsg.className = ''; this.hud.subMsg.className = '';
+    this.hud.replayTag.classList.remove('hidden');
+    this.replayCam = null;
+  }
+  endReplay() {
+    this.hud.replayTag.classList.add('hidden');
+    this.r.ballMesh.visible = false;
+    this.state = 'goal';
+    this.goalTimer = 0.4;
+  }
+  replayFrame(dt) {
+    const input = this.input, F = this.replayFrames, w = this.world, b = w.ball;
+    if (input.pressed('jump') || input.pressed('boost') || input.pressedEdges.has('Enter')) return this.endReplay();
+    const n = F.length;
+    // last second in slow motion
+    const speed = this.replayIdx > n - 130 ? 0.4 : 1;
+    this.replayIdx += dt * 120 * speed;
+    if (this.replayIdx >= n - 1) {
+      const g = this.replayGoal;
+      this.r.goalExplosion(g.x, g.y, g.z, g.team);
+      this.sfx.goal();
+      return this.endReplay();
+    }
+    const i = Math.floor(this.replayIdx), a = this.replayIdx - i, f0 = F[i], f1 = F[i + 1];
+    const L = (k) => f0[k] + (f1[k] - f0[k]) * a;
+    b.pos.set(L(0), L(1), L(2)); b.prevPos.copy(b.pos);
+    b.rot.set(f0[3], f0[4], f0[5], f0[6]).slerp(_rq.set(f1[3], f1[4], f1[5], f1[6]), a); b.prevRot.copy(b.rot);
+    w.cars.forEach((c, k) => {
+      const o = 7 + k * 9;
+      if (o + 8 >= f0.length) return;
+      c.pos.set(L(o), L(o + 1), L(o + 2)); c.prevPos.copy(c.pos);
+      c.quat.set(f0[o + 3], f0[o + 4], f0[o + 5], f0[o + 6]).slerp(_rq.set(f1[o + 3], f1[o + 4], f1[o + 5], f1[o + 6]), a);
+      c.prevQuat.copy(c.quat); c.updateBasis();
+      c.isBoosting = f0[o + 7] > 0.5; c.demolished = f0[o + 8] > 0.5;
+    });
+    // broadcast camera: behind the ball looking toward the goal it went into, eased
+    const cam = this.r.camera;
+    const goalY = this.replayGoal.y > 0 ? ARENA.L : -ARENA.L;
+    const toGoal = _rv.set(-b.pos.x * 0.3, goalY - b.pos.y, 0).normalize();
+    const want = _rw.copy(b.pos).addScaledVector(toGoal, -1300).add(_rx.set(0, 0, 520));
+    want.z = Math.min(want.z, ARENA.H - 150);
+    if (!this.replayCam) this.replayCam = want.clone();
+    this.replayCam.lerp(want, Math.min(1, dt * 2.5));
+    cam.position.copy(this.replayCam);
+    cam.lookAt(b.pos);
+    if (this.r.hfov !== 90) this.r.setFov(90);
+    for (const c of w.cars) this.r.syncCar(c, 1, dt, cam.position);
+    this.r.syncBall(b, 1, {});
+    this.r.syncPads(w);
+    this.r.updateEffects(dt);
+    this.r.render();
   }
 
   showCenter(text, sub, cls) {
@@ -519,6 +600,7 @@ class Game {
     }
     if (input.pressed('pause') && this.state !== 'ended' && (!this.ui.screen || this.ui.screen === 'pause')) { this.ui.togglePause(); }
     if (this.paused) { this.r.render(); return; }
+    if (this.state === 'replay') { this.replayFrame(dt); return; }
 
     // camera toggle
     if (this.settings.camera.ballCamMode === 'hold') input.ballCamOn = this.settings.camera.ballCamDefault !== input.down('ballCam');
@@ -696,6 +778,7 @@ class Game {
 
   postTick(dt) {
     const w = this.world, b = w.ball;
+    if (this.state === 'play' && this.mode !== 'tutorial' && this.mode !== 'training') this.recordFrame();
     if (this.tut && this.state === 'play') {
       this.tut.post(dt, w.events.slice(this.tutEv0), this.player.events.slice(this.tutCev0));
       this.tutTick(dt);
@@ -815,6 +898,7 @@ class Game {
       }
     } else if (this.state === 'goal') {
       this.goalTimer -= dt;
+      if (this.replayPending && this.goalTimer < 1.5) { this.startReplay(); return; }
       if (this.goalTimer <= 0) {
         w.ballFrozen = false;
         if (this.overtime || (this.time <= 0 && this.score[0] !== this.score[1])) this.endMatch();

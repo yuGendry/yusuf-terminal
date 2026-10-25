@@ -50,6 +50,7 @@ const MATCH_SCHEMA = [
   ['ballSpeed', 'Ball Max Speed', ['default', 'slow', 'fast', 'super'], { default: 'Default', slow: 'Slow', fast: 'Fast', super: 'Super Fast' }],
   ['bounce', 'Ball Bounciness', ['default', 'low', 'high', 'super'], { default: 'Default', low: 'Low', high: 'High', super: 'Super High' }],
   ['boost', 'Boost Amount', ['default', 'unlimited', 'recharge', 'none'], { default: 'Default', unlimited: 'Unlimited', recharge: 'Recharge', none: 'No Boost' }],
+  ['replays', 'Goal Replays', 'bool'],
   ['ceiling', 'Ceiling Height', ['default', 'high', 'veryhigh'], { default: 'Standard (2044)', high: 'High (2500)', veryhigh: 'Very High (3000)' }],
   ['gameSpeed', 'Game Speed', ['default', 'slow', 'slowmo'], { default: 'Default', slow: 'Slow', slowmo: 'Slo-mo' }],
   ['freeplayBoost', 'Unlimited Boost in Free Play', 'bool'],
