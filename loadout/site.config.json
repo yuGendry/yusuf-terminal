@@ -3,16 +3,17 @@
   "siteName": "Loadout",
   "ownerName": "YOUR_NAME",
   "contactEmail": "YOUR_EMAIL@example.com",
-  "siteUrl": "https://YOUR_PROJECT_ID.web.app",
+  "siteUrl": "https://loadout-598a5.web.app",
   "proPrice": "$3.99",
   "proInterval": "month",
   "functionsRegion": "us-central1",
   "firebase": {
-    "apiKey": "YOUR_FIREBASE_API_KEY",
-    "authDomain": "YOUR_PROJECT_ID.firebaseapp.com",
-    "projectId": "YOUR_PROJECT_ID",
-    "storageBucket": "YOUR_PROJECT_ID.firebasestorage.app",
-    "messagingSenderId": "YOUR_SENDER_ID",
-    "appId": "YOUR_APP_ID"
+    "apiKey": "AIzaSyB_Rqj-_KP001adqhxKhK4PHC26mA3hG40",
+    "authDomain": "loadout-598a5.firebaseapp.com",
+    "projectId": "loadout-598a5",
+    "storageBucket": "loadout-598a5.firebasestorage.app",
+    "messagingSenderId": "961474203976",
+    "appId": "1:961474203976:web:7f027905efa1955ea7237d",
+    "measurementId": "G-MPEHRVBZCJ"
   }
 }
