@@ -70,6 +70,7 @@ class UI {
     this.garageParticles.mat.uniforms.scale.value = window.innerHeight * 0.9;
     this.bind();
     this.buildPlay();
+    this.buildAcademy();
     this.buildGarage();
     this.buildSettings();
     this.buildHelp();
@@ -326,6 +327,19 @@ class UI {
     for (const [key, label, vals, names] of MATCH_SCHEMA) {
       box.appendChild(this.stepper(label, vals, () => G[key], (v) => { G[key] = v; this.save(); }, names));
     }
+  }
+
+  buildAcademy() {
+    const box = this.el('academyList');
+    if (!box || typeof TUTORIALS === 'undefined') return;
+    TUTORIALS.forEach((l, i) => {
+      const b = document.createElement('button');
+      b.className = 'card mode lesson lvl-' + l.level.toLowerCase();
+      if (i === 0) b.dataset.autofocus = '';
+      b.innerHTML = `<b>${l.title}</b><small class="lvl">${l.level}</small><small>${l.blurb}</small>`;
+      b.addEventListener('click', () => { this.sfx.init(); this.sfx.click(); this.startGame('tutorial', { lesson: l.id }); });
+      box.appendChild(b);
+    });
   }
 
   // ---------------------------------------------------------------- settings

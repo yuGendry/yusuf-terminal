@@ -382,7 +382,8 @@ class World {
     }
 
     // jump state bookkeeping
-    if (car.numArenaWheels === 0 && car.numBallWheels >= 2 && !car.isJumping) this.grantFlipReset(car);
+    if (car.numArenaWheels === 0 && car.numBallWheels >= 3 && !car.isJumping &&
+        _v1.subVectors(car.vel, ball.vel).dot(car.up) > -800) this.grantFlipReset(car);
     if (car.onGround && !car.isJumping) {
       car.hasJumped = false; car.hasDoubleJumped = false; car.hasFlipped = false;
       car.airTime = 0; car.airTimeSinceJump = 0;
@@ -741,7 +742,7 @@ class World {
     car.lastBallTick = this.tick;
     const J2 = new THREE.Vector3();
     if (this.tick - (car.lastExtraTick || -10) > 1) {
-      const airborne = car.numArenaWheels === 0;
+      const airborne = car.numArenaWheels === 0 && !car.isFlipping;
       let n2;
       if (airborne) {
         // air touches push along the car->ball line, so the ball stays on the nose (air dribbles)
@@ -751,7 +752,9 @@ class World {
         n2.z *= 0.35;
         n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
       }
-      const dv = Math.min(new THREE.Vector3().subVectors(ball.vel, car.vel).length(), 4600);
+      // while dodging, the spinning car hits with its contact-point speed (flicks, flip shots)
+      const carV = car.isFlipping ? new THREE.Vector3().crossVectors(car.angVel, Lc).add(car.vel) : car.vel;
+      const dv = Math.min(new THREE.Vector3().subVectors(ball.vel, carV).length(), 4600);
       if (dv > 1) {
         const soft = airborne ? clamp(dv / 450, 0.35, 1) : 1;
         J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv) * soft);
@@ -760,7 +763,12 @@ class World {
     }
     this.checkPinch(car, n, p, Lc);
     // flip reset: the ball meeting the underside (wheels / chassis) while airborne gives the flip back
-    if (car.numArenaWheels === 0 && !car.isJumping && n.dot(car.up) < -0.7) this.grantFlipReset(car);
+    // flip reset: the ball must sit squarely under the car (wheels-first) and be met softly,
+    // not smashed or clipped with an edge
+    if (car.numArenaWheels === 0 && !car.isJumping && n.dot(car.up) < -0.9) {
+      const closing = new THREE.Vector3().crossVectors(car.angVel, Lc).add(car.vel).sub(ball.vel).dot(n);
+      if (closing < 800) this.grantFlipReset(car);
+    }
     // ball changes are accumulated and applied after every car is resolved (order independent)
     if (!this._bd.pinched) {
       // overlap is resolved with a little separating speed (like Bullet's penetration recovery),

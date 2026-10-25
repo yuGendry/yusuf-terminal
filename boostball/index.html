@@ -52,6 +52,13 @@
     <span><kbd>H</kbd> hide</span>
     <span class="pad">🎮 D-pad ↑ pop · ↓ lob · ← wall · → reset car · Back = reset ball</span>
   </div>
+  <div id="tutPanel" class="hidden"></div>
+  <div id="inputViz" class="hidden">
+    <div class="iv-stick"><i></i></div>
+    <div class="iv-throttle"><i></i></div>
+    <div class="iv-btns"><span data-b="jump">JUMP</span><span data-b="boost">BOOST</span><span data-b="roll">ROLL</span><span data-b="handbrake">SLIDE</span></div>
+    <div class="iv-who"></div>
+  </div>
   <div id="fps" class="hidden"></div>
 </div>
 
@@ -69,6 +76,7 @@
       <button class="btn big" data-go="play" data-autofocus>Play Match</button>
       <button class="btn big" data-start="freeplay">Free Play</button>
       <button class="btn" data-go="training">Training</button>
+      <button class="btn" data-go="academy">Academy · Tutorials</button>
       <button class="btn" data-go="garage">Garage</button>
       <button class="btn" data-go="settings">Settings</button>
       <button class="btn" data-go="help">Controls &amp; Mechanics</button>
@@ -110,8 +118,17 @@
       <button class="card mode" data-start="training:goalie"><b>Goalie</b><small>10 shots on your net — save them</small></button>
       <button class="card mode" data-start="training:dribble"><b>Air Dribble</b><small>Pop it up, carry it in the air, score</small></button>
       <button class="card mode" data-start="kickoff:solo"><b>Kickoff (solo)</b><small>Practice speed to the ball</small></button>
+      <button class="card mode" data-go="academy"><b>Academy</b><small>Watch a bot do a mechanic, then copy it</small></button>
     </div>
     <p class="note">Training shots stay frozen until you press throttle, boost, jump or steer. Reset with <b>R</b> / Back, change shot with <b>← →</b> / D-pad.</p>
+    <button class="btn back" data-back>‹ Back</button>
+  </section>
+
+  <section class="screen" data-screen="academy">
+    <h2>Academy</h2>
+    <div class="cards grid2" id="academyList"></div>
+    <p class="note">Each lesson starts with a bot demo — watch the inputs in the bottom corner, then it's your turn from the same spot.
+      In a lesson: <b>1</b> / D-pad ← watch again · <b>2</b> / D-pad → try it · <b>R</b> / Back restart.</p>
     <button class="btn back" data-back>‹ Back</button>
   </section>
 
@@ -180,6 +197,7 @@
 <script src="js/input.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/ai.js"></script>
+<script src="js/tutorials.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>

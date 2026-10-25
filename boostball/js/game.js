@@ -168,7 +168,7 @@ class Game {
     this.timeMenu = 0;
     this.toastT = 0;
     this.hud = {};
-    for (const id of ['hud', 'scoreBlue', 'scoreOrange', 'clock', 'boostNum', 'boostRing', 'speedo', 'centerMsg', 'subMsg', 'toast', 'trainInfo', 'freeplayHelp', 'fps', 'camInd', 'scoreboard', 'scoreRows', 'results', 'flipInd', 'modeLabel', 'ballSpeed'])
+    for (const id of ['hud', 'scoreBlue', 'scoreOrange', 'clock', 'boostNum', 'boostRing', 'speedo', 'centerMsg', 'subMsg', 'toast', 'trainInfo', 'freeplayHelp', 'fps', 'camInd', 'scoreboard', 'scoreRows', 'results', 'flipInd', 'modeLabel', 'ballSpeed', 'tutPanel', 'inputViz'])
       this.hud[id] = document.getElementById(id);
     this.fpsAcc = 0; this.fpsN = 0;
     this.menuWorld();
@@ -207,7 +207,7 @@ class Game {
     car.dodgeDeadzone = isBot ? PHYS.DODGE_DEADZONE : this.settings.controls.dodgeDeadzone;
     this.world.addCar(car);
     const tc = TEAM_COLORS[team];
-    const view = this.r.addCar(car, { ...cfg, primary: (this.mode === 'freeplay' || this.mode === 'training') && !isBot ? cfg.primary : '#' + new THREE.Color(tc.main).getHexString() });
+    const view = this.r.addCar(car, { ...cfg, primary: (this.mode === 'freeplay' || this.mode === 'training' || this.mode === 'tutorial') && !isBot ? cfg.primary : '#' + new THREE.Color(tc.main).getHexString() });
     view.showName = isBot && this.settings.video.nameplates;
     if (isBot) this.bots.push(new Bot(car, this.settings.gameplay.botLevel));
     return car;
@@ -236,6 +236,9 @@ class Game {
     this.hud.results.classList.add('hidden');
     this.hud.trainInfo.classList.add('hidden');
     this.hud.freeplayHelp.classList.add('hidden');
+    this.hud.tutPanel.classList.add('hidden');
+    this.hud.inputViz.classList.add('hidden');
+    this.tut = null;
     document.body.dataset.mode = mode;
     const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
     const lo = this.loadout;
@@ -271,8 +274,69 @@ class Game {
       this.hud.trainInfo.classList.remove('hidden');
       this.hud.modeLabel.textContent = 'Training · ' + ({ striker: 'Striker', aerial: 'Aerial', goalie: 'Goalie', dribble: 'Air Dribble' })[this.pack];
       this.loadShot();
+    } else if (mode === 'tutorial') {
+      this.lesson = lessonById(opts.lesson) || TUTORIALS[0];
+      this.tut = new TutorialRun(this.world, this.player, this.lesson);
+      this.tutStats = this.tutStats || {};
+      this.hud.modeLabel.textContent = 'Academy · ' + this.lesson.title;
+      this.hud.tutPanel.classList.remove('hidden');
+      this.hud.inputViz.classList.remove('hidden');
+      this.tutPhase(opts.phase || 'demo');
     }
     this.updateScoreHud();
+  }
+
+  // ------------------------------------------------------------ academy
+  // 'demo': the bot drives the player's car through the lesson script.
+  // 'try': same setup, the player drives; the world waits frozen for the first input.
+  tutPhase(phase) {
+    const w = this.world;
+    this.tutMode = phase;
+    this.tutAfterT = 0; this.tutShown = false;
+    this.tut.start(phase);
+    this.r.ballMesh.visible = true;
+    this.touchLog = [];
+    if (phase === 'try') {
+      this.state = 'armed';
+      w.carsFrozen = true; w.ballFrozen = true;
+    } else {
+      this.state = 'play';
+      w.carsFrozen = false; w.ballFrozen = false;
+    }
+    this.r.particles.clear();
+    this.cam.snap();
+    this.renderTutPanel();
+  }
+  renderTutPanel() {
+    const L = this.lesson, ctx = this.tut.ctx, demo = this.tutMode === 'demo';
+    const st = this.tutStats[L.id] || { tries: 0, wins: 0 };
+    const steps = L.steps.map((s, i) => `<li class="${demo && i === ctx.stepIdx ? 'cur' : ''}">${s}</li>`).join('');
+    const phase = demo ? 'WATCH THE BOT' : this.state === 'armed' ? 'YOUR TURN · PRESS ANY INPUT' : 'YOUR TURN';
+    this.hud.tutPanel.innerHTML = `<div class="tp-head"><span class="tp-title">${L.title}</span><span class="tp-level">${L.level}</span></div>
+      <div class="tp-phase ${demo ? '' : 'try'}">${phase}</div><ol>${steps}</ol>
+      ${st.tries ? `<div class="tp-best">${st.wins} / ${st.tries} landed</div>` : ''}
+      <div class="tp-hint"><kbd>1</kbd>/D-pad ← watch · <kbd>2</kbd>/D-pad → try · <kbd>${this.bindLabel('resetBall')}</kbd> restart</div>`;
+    this.tutPanelKey = this.tutMode + this.state + ctx.stepIdx;
+  }
+  tutResult(res) {
+    this.tutShown = true;
+    if (this.tutMode === 'try') {
+      const st = this.tutStats[this.lesson.id] = this.tutStats[this.lesson.id] || { tries: 0, wins: 0 };
+      st.tries++; if (res.ok) st.wins++;
+      this.showCenter(res.ok ? 'NAILED IT!' : 'TRY AGAIN', res.text, res.ok ? 'good' : 'bad');
+      if (res.ok) this.sfx.goal();
+      this.tutAfterT = 2.2;
+      this.renderTutPanel();
+    } else if (res.ok) this.toast(res.text, 'good');
+  }
+  tutTick(dt) {
+    const run = this.tut, ctx = run.ctx, L = this.lesson, c = this.player;
+    if (!run.result && this.tutMode === 'try') {
+      // generic fail rules: out of time, or (air lessons) back on the ground after a real jump
+      if (ctx.t > (L.limit || 8)) run.result = { ok: false, text: 'Out of time' };
+      else if (L.air && run.airT > 0.6 && c.numArenaWheels >= 3 && ctx.t > 1) run.result = { ok: false, text: 'Landed without it' };
+    }
+    if (run.result && !this.tutShown) this.tutResult(run.result);
   }
 
   // ------------------------------------------------------------ kickoff / goals
@@ -446,7 +510,7 @@ class Game {
     // camera toggle
     if (this.settings.camera.ballCamMode === 'hold') input.ballCamOn = this.settings.camera.ballCamDefault !== input.down('ballCam');
     else if (input.pressed('ballCam')) input.ballCamOn = !input.ballCamOn;
-    this.hud.scoreboard.classList.toggle('hidden', !input.down('scoreboard') || this.mode === 'freeplay' || this.mode === 'training');
+    this.hud.scoreboard.classList.toggle('hidden', !input.down('scoreboard') || this.mode === 'freeplay' || this.mode === 'training' || this.mode === 'tutorial');
     if (input.down('scoreboard')) this.renderScoreboard();
 
     // player controls
@@ -557,6 +621,20 @@ class Game {
       if (input.pressedEdges.has('KeyH')) this.hud.freeplayHelp.classList.toggle('hidden');
       if (input.pressedEdges.has('KeyU')) { pc.infiniteBoost = !pc.infiniteBoost; this.toast(pc.infiniteBoost ? 'Unlimited boost ON' : 'Unlimited boost OFF'); }
       if (input.pressedEdges.has('KeyB')) { w.ballFrozen = !w.ballFrozen; this.toast(w.ballFrozen ? 'Ball frozen' : 'Ball unfrozen'); }
+    } else if (this.mode === 'tutorial') {
+      const dp = (i) => input.padButtons[i] > 0.5 && !(input.padPrev[i] > 0.5);
+      if (input.pressedEdges.has('Digit1') || dp(14)) this.tutPhase('demo');
+      else if (input.pressedEdges.has('Digit2') || dp(15)) this.tutPhase('try');
+      else if (input.pressed('resetBall')) this.tutPhase(this.tutMode);
+      if (this.state === 'armed') {
+        const C = pc.controls;
+        if (Math.abs(C.throttle) > 0.1 || C.boost || C.jump || Math.abs(C.steer) > 0.3 || Math.abs(C.pitch) > 0.3) {
+          // re-run the setup so the car and ball keep their starting velocities
+          this.tut.start('try');
+          this.state = 'play'; w.carsFrozen = false; w.ballFrozen = false;
+          this.renderTutPanel();
+        }
+      }
     } else if (this.mode === 'training') {
       const prev = input.pressedEdges.has('ArrowLeft') || (input.padButtons[14] > 0.5 && !(input.padPrev[14] > 0.5));
       const next = input.pressedEdges.has('ArrowRight') || (input.padButtons[15] > 0.5 && !(input.padPrev[15] > 0.5));
@@ -595,10 +673,19 @@ class Game {
     return -1;
   }
 
-  preTick(dt) {}
+  preTick(dt) {
+    if (this.tut) {
+      this.tutEv0 = this.world.events.length; this.tutCev0 = this.player.events.length;
+      if (this.state === 'play') this.tut.pre(dt);
+    }
+  }
 
   postTick(dt) {
     const w = this.world, b = w.ball;
+    if (this.tut && this.state === 'play') {
+      this.tut.post(dt, w.events.slice(this.tutEv0), this.player.events.slice(this.tutCev0));
+      this.tutTick(dt);
+    }
     // respawn demolished cars
     for (const c of w.cars) {
       if (c.demolished && c.respawnTimer <= 0) {
@@ -625,6 +712,11 @@ class Game {
           this.showCenter('GOAL!', Math.round(this.lastBallSpeed * 0.036) + ' km/h', team === 0 ? 'blue' : 'orange');
           w.ballFrozen = true; this.r.ballMesh.visible = false;
           this.respawnBallT = 1.5;
+        } else if (this.mode === 'tutorial') {
+          this.r.goalExplosion(b.pos.x, b.pos.y, b.pos.z, team);
+          this.sfx.goal(); this.cam.shake = 30;
+          w.ballFrozen = true; this.r.ballMesh.visible = false;
+          if (this.tut.ctx) this.tut.ctx.data.goal = true;
         } else if (this.mode === 'training') {
           const s = this.shots[this.shotIdx];
           this.r.goalExplosion(b.pos.x, b.pos.y, b.pos.z, team);
@@ -751,7 +843,13 @@ class Game {
       this.respawnBallT -= dt;
       if (this.respawnBallT <= 0) { w.ball.reset(0, 0); w.ballFrozen = false; this.r.ballMesh.visible = true; }
     }
-    if (this.mode === 'kickoff' && this.state === 'goal') { /* handled in goal */ }
+    if (this.mode === 'tutorial' && this.tut) {
+      if (this.tutAfterT > 0) { this.tutAfterT -= dt; if (this.tutAfterT <= 0) this.tutPhase('try'); }
+      // demo over: hand over to the player
+      if (this.tutMode === 'demo' && this.tut.finished && !this.tutAfterT) { this.tutAfterT = 1.2; this.showCenter('YOUR TURN', 'Same start — copy the bot'); }
+      const key = this.tutMode + this.state + this.tut.ctx.stepIdx;
+      if (key !== this.tutPanelKey) this.renderTutPanel();
+    }
   }
 
   endMatch() {
@@ -784,9 +882,15 @@ class Game {
     if (this.mode === 'exhibition' || this.mode === 'heatseeker') this.hud.clock.textContent = (this.overtime ? '+' : '') + mm + ':' + String(ss).padStart(2, '0');
     else if (this.mode === 'freeplay') this.hud.clock.textContent = '∞';
     else if (this.mode === 'kickoff') this.hud.clock.textContent = 'KO';
+    else if (this.mode === 'tutorial') this.hud.clock.textContent = this.tut ? this.tut.ctx.t.toFixed(1) : '';
     else this.hud.clock.textContent = (this.shotIdx + 1) + '/' + this.shots.length;
     if (this.mode === 'freeplay') { this.hud.scoreBlue.textContent = this.freeplayGoals; this.hud.scoreOrange.textContent = '–'; }
     if (this.mode === 'kickoff') { this.hud.scoreBlue.textContent = this.kickoffWins[0]; this.hud.scoreOrange.textContent = this.kickoffWins[1]; }
+    if (this.mode === 'tutorial') {
+      const st = this.tutStats[this.lesson.id] || { wins: 0, tries: 0 };
+      this.hud.scoreBlue.textContent = st.wins; this.hud.scoreOrange.textContent = st.tries - st.wins;
+      this.updateInputViz(pc);
+    }
     this.hud.camInd.textContent = this.input.ballCamOn ? 'BALL CAM' : 'CAR CAM';
     this.hud.camInd.classList.toggle('on', this.input.ballCamOn);
     // flip availability indicator
@@ -800,6 +904,27 @@ class Game {
       this.fpsAcc = 0; this.fpsN = 0;
     }
     this.hud.fps.classList.toggle('hidden', !this.settings.video.showFps);
+  }
+
+  // live view of the car's inputs: the bot's during a demo, yours when trying
+  updateInputViz(car) {
+    const C = car.controls, el = this.hud.inputViz;
+    if (!this.ivEls) this.ivEls = { dot: el.querySelector('.iv-stick i'), thr: el.querySelector('.iv-throttle i'), who: el.querySelector('.iv-who'), btn: {} };
+    const E = this.ivEls;
+    const air = car.numArenaWheels < 3;
+    const x = air ? (Math.abs(C.yaw) > Math.abs(C.roll) || !C.roll ? C.yaw : C.roll) : C.steer;
+    const y = air ? C.pitch : 0;
+    E.dot.style.transform = `translate(${(x * 28).toFixed(1)}px, ${(y * 28).toFixed(1)}px)`;
+    const th = clamp(C.throttle, -1, 1);
+    E.thr.style.top = th >= 0 ? (50 - th * 50) + '%' : '50%';
+    E.thr.style.bottom = th >= 0 ? '50%' : (50 + th * 50) + '%';
+    for (const k of ['jump', 'boost', 'roll', 'handbrake']) {
+      const s = E.btn[k] || (E.btn[k] = el.querySelector(`[data-b="${k}"]`));
+      const on = k === 'roll' ? Math.abs(C.roll) > 0.2 : !!C[k];
+      s.classList.toggle('on', on);
+      if (k === 'roll') s.textContent = on ? (C.roll < 0 ? '◀ ROLL' : 'ROLL ▶') : 'ROLL';
+    }
+    E.who.textContent = this.tutMode === 'demo' ? 'BOT INPUTS' : 'YOUR INPUTS';
   }
 
   renderScoreboard() {

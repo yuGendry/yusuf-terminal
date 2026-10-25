@@ -10,6 +10,7 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 - **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, ball on roof (V), wall shot, freeze ball and reset car.
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
 - **Kickoff practice**, solo or against a bot.
+- **Academy**: 10 lessons where a bot demonstrates a mechanic on your car, then you try it from the same start: Air Roll Landing, Wavedash, Half Flip, Speed Flip, Hood Dribble & 45° Flick, Musty Flick, Air Dribble, Wall Air Dribble, Flip Reset and Double Flip Reset. The panel shows the steps (the current one highlights during the demo), and an input display shows the bot's stick and buttons, then yours. Keys: **1** / D-pad ← watch again, **2** / D-pad → try, **R** / Back restart. In try mode the world waits frozen until your first input.
 - **Mutators**: gravity, ball size, ball max speed, bounciness, boost amount, game speed, demolitions and match length.
 
 ## Physics (120 Hz fixed step, Unreal units)
@@ -46,7 +47,7 @@ Gameplay tuning on top of the measured constants:
 - **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it. Hitting that goal's backboard, crossbar or posts sends it back toward the other goal.
 - **Speed flips:** after a dodge is cancelled (hold the stick against the flip), air roll and yaw act on the leftover rotation, so a diagonal flip + cancel + counter air roll lands flat at supersonic speed.
 
-Flip resets: when the ball meets your car's underside (or 2+ wheels touch it) while you're airborne, your flip comes back. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
+Flip resets: you need a real wheels-first touch while airborne. The ball has to meet the flat underside squarely (within about 25° of straight under the car) at under 800 uu/s of closing speed, or at least 3 wheels have to land on it. Glancing edge or side touches and smashing into it don't count, and you only get a reset after you've used a jump. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
 
 ## Controls
 Keyboard: W/S throttle (also pitch in the air), A/D steer, Space/RMB jump, Shift/LMB boost, C powerslide or air roll, Q/E air roll left/right, F ball cam, Tab scoreboard, Esc pause.
@@ -66,6 +67,7 @@ You can rebind everything under **Settings → Bindings**. Settings also include
 - `js/arena.js`: analytic arena collision and the boost pad and kickoff layouts
 - `js/physics.js`: ball, car, suspension, driving, jumps, flips, air control and collisions
 - `js/ai.js`: bots (ball prediction, rotation, shots, aerials, kickoffs, recovery)
+- `js/tutorials.js`: Academy lessons (setup, scripted bot demo, success check) and the lesson runner
 - `js/models.js`: loads the embedded models/textures and fits cars to hitboxes
 - `js/render.js`: stadium, arena meshes, car models, particles, bloom and garage showroom
 - `js/game.js`: modes, match flow, camera and HUD
