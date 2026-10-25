@@ -171,6 +171,7 @@
   .stars { font: 600 13px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .stars b { color: var(--gold); font-weight: 600; }
   .stars small { font: 600 11px var(--body); color: var(--ink-3); }
+  .stars { white-space: nowrap; }
   .ptags { display: flex; flex-wrap: wrap; gap: 4px; }
   .ptag { font: 600 11px var(--body); color: var(--ink-2); background: var(--surface-2); padding: 2px 7px; border-radius: 5px; }
   .price { font: 600 13.5px var(--mono); font-variant-numeric: tabular-nums; }
@@ -344,6 +345,20 @@
   .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; opacity: 0; transition: opacity .2s, transform .2s; z-index: 20; pointer-events: none; max-width: calc(100% - 32px); }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+  .cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; }
+  .ccard { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px; }
+  .ccard:hover { border-color: var(--ink-3); box-shadow: var(--shadow); }
+  .cthumb { display: grid; place-items: center; color: #fff; font: 700 15px var(--display); background-repeat: no-repeat; flex: none; overflow: hidden; }
+  .cthumb.square { width: 56px; height: 56px; border-radius: 13px; }
+  .cthumb.wide { width: 112px; height: 63px; border-radius: 8px; }
+  .cbody { display: grid; gap: 3px; min-width: 0; }
+  .cbody b { font-size: 14.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .cbody .meta { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cprice { font: 600 12.5px var(--mono); color: var(--ink-2); }
+  .ctop { position: relative; display: grid; place-items: center; padding: 36px 20px 8px; background: var(--surface-2); }
+  .ctop .cthumb.square { width: 112px; height: 112px; border-radius: 26px; font-size: 30px; }
+  .ctop .cthumb.wide { width: min(100%, 384px); height: auto; aspect-ratio: 16 / 9; border-radius: 12px; font-size: 34px; }
   footer { color: var(--ink-3); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 6px; }
 
   @media (max-width: 760px) {
@@ -371,6 +386,7 @@
     <button type="button" class="wordmark" data-go="discover" aria-label="Loadout home"><span class="slot" aria-hidden="true"><i></i><i></i><i></i></span>Loadout</button>
     <nav class="nav" id="nav" aria-label="Sections">
       <button type="button" data-go="discover">Discover</button>
+      <button type="button" data-go="platforms">All platforms</button>
       <button type="button" data-go="deals">Store &amp; deals <span class="lock">PRO</span></button>
       <button type="button" data-go="gifts">Gift cards <span class="lock">PRO</span></button>
       <button type="button" data-go="library">My library <span class="lock">PRO</span></button>
@@ -392,7 +408,7 @@
       <p>Search, read the review, see our best pick for whatever you're in the mood for.</p>
       <div class="search" role="combobox" aria-expanded="false" aria-owns="suggest" aria-haspopup="listbox" id="search-box">
         <svg class="mag" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
-        <input id="q" type="search" placeholder="Search 350+ games and apps: “Elden Ring”, “PS5 horror”, “budget”…" autocomplete="off" aria-label="Search games and apps" aria-autocomplete="list" aria-controls="suggest">
+        <input id="q" type="search" placeholder="Search thousands of games and apps: “Elden Ring”, “PS5 horror”, “budget”…" autocomplete="off" aria-label="Search games and apps" aria-autocomplete="list" aria-controls="suggest">
         <kbd aria-hidden="true">/</kbd>
         <ul class="suggest" id="suggest" role="listbox" hidden></ul>
       </div>
@@ -434,8 +450,10 @@
       <div class="grid" id="grid"></div>
       <button type="button" class="more" id="more" hidden>Show more</button>
     </section>
+    <section id="catsearch" style="display:grid; gap:14px" hidden></section>
   </section>
 
+  <section class="view" id="view-platforms" hidden></section>
   <section class="view" id="view-pro" hidden></section>
   <section class="view" id="view-deals" hidden></section>
   <section class="view" id="view-gifts" hidden></section>

@@ -30,18 +30,23 @@ def js(value):
 def main():
     store_path = os.path.join(ROOT, "data", "store.json")
     store = json.loads(read("data", "store.json")) if os.path.exists(store_path) else {}
+    cat_path = os.path.join(ROOT, "data", "catalog.json")
+    catalog = json.loads(read("data", "catalog.json")) if os.path.exists(cat_path) else {}
     data = "\n".join([
         "const GAMES_RAW = " + js(read("src", "games.txt")) + ";",
         "const APPS_RAW = " + js(read("src", "apps.txt")) + ";",
         "const ADV_GAMES_RAW = " + js(read("src", "advanced-games.txt")) + ";",
         "const ADV_APPS_RAW = " + js(read("src", "advanced-apps.txt")) + ";",
         "const STORE = " + js(store) + ";",
+        "const CATALOG = " + js(catalog) + ";",
     ])
     page = read("src", "shell.html").rstrip() + "\n\n<script>\n" + data + "\n\n" + read("src", "app.js").strip() + "\n</script>\n"
     with open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     rated = sum(1 for v in store.get("items", {}).values() if v.get("sources"))
-    print(f"Built index.html ({len(page) // 1024} KB): {rated} titles with real ratings, sprites: {', '.join(store.get('sprites', {})) or 'none'}")
+    total = sum(len(p["items"]) for p in catalog.get("platforms", {}).values())
+    print(f"Built index.html ({len(page) // 1024} KB): {rated} reviewed titles with real ratings, sprites: {', '.join(store.get('sprites', {})) or 'none'}; "
+          f"catalog: {total} titles on {len(catalog.get('platforms', {}))} platforms")
 
 
 if __name__ == "__main__":

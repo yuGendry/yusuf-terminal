@@ -382,6 +382,7 @@ function renderGrid() {
   $("#grid").innerHTML = list.length ? list.slice(0, view.limit).map(card).join("")
     : `<div class="empty" style="grid-column:1/-1"><strong>Nothing matches “${esc(view.q)}”</strong>Try a name, a platform like “PS5”, a genre like “roguelike”, or a category like “budgeting”.</div>`;
   $("#more").hidden = list.length <= view.limit;
+  catSearchSection();
   $("#more").textContent = `Show more (${list.length - Math.min(list.length, view.limit)} left)`;
 }
 function renderDiscover() {
@@ -736,6 +737,135 @@ function renderCart() {
     </div>`;
 }
 
+
+/* ---------- All platforms (big catalog) ---------- */
+const CAT = (typeof CATALOG !== "undefined" && CATALOG && CATALOG.platforms) || {};
+const CAT_KEYS = Object.keys(CAT);
+const CURATED_BY_STORE = {};
+for (const [id, v] of Object.entries(STORE_ITEMS)) {
+  const src = v.sources || {};
+  if (src.appstore) CURATED_BY_STORE["a:" + src.appstore.id] = id;
+  if (src.gplay) CURATED_BY_STORE["g:" + src.gplay.id] = id;
+  if (src.steam) CURATED_BY_STORE["s:" + src.steam.appid] = id;
+}
+function curatedFor(k, r) {
+  const pre = { iphone: "a:", ipad: "a:", mac: "a:", android: "g:", steam: "s:" }[k];
+  if (pre && CURATED_BY_STORE[pre + r[6]]) return CURATED_BY_STORE[pre + r[6]];
+  const full = slug(r[0]), short = slug(r[0].split(/\s+[-–—|:]\s+|:\s+/)[0]);
+  return BY_ID[full] ? full : (short.length > 2 && BY_ID[short]) ? short : null;
+}
+const CAT_ITEMS = [];
+for (const k of CAT_KEYS) CAT[k].items.forEach((r, i) => CAT_ITEMS.push({ p: k, r, i, hay: (r[0] + " " + r[1] + " " + r[2] + " " + CAT[k].label + " " + (r[10] || "")).toLowerCase(), curated: curatedFor(k, r) }));
+const CAT_TOTAL = CAT_ITEMS.length;
+const catView = { p: CAT_KEYS[0] || "", q: "", g: "all", s: "rank", limit: 60 };
+function catThumb(e) {
+  const sp = CAT[e.p].sprite, idx = e.r[8];
+  const shape = sp ? sp.shape : (["iphone", "ipad", "mac", "android"].includes(e.p) ? "square" : "wide");
+  if (!sp || idx < 0) {
+    const h = hash(e.r[0]) % 360;
+    return `<span class="cthumb ${shape}" style="background:linear-gradient(140deg, hsl(${h} 55% 45%), hsl(${(h + 60) % 360} 50% 28%))" aria-hidden="true"><span>${esc(monogram(e.r[0]))}</span></span>`;
+  }
+  const col = idx % sp.cols, row = Math.floor(idx / sp.cols);
+  return `<span class="cthumb ${shape}" aria-hidden="true" style="background-image:url(${sp.file});background-size:${sp.cols * 100}% ${sp.rows * 100}%;background-position:${sp.cols > 1 ? (col / (sp.cols - 1)) * 100 : 0}% ${sp.rows > 1 ? (row / (sp.rows - 1)) * 100 : 0}%"></span>`;
+}
+function catRating(e, long) {
+  const pl = CAT[e.p], r = e.r;
+  if (pl.ratingType === "none") return long ? `<span class="meta">Nintendo doesn't publish player ratings</span>` : "";
+  if (r[4] == null) return long ? `<span class="meta">No player ratings yet</span>` : "";
+  const val = pl.ratingType === "pct" ? `${r[4]}%` : (+r[4]).toFixed(1);
+  return `<span class="stars" title="Real player rating from ${esc(pl.source)}"><b>★</b> ${val}${r[5] ? ` <small>${compact(r[5])}</small>` : ""}</span>`;
+}
+function catCard(e) {
+  const r = e.r;
+  return `<button type="button" class="ccard" data-cat="${e.p}:${e.i}">
+    ${catThumb(e)}
+    <span class="cbody">
+      <b>${esc(r[0])}</b>
+      <span class="meta">${esc(r[1] || CAT[e.p].label)}${r[2] ? " · " + esc(r[2]) : ""}${r[7] ? " · " + r[7] : ""}</span>
+      <span class="crow">${catRating(e)}${r[3] ? `<span class="cprice">${esc(r[3])}</span>` : ""}${e.curated ? `<span class="status-tag">Loadout review</span>` : ""}</span>
+    </span>
+  </button>`;
+}
+function catMatches(list, q) {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  return list.filter(e => words.every(w => e.hay.includes(w)))
+    .map(e => { const n = e.r[0].toLowerCase(), ql = q.toLowerCase(); return [e, (n === ql ? 3 : n.startsWith(ql) ? 2 : n.includes(ql) ? 1 : 0) * 1e9 + (e.r[5] || 0)]; })
+    .sort((a, b) => b[1] - a[1]).map(x => x[0]);
+}
+function catList() {
+  let list = CAT_ITEMS.filter(e => e.p === catView.p && (catView.g === "all" || e.r[2] === catView.g));
+  if (catView.q) return catMatches(list, catView.q);
+  const by = {
+    rank: (a, b) => a.i - b.i,
+    count: (a, b) => (b.r[5] || 0) - (a.r[5] || 0),
+    rating: (a, b) => ((b.r[5] || 0) >= 100 ? b.r[4] : -1) - ((a.r[5] || 0) >= 100 ? a.r[4] : -1) || (b.r[5] || 0) - (a.r[5] || 0),
+    new: (a, b) => (b.r[7] || 0) - (a.r[7] || 0) || a.i - b.i,
+    az: (a, b) => a.r[0].localeCompare(b.r[0]),
+  }[catView.s];
+  return list.sort(by);
+}
+function renderPlatforms() {
+  const el = $("#view-platforms");
+  if (!CAT_KEYS.length) {
+    el.innerHTML = `<div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">All platforms</h1></div><div class="empty"><strong>The full catalog hasn't been imported yet</strong>Run loadout/tools/fetch_app_catalog.py, then rebuild the page.</div>`;
+    return;
+  }
+  const pl = CAT[catView.p];
+  const genres = [...new Set(CAT_ITEMS.filter(e => e.p === catView.p && e.r[2]).map(e => e.r[2]))].sort();
+  if (catView.g !== "all" && !genres.includes(catView.g)) catView.g = "all";
+  const list = catList();
+  const rated = pl.items.filter(r => r[4] != null).length;
+  const sameQ = document.activeElement && document.activeElement.id === "cat-q";
+  el.innerHTML = `
+    <div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">All platforms</h1>
+      <p class="band-sub">${CAT_TOTAL.toLocaleString()} top games and apps across ${CAT_KEYS.length} platforms, with real player ratings from each store, imported ${fmtDate(CATALOG.fetchedAt)}.</p></div>
+    <div class="rail" role="tablist" aria-label="Platform">${CAT_KEYS.map(k => `<button type="button" class="chip" role="tab" data-catp="${k}" aria-pressed="${k === catView.p}">${esc(CAT[k].label)}<span class="n">${CAT[k].items.length.toLocaleString()}</span></button>`).join("")}</div>
+    <div class="filters">
+      <label class="search" for="cat-q" style="flex:1 1 260px;margin:0"><svg class="mag" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input id="cat-q" type="search" placeholder="Search ${esc(pl.label)}…" value="${esc(catView.q)}" autocomplete="off"></label>
+      ${genres.length ? `<label class="sel" for="cat-g">Genre <select id="cat-g"><option value="all">All genres</option>${genres.map(g => `<option${g === catView.g ? " selected" : ""}>${esc(g)}</option>`).join("")}</select></label>` : ""}
+      <label class="sel" for="cat-s">Sort <select id="cat-s">${[["rank", pl.source === "Wikipedia" ? "Notable first" : "Store ranking"], ["count", "Most ratings"], ["rating", "Highest rated"], ["new", "Newest"], ["az", "A to Z"]].map(([k, l]) => `<option value="${k}"${k === catView.s ? " selected" : ""}>${l}</option>`).join("")}</select></label>
+    </div>
+    <div class="list-head"><h2>${esc(pl.label)}${catView.q ? ` · “${esc(catView.q)}”` : ""}</h2><span>${list.length.toLocaleString()} titles · ${rated.toLocaleString()} with real ratings from ${esc(pl.source)}</span></div>
+    <div class="cgrid">${list.slice(0, catView.limit).map(catCard).join("") || `<div class="empty" style="grid-column:1/-1"><strong>No matches</strong>Try another name or genre.</div>`}</div>
+    ${list.length > catView.limit ? `<button type="button" class="more" id="cat-more">Show more (${(list.length - catView.limit).toLocaleString()} left)</button>` : ""}`;
+  if (sameQ) { const q = $("#cat-q"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+}
+function openCat(key) {
+  const [p, i] = key.split(":"), pl = CAT[p], r = pl && pl.items[+i];
+  if (!r) return;
+  const e = CAT_ITEMS.find(x => x.p === p && x.i === +i);
+  if (!document.body.classList.contains("drawer-open")) lastFocus = document.activeElement;
+  hideSuggest();
+  const dr = $("#drawer");
+  dr.dataset.id = "";
+  const ratingBox = pl.ratingType === "none" ? `<p class="tiny" style="margin:0">Nintendo doesn't publish player ratings.</p>`
+    : r[4] == null ? `<p class="tiny" style="margin:0">No player ratings on ${esc(pl.source)} yet.</p>`
+    : `<div class="pbig" style="margin:0"><b>${pl.ratingType === "pct" ? r[4] + "%" : "★ " + (+r[4]).toFixed(1)}</b><span>${pl.ratingType === "pct" ? "positive" : "out of 5"}<br>${r[5] ? compact(r[5]) + " " + (pl.ratingType === "pct" ? "English-language reviews" : "ratings") + " on " + esc(pl.source) : esc(pl.source)}</span></div>`;
+  dr.innerHTML = `
+    <div class="ctop">${catThumb(e)}<button type="button" class="d-close" id="d-close" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+    <div class="d-body">
+      <div class="d-title"><h2 id="d-name">${esc(r[0])}</h2><p>${esc(r[1] || "")}${r[7] ? (r[1] ? " · " : "") + r[7] : ""}${r[2] ? " · " + esc(r[2]) : ""}</p>
+        <div class="facts"><span class="fact">${esc(pl.label)}</span>${(r[10] || "").split("/").filter(Boolean).filter(x => x !== pl.label).map(x => `<span class="fact">${esc(x)}</span>`).join("")}${r[3] ? `<span class="fact">${esc(r[3])}</span>` : ""}</div></div>
+      <div class="scoreboard" style="grid-template-columns:1fr"><div><div class="tiny" style="margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em">Players say</div>${ratingBox}</div></div>
+      ${e.curated ? `<div class="locked" style="background:var(--accent-soft)"><span>Loadout has a full review of this one, with an advanced review and player quotes.</span><button type="button" class="btn small" data-open="${e.curated}">Read our review</button></div>` : `<p class="tiny">Not reviewed by Loadout yet. Rating and details come straight from ${esc(pl.source)}.</p>`}
+      ${r[9] ? `<div class="d-section"><h3>Get it</h3><div class="storelinks"><a href="${esc(r[9])}" target="_blank" rel="noopener noreferrer">Open on ${esc(pl.source)} ↗</a><a href="https://www.youtube.com/results?search_query=${encodeURIComponent(r[0] + " review")}" target="_blank" rel="noopener noreferrer">Video reviews ↗</a></div></div>` : ""}
+      <p class="tiny">Imported from ${esc(pl.source)} ${fmtDate(pl.fetchedAt || CATALOG.fetchedAt)}. Prices may have changed.</p>
+    </div>`;
+  dr.scrollTop = 0;
+  if (!document.body.classList.contains("drawer-open")) { document.body.classList.add("drawer-open"); $("#d-close").focus(); }
+}
+function catSearchSection() {
+  const box = $("#catsearch");
+  if (!box) return;
+  if (!view.q || !CAT_TOTAL) { box.hidden = true; return; }
+  const m = catMatches(CAT_ITEMS.filter(e => !e.curated), view.q);
+  if (!m.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<div class="list-head"><h2>More in the full catalog</h2><span>${m.length.toLocaleString()} matches across ${CAT_KEYS.length} platforms</span></div>
+    <div class="cgrid">${m.slice(0, 12).map(catCard).join("")}</div>
+    ${m.length > 12 ? `<button type="button" class="more" data-catsearch="1">See all matches in All platforms</button>` : ""}`;
+}
+
 /* ---------- Navigation ---------- */
 function renderBadges() {
   const n = S.cart.reduce((a, c) => a + c.qty, 0);
@@ -744,9 +874,9 @@ function renderBadges() {
   document.querySelectorAll("#nav .lock").forEach(l => { l.hidden = S.pro; });
 }
 function renderTab() {
-  ({ discover: renderDiscover, pro: renderPro, deals: renderDeals, gifts: renderGifts, library: renderLibrary, cart: renderCart })[view.tab]();
+  ({ discover: renderDiscover, platforms: renderPlatforms, pro: renderPro, deals: renderDeals, gifts: renderGifts, library: renderLibrary, cart: renderCart })[view.tab]();
 }
-function renderAll() { renderBadges(); renderTab(); if (document.body.classList.contains("drawer-open")) openItem($("#drawer").dataset.id, true); }
+function renderAll() { renderBadges(); renderTab(); if (document.body.classList.contains("drawer-open") && $("#drawer").dataset.id) openItem($("#drawer").dataset.id, true); }
 function go(tab, pending) {
   if (PRO_GATED.has(tab) && !S.pro) { view.pendingTab = tab; tab = "pro"; }
   else view.pendingTab = tab === "pro" ? (pending || null) : null;
@@ -777,6 +907,11 @@ $("#suggest").addEventListener("mousedown", e => e.preventDefault());
 $("#cat").addEventListener("change", e => { view.cat = e.target.value; view.limit = 36; renderDiscover(); });
 $("#sort").addEventListener("change", e => { view.sort = e.target.value; renderDiscover(); });
 $("#more").addEventListener("click", () => { view.limit += 36; renderGrid(); });
+$("#view-platforms").addEventListener("input", e => { if (e.target.id === "cat-q") { catView.q = e.target.value.trim(); catView.limit = 60; renderPlatforms(); } });
+$("#view-platforms").addEventListener("change", e => {
+  if (e.target.id === "cat-g") { catView.g = e.target.value; catView.limit = 60; renderPlatforms(); }
+  if (e.target.id === "cat-s") { catView.s = e.target.value; renderPlatforms(); }
+});
 
 document.addEventListener("click", e => {
   const t = e.target;
@@ -785,6 +920,15 @@ document.addEventListener("click", e => {
   const th = t.closest("[data-theme-id]"); if (th) { view.theme = th.dataset.themeId; view.q = ""; $("#q").value = ""; view.limit = 36; renderDiscover(); return; }
   if (t.closest("[data-close-suggest]")) { hideSuggest(); $("#grid").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const o = t.closest("[data-open]"); if (o) { openItem(o.dataset.open); return; }
+  const cc = t.closest("[data-cat]"); if (cc) { openCat(cc.dataset.cat); return; }
+  const cp = t.closest("[data-catp]"); if (cp) { catView.p = cp.dataset.catp; catView.limit = 60; catView.g = "all"; renderPlatforms(); return; }
+  if (t.closest("#cat-more")) { catView.limit += 60; renderPlatforms(); return; }
+  if (t.closest("[data-catsearch]")) {
+    const m = catMatches(CAT_ITEMS.filter(e => !e.curated), view.q);
+    const counts = {}; m.forEach(e => counts[e.p] = (counts[e.p] || 0) + 1);
+    catView.p = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || catView.p; catView.q = view.q; catView.g = "all"; catView.limit = 60;
+    go("platforms"); return;
+  }
   const g = t.closest("[data-go]"); if (g) { go(g.dataset.go); return; }
   const a = t.closest("[data-add]"); if (a) { addToCart(a.dataset.add); renderAll(); return; }
   const ga = t.closest("[data-gift-amt]"); if (ga) { const [id, amt] = ga.dataset.giftAmt.split(":"); view.giftAmt[id] = +amt; renderGifts(); return; }
@@ -802,6 +946,7 @@ $("#view-library").addEventListener("change", e => { const s = e.target.closest(
 $("#drawer").addEventListener("click", e => {
   const dr = $("#drawer"), id = dr.dataset.id;
   if (e.target.closest("#d-close")) return closeDrawer();
+  if (!id) return;
   const dt = e.target.closest("[data-dtab]");
   if (dt) { view.dtab = dt.dataset.dtab; openItem(id, false); dr.querySelector(`[data-dtab="${view.dtab}"]`)?.focus(); return; }
   const g = e.target.closest("[data-goto]");
@@ -853,5 +998,5 @@ document.addEventListener("keydown", e => {
     : "Our scores and reviews are Loadout's own. Real player ratings haven't been imported yet. Prices and deals are sample figures.";
 }
 const startTab = (location.hash || "").slice(1);
-go(["discover", "pro", "deals", "gifts", "library", "cart"].includes(startTab) ? startTab : "discover");
+go(["discover", "platforms", "pro", "deals", "gifts", "library", "cart"].includes(startTab) ? startTab : "discover");
 connectDb();
