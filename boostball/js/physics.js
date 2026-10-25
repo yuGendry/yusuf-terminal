@@ -75,6 +75,7 @@ function ballArenaStep(b, dt, gravity, events) {
     w.z += A * (dax * c.ny - day * c.nx);
     b.vel.x += dpx + dax; b.vel.y += dpy + day; b.vel.z += dpz + daz;
     if (events && -vn > 250) events.push({ type: 'bounce', speed: -vn, x: b.pos.x, y: b.pos.y, z: b.pos.z });
+    if (b.onSurfaceHit && -vn > 40) b.onSurfaceHit(c);
   }
   const ws = b.angVel.length();
   if (ws > PHYS.BALL_MAX_ANG) b.angVel.multiplyScalar(PHYS.BALL_MAX_ANG / ws);
@@ -233,6 +234,7 @@ class World {
     this.ballFrozen = false;
     this.carsFrozen = false;
     this.contactsPrev = new Map();
+    this.ball.onSurfaceHit = (c) => this.heatseekBounce(c);
   }
 
   addCar(car) { this.cars.push(car); return car; }
@@ -558,7 +560,7 @@ class World {
     const len = Math.hypot(fx, fy);
     if (len < 1e-3) { car.vel.addScaledVector(car.up, PHYS.JUMP_IMPULSE); car.hasDoubleJumped = true; return; }
     fx /= len; fy /= len;
-    car.isFlipping = true; car.hasFlipped = true; car.flipTime = 0;
+    car.isFlipping = true; car.hasFlipped = true; car.flipTime = 0; car.flipCancelled = false;
     car.flipX = fx; car.flipY = fy;
     // impulse
     _v1.set(car.fwd.x, car.fwd.y, 0);
@@ -588,10 +590,17 @@ class World {
     if (car.isFlipping && car.flipTime < PHYS.FLIP_TIME) {
       // flip torque holds the rotation; pitch held against the flip cancels it
       const cancel = car.flipX !== 0 && pitch !== 0 && sign(pitch) === sign(car.flipX);
+      if (cancel) car.flipCancelled = true;
       const pScale = cancel ? 1 - Math.min(Math.abs(pitch), 1) : 1;
-      w.x = car.flipY * PHYS.CAR_MAX_ANG;
       w.y = car.flipX * PHYS.CAR_MAX_ANG * pScale;
-      if (cancel) w.z += (-PHYS.T_YAW * yaw + PHYS.D_YAW * (1 - Math.abs(yaw)) * w.z) * dt;
+      if (car.flipCancelled) {
+        // once cancelled, roll/yaw inputs act on the leftover flip rotation
+        // (speed flips: cancel the pitch, air roll against the diagonal roll)
+        w.x += PHYS.T_ROLL * roll * dt;
+        w.z += (-PHYS.T_YAW * yaw + PHYS.D_YAW * (1 - Math.abs(yaw)) * w.z) * dt;
+      } else {
+        w.x = car.flipY * PHYS.CAR_MAX_ANG;
+      }
       car.toWorld(w, car.angVel);
       return;
     }
@@ -798,6 +807,25 @@ class World {
       this.heatseeker.speed = Math.min(this.heatseeker.max, this.heatseeker.speed + this.heatseeker.inc);
       this.heatseeker.active = true;
     }
+  }
+
+  // Heatseeker: hitting the targeted goal's backboard, crossbar or posts sends the ball
+  // back toward the other goal
+  heatseekBounce(c) {
+    const hs = this.heatseeker, b = this.ball;
+    if (!hs || !hs.active || hs.team < 0) return;
+    if (this.time - (hs.lastFlip || -9) < 0.3) return;
+    const s = hs.team === 0 ? 1 : -1; // sign of the targeted goal
+    if (b.pos.y * s < ARENA.L - 450) return;
+    // back wall (not the corners) or the goal frame (crossbar/posts), facing back into the field
+    const R = b.radius;
+    const nearFrame = Math.abs(b.pos.x) < ARENA.GW + R + 20 && b.pos.z < ARENA.GH + R + 20;
+    const backWall = c.ny * s < -0.8 && Math.abs(b.pos.x) < 2700;
+    if (!backWall && !(nearFrame && c.ny * s < -0.25)) return;
+    hs.team = 1 - hs.team;
+    hs.speed = Math.min(hs.max, hs.speed + hs.inc);
+    hs.lastFlip = this.time;
+    this.events.push({ type: 'heatflip', team: hs.team, x: b.pos.x, y: b.pos.y, z: b.pos.z });
   }
 
   heatseekStep(dt) {

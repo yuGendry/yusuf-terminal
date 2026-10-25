@@ -658,6 +658,10 @@ class Game {
           if (this.touchLog.length > 20) this.touchLog.shift();
         }
         if (this.kickoffPending && this.state === 'play') this.kickoffPending = false;
+      } else if (e.type === 'heatflip') {
+        this.toast('Heatseeker → ' + (e.team === 0 ? 'ORANGE' : 'BLUE') + ' goal', e.team === 0 ? 'good' : 'bad');
+        this.r.hitSparks(e.x, e.y, e.z, 1500);
+        this.sfx.hit(1500);
       } else if (e.type === 'bounce') {
         this.sfx.bounce(e.speed);
       } else if (e.type === 'pad') {

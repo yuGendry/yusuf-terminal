@@ -39,7 +39,8 @@ Gameplay tuning on top of the measured constants:
 - **Flicks:** the extra impulse re-applies every other tick while touching, which gives flicks their pop.
 - **Pinches:** a ball squeezed between a car and the floor, wall or ceiling shoots out of the gap at up to max ball speed.
 - **Wavedash / zap dash:** landing mid-dodge stops the flip rotation and keeps the dodge speed.
-- **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it.
+- **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it. Hitting that goal's backboard, crossbar or posts sends it back toward the other goal.
+- **Speed flips:** after a dodge is cancelled (hold the stick against the flip), air roll and yaw act on the leftover rotation, so a diagonal flip + cancel + counter air roll lands flat at supersonic speed.
 
 Flip resets: when 3 or more wheels touch the ball, your flip comes back. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
 
