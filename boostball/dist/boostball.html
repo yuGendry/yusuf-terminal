@@ -3367,6 +3367,19 @@ class Renderer {
     m.position.lerpVectors(ball.prevPos, ball.pos, alpha);
     m.quaternion.slerpQuaternions(ball.prevRot, ball.rot, alpha);
     m.scale.setScalar(ball.radius / PHYS.BALL_R);
+    // speed streak behind a fast ball
+    const sp = ball.vel.length();
+    if (sp > 1800 && this.particles.enabled && !(extras && extras.noTrail)) {
+      const k = Math.min(1, (sp - 1800) / 2500);
+      const heat = extras && extras.heat >= 0 ? new THREE.Color(TEAM_COLORS[extras.heat].glow) : null;
+      const last = m.userData.lastTrail || m.position.clone();
+      for (let i = 0; i < 3; i++) {
+        const f = i / 3;
+        const x = last.x + (m.position.x - last.x) * f, y = last.y + (m.position.y - last.y) * f, z = last.z + (m.position.z - last.z) * f;
+        this.particles.emit(x, y, z, 0, 0, 0, heat ? heat.r : 0.75, heat ? heat.g : 0.85, heat ? heat.b : 1, ball.radius * (0.9 + k * 0.7), 0.22 + k * 0.2, { drag: 0, grav: 0, grow: -0.6 });
+      }
+      m.userData.lastTrail = (m.userData.lastTrail || new THREE.Vector3()).copy(m.position);
+    } else m.userData.lastTrail = null;
     const glow = m.userData.glow;
     if (extras && extras.heat >= 0) {
       glow.material.color.set(TEAM_COLORS[extras.heat].glow);
