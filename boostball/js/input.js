@@ -11,6 +11,7 @@ const ACTIONS = [
   { id: 'jump', label: 'Jump' },
   { id: 'boost', label: 'Boost' },
   { id: 'powerslide', label: 'Powerslide / Air Roll' },
+  { id: 'airRoll', label: 'Air Roll (stick picks direction)' },
   { id: 'airRollLeft', label: 'Air Roll Left' },
   { id: 'airRollRight', label: 'Air Roll Right' },
   { id: 'ballCam', label: 'Ball Cam' },
@@ -23,13 +24,13 @@ const DEFAULT_KEYS = {
   throttle: ['KeyW'], reverse: ['KeyS'], steerLeft: ['KeyA'], steerRight: ['KeyD'],
   pitchDown: ['ArrowUp'], pitchUp: ['ArrowDown'],
   jump: ['Space', 'Mouse2'], boost: ['ShiftLeft', 'Mouse0'], powerslide: ['KeyC', 'ControlRight'],
-  airRollLeft: ['KeyQ'], airRollRight: ['KeyE'], ballCam: ['KeyF', 'Mouse1'],
+  airRoll: ['KeyX'], airRollLeft: ['KeyQ'], airRollRight: ['KeyE'], ballCam: ['KeyF', 'Mouse1'],
   resetBall: ['KeyR'], scoreboard: ['Tab'], pause: ['Escape', 'KeyP'],
 };
 // Standard gamepad mapping indices
 const DEFAULT_PAD = {
   throttle: [7], reverse: [6], jump: [0], boost: [1], powerslide: [2], ballCam: [3],
-  airRollLeft: [4], airRollRight: [5], resetBall: [8], scoreboard: [], pause: [9],
+  airRoll: [6], airRollLeft: [4], airRollRight: [5], resetBall: [8], scoreboard: [], pause: [9],
   steerLeft: [], steerRight: [], pitchDown: [], pitchUp: [],
 };
 const PAD_NAMES = ['A / Cross', 'B / Circle', 'X / Square', 'Y / Triangle', 'LB / L1', 'RB / R1', 'LT / L2', 'RT / R2',
@@ -146,7 +147,14 @@ class Input {
     const kbThrottle = (this.keyDown('throttle') ? 1 : 0) - (this.keyDown('reverse') ? 1 : 0);
     const kbSteer = (this.keyDown('steerRight') ? 1 : 0) - (this.keyDown('steerLeft') ? 1 : 0);
     const kbPitch = (this.keyDown('pitchUp') ? 1 : 0) - (this.keyDown('pitchDown') ? 1 : 0);
-    const padThrottle = this.padValue('throttle') - this.padValue('reverse');
+    // a button bound to both Reverse and Air Roll (default L2) reverses on the ground
+    // and free air rolls in the air
+    const B = this.settings.bindings.pad;
+    const sharedRev = (B.reverse || []).filter(i => (B.airRoll || []).includes(i));
+    const grounded0 = car.numArenaWheels >= 3;
+    const revVal = grounded0 ? this.padValue('reverse')
+      : Math.max(0, ...(B.reverse || []).filter(i => !sharedRev.includes(i)).map(i => this.padButtons[i] || 0));
+    const padThrottle = this.padValue('throttle') - revVal;
     const dpadSteer = this.padValue('steerRight') - this.padValue('steerLeft');
     const dpadPitch = this.padValue('pitchUp') - this.padValue('pitchDown');
     const grounded = car.numArenaWheels >= 3;
@@ -161,12 +169,14 @@ class Input {
     out.throttle = clamp(kbThrottle || padThrottle, -1, 1);
     out.steer = sx;
     out.pitch = clamp(pitch, -1, 1);
-    const airRoll = this.down('powerslide');
+    const powerslide = this.down('powerslide');
+    const freeRoll = !grounded0 && (this.keyDown('airRoll') || this.padValue('airRoll') > 0.3);
+    const airRoll = powerslide || freeRoll;
     const rl = this.down('airRollLeft'), rr = this.down('airRollRight');
     if (airRoll) { out.yaw = 0; out.roll = sx; }
     else { out.yaw = sx; out.roll = 0; }
     if (rl || rr) out.roll = (rr ? 1 : 0) - (rl ? 1 : 0);
-    out.handbrake = airRoll;
+    out.handbrake = powerslide;
     out.jump = this.down('jump');
     out.boost = this.down('boost');
     return out;

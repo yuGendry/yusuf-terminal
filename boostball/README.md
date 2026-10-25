@@ -47,7 +47,7 @@ Flip resets: when 3 or more wheels touch the ball, your flip comes back. The HUD
 ## Controls
 Keyboard: W/S throttle (also pitch in the air), A/D steer, Space/RMB jump, Shift/LMB boost, C powerslide or air roll, Q/E air roll left/right, F ball cam, Tab scoreboard, Esc pause.
 
-Controller (standard mapping): RT/LT throttle, left stick, A jump, B boost, X powerslide or air roll, LB/RB air roll, Y ball cam, Start pause. You can navigate all menus with a controller.
+Controller (standard mapping): RT/LT throttle, left stick, A jump, B boost, X powerslide or air roll, LB/RB air roll left/right, Y ball cam, Start pause. LT/L2 is also bound to **Air Roll**: on the ground it reverses, in the air it's a free air roll where the stick picks the direction. Keyboard: X is a free air roll. You can navigate all menus with a controller.
 
 You can rebind everything under **Settings → Bindings**. Settings also include deadzones, sensitivities, the camera (FOV, distance, height, angle, stiffness, swivel, transition, ball cam toggle or hold), video and audio.
 

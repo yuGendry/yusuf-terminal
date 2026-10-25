@@ -539,7 +539,7 @@ class UI {
           <p><b>A / D</b> steer · yaw</p>
           <p><b>Space</b> or <b>Right Mouse</b> jump / double jump / dodge</p>
           <p><b>Shift</b> or <b>Left Mouse</b> boost</p>
-          <p><b>C</b> powerslide · free air roll</p>
+          <p><b>C</b> powerslide · free air roll · <b>X</b> air roll (air only)</p>
           <p><b>Q / E</b> air roll left / right</p>
           <p><b>↑ / ↓</b> pitch only</p>
           <p><b>F</b> ball cam · <b>Tab</b> scoreboard · <b>Esc</b> pause</p>
@@ -548,6 +548,7 @@ class UI {
           <p><b>RT / LT</b> throttle · reverse</p>
           <p><b>Left stick</b> steer · pitch · yaw</p>
           <p><b>A</b> jump · <b>B</b> boost · <b>X</b> powerslide / air roll</p>
+          <p><b>LT / L2</b> reverse on the ground, free air roll in the air (stick picks the direction)</p>
           <p><b>LB / RB</b> air roll left / right</p>
           <p><b>Y</b> ball cam · <b>Start</b> pause · <b>Back</b> reset shot</p>
           <p>Every action can be rebound in Settings → Bindings.</p>
