@@ -4180,6 +4180,47 @@ function* flipToward(ctx) {
   yield* wait(ctx, 0.05, () => { clearControls(ctx); Object.assign(c.controls, { jump: true, pitch: -fx, yaw: fy }); });
 }
 
+// Aerial intercept: drive at the ball's path, jump + double jump when the hit is reachable,
+// then fly so the car meets the ball from the side away from the target (goalY).
+function* aerialHit(ctx, goalY, maxT, opts = {}) {
+  const c = ctx.car, b = ctx.ball, C = c.controls;
+  const pred = [], n0 = ctx.touches;
+  let jumpT = -1;
+  yield* until(ctx, () => ctx.touches > n0, maxT || 4, () => {
+    clearControls(ctx);
+    predictBall(b, ctx.w.gravity, 3, 1 / 60, pred);
+    const grounded = c.numArenaWheels >= 3 && jumpT < 0;
+    const v0 = grounded ? c.vel.clone().addScaledVector(c.up, tv(ctx, 'jv', 520)) : c.vel;
+    let best = null, bestNeed = 0;
+    for (const s of pred) {
+      if (s.t < 0.25 || s.z < (opts.minZ || 160)) continue;
+      const toGoal = V3(-s.x * 0.5, goalY - s.y, -s.z * 0.15).normalize();
+      const tgt = V3(s.x, s.y, s.z).addScaledVector(toGoal, -(b.radius + tv(ctx, 'off', 40)));
+      const acc = tgt.sub(c.pos).addScaledVector(v0, -s.t).multiplyScalar(2 / (s.t * s.t));
+      acc.z -= ctx.w.gravity;
+      const need = acc.length();
+      if (need < tv(ctx, 'amax', 900)) { best = { s, acc }; bestNeed = need; break; }
+    }
+    if (grounded) {
+      if (best && best.s.t < tv(ctx, 'jt', 1.6)) { jumpT = 0; C.jump = true; return; }
+      // drive under the ball's path
+      const s = best ? best.s : pred[Math.min(pred.length - 1, 70)];
+      ctx.bot.driveTo(V3(s.x, s.y, 0), 1, true);
+      return;
+    }
+    if (jumpT >= 0) {
+      jumpT += 1 / 120;
+      if (jumpT < 0.18) { C.jump = true; return; }
+      if (jumpT < 0.21) return;
+      if (jumpT < 0.24) { C.jump = true; return; }
+    }
+    if (!best) { aim(ctx, b.pos.clone().sub(c.pos), V3(0, 0, 1)); C.boost = true; return; }
+    const dir = best.acc.clone().normalize();
+    aim(ctx, dir, V3(0, 0, 1));
+    C.boost = bestNeed > 150 && c.fwd.dot(dir) > 0.85;
+  });
+}
+
 // Point the nose at the ball, boost in, and dodge into it when close
 function* flipInto(ctx, maxT) {
   const c = ctx.car, b = ctx.ball, C = c.controls;
@@ -4390,6 +4431,57 @@ const TUTORIALS = [
     },
   },
   {
+    id: 'pinch', title: 'Ground Pinch', level: 'Intermediate',
+    limit: 6,
+    blurb: 'Squeeze the ball between your nose and the floor to launch it at crazy speed.',
+    steps: ['Drive at the ball fast and straight.', 'Just before you reach it, tap jump for a small hop.', 'Front flip so your nose comes down on top of the ball.', 'The ball is pinched against the floor and shoots off.'],
+    setup(ctx) {
+      ctx.car.place(0, -2200, Math.PI / 2);
+      ctx.car.vel.set(0, 1300, 0);
+            ctx.ball.reset(0, 0, 93);
+    },
+    *demo(ctx) {
+      const c = ctx.car, C = c.controls, b = ctx.ball;
+      ctx.step(0);
+      yield* until(ctx, () => b.pos.clone().sub(c.pos).length() < tv(ctx, 'jd', 700), 3, () => { clearControls(ctx); ctx.bot.driveTo(b.pos, 1, false); });
+      ctx.step(1);
+      yield* wait(ctx, tv(ctx, 'jh', 0.1), () => { clearControls(ctx); C.jump = true; C.throttle = 1; });
+      yield* wait(ctx, tv(ctx, 'fd', 0.15), () => { clearControls(ctx); C.throttle = 1; });
+      ctx.step(2);
+      yield* wait(ctx, 0.05, () => { clearControls(ctx); C.jump = true; C.pitch = -1; });
+      ctx.step(3);
+      yield* wait(ctx, 1.2, () => { clearControls(ctx); if (ctx.t > 2.5) recoverLanding(ctx); });
+    },
+    knobs: { jd: [700, 800, 600, 520], fd: [0.15, 0.1, 0.2, 0.25, 0.05], jh: [0.1, 0.15, 0.05] },
+    success(ctx) { return ctx.data.pinch && ctx.ball.vel.length() > 2600 ? 'Pinch! ' + Math.round(ctx.ball.vel.length() * 0.036) + ' km/h' : null; },
+  },
+  {
+    id: 'redirect', title: 'Corner Redirect', level: 'Advanced',
+    limit: 6,
+    blurb: 'A pass comes out of the corner — meet it in the air and redirect it into the net.',
+    steps: ['Watch the ball come out of the corner and read where it will be.', 'Drive toward that spot and jump + double jump.', 'Boost so you meet the ball on the side away from the goal.', 'The touch changes its direction into the net.'],
+    setup(ctx) {
+      ctx.car.place(-300, 1500, Math.PI / 2);
+      ctx.car.vel.set(0, 900, 0);
+      ctx.car.boost = 100;
+      const T = 1.6, g = ctx.w.gravity;
+      const from = V3(3300, 4500, 150), to = V3(tv(ctx, 'tx', 300), tv(ctx, 'ty', 3900), tv(ctx, 'tz', 450));
+      ctx.ball.reset(from.x, from.y, from.z);
+      ctx.ball.vel.set((to.x - from.x) / T, (to.y - from.y) / T, (to.z - from.z - 0.5 * g * T * T) / T);
+    },
+    *demo(ctx) {
+      ctx.step(0);
+      yield* wait(ctx, 0.15, () => { clearControls(ctx); ctx.car.controls.throttle = 1; });
+      ctx.step(1);
+      yield* aerialHit(ctx, ARENA.L, 3);
+      ctx.step(3);
+      yield* wait(ctx, 2, () => { clearControls(ctx); recoverLanding(ctx); });
+    },
+    knobs: { off: [40, 10, 70], jt: [1.6, 1.2, 2], amax: [900, 750], tz: [450, 600] },
+    success(ctx) { return ctx.data.goal && ctx.airTouches > 0 ? 'Redirect goal!' : null; },
+    fail(ctx) { return ctx.touches === 0 && ctx.ball.pos.x < -1500 ? 'Missed the pass' : null; },
+  },
+  {
     id: 'airdribble', title: 'Air Dribble', level: 'Advanced',
     limit: 10, air: true,
     blurb: 'Pop the ball off your roof and carry it through the air on your nose.',
@@ -4549,6 +4641,40 @@ const TUTORIALS = [
     knobs: { lf: [0.8, 0.5, 0.4], limp: [1, 0], cv2: [520, 400, 650], fw2: [0.06, 0.02, 0.12], sw: [0.02, 0.08], cz: [400, 380, 420] },
     success(ctx) { return ctx.data.airResets >= 2 && ctx.data.resetHit ? 'Double reset!' : null; },
   },
+  {
+    id: 'psycho', title: 'Sidewall Psycho', level: 'Expert',
+    limit: 5, air: true,
+    blurb: 'Come off the side wall upside down and backwards, then backflip into the ball so the back of your car sends it at the goal.',
+    steps: ['Jump off the side wall facing back toward your own half.', 'Air roll so you are upside down — you fly backwards toward the ball.', 'Line up so the ball is right behind your back bumper.', 'Backflip into it: the back of the car smashes it toward the backboard / goal.'],
+    setup(ctx) {
+      const c = ctx.car;
+      c.place(3500, -500, -Math.PI / 2, 520);
+      c.quat.premultiply(new THREE.Quaternion().setFromAxisAngle(c.fwd.clone(), Math.PI));
+      c.updateBasis();
+      c.vel.set(0, tv(ctx, 'cv', 900), 420);
+      c.hasJumped = true; c.hasDoubleJumped = false;
+      c.infiniteBoost = true;
+      ctx.ball.reset(3500, 350, 520 + tv(ctx, 'dz', 40));
+      ctx.ball.vel.set(-120, 120, 420);
+    },
+    *demo(ctx) {
+      const c = ctx.car, C = c.controls, b = ctx.ball;
+      ctx.step(1);
+      yield* wait(ctx, 0.2, () => { clearControls(ctx); aim(ctx, V3(0, -1, 0), V3(0, 0, -1)); });
+      ctx.step(2);
+      yield* until(ctx, () => {
+        const gap = b.pos.y - c.pos.y - b.radius - c.half.x;
+        const closing = c.vel.y - b.vel.y;
+        return gap / Math.max(closing, 1) < tv(ctx, 'ft', 0.15);
+      }, 2, () => { clearControls(ctx); aim(ctx, V3(0, -1, 0), V3(0, 0, -1)); });
+      ctx.step(3);
+      yield* wait(ctx, 0.05, () => { clearControls(ctx); C.jump = true; C.pitch = 1; });
+      yield* wait(ctx, 0.6, () => { clearControls(ctx); });
+      yield* wait(ctx, 1.2, () => { clearControls(ctx); recoverLanding(ctx); });
+    },
+    knobs: { ft: [0.15, 0.1, 0.2, 0.25, 0.3], dz: [40, 0, 80, -40, 120], cv: [900, 1100] },
+    success(ctx) { return ctx.data.upsideHit && ctx.ball.vel.y > 900 ? 'Psycho! ' + Math.round(ctx.ball.vel.length() * 0.036) + ' km/h' : null; },
+  },
 ];
 
 function lessonById(id) { return TUTORIALS.find(l => l.id === id); }
@@ -4560,7 +4686,7 @@ function lessonById(id) { return TUTORIALS.find(l => l.id === id); }
 const _demoPlans = {};
 // precomputed by tools/plan-demos.js (a dry run still verifies them at runtime)
 // DEMO_PLANS_BEGIN
-const DEMO_PLANS = {"flick":{"octane":{"bt":8,"jh":0.2},"dominus":{"bt":16,"jh":0.2},"plank":{"bt":16,"jh":0.2},"breakout":{"bt":8,"jh":0.2},"hybrid":{"bt":8,"jh":0.2},"merc":{"bt":8,"jh":0.2}},"musty":{"octane":{"bt":8,"jh":0.1},"dominus":{"bt":16,"jh":0.1},"plank":{"bt":24,"jh":0.1},"breakout":{"bt":24,"jh":0.1},"hybrid":{"bt":16,"jh":0.1},"merc":{"bt":8,"jh":0.1}},"walldribble":{"octane":{"wd":230,"jh":0.1,"cv":950,"wz":30,"bv":1250},"dominus":{"wd":200,"jh":0.1,"cv":950,"wz":30,"bv":1250},"plank":{"wd":200,"jh":0.05,"cv":950,"wz":30,"bv":1250},"merc":{"wd":260,"jh":0.2,"cv":800,"wz":0,"bv":1250}},"flipreset":{"octane":{"lf":0.8,"va":60,"limp":1,"cz":400},"dominus":{"lf":0.8,"va":60,"limp":1,"cz":400},"plank":{"lf":0.8,"va":60,"limp":1,"cz":400},"breakout":{"lf":0.8,"va":60,"limp":1,"cz":400},"hybrid":{"lf":0.8,"va":60,"limp":1,"cz":400},"merc":{"lf":0.8,"va":60,"limp":1,"cz":400}},"dribblereset":{"octane":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"dominus":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"plank":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"breakout":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"hybrid":{"lf":0.8,"va":60,"limp":0,"at":3,"az":700},"merc":{"lf":0.8,"va":60,"limp":1,"at":2,"az":700}},"doublereset":{"octane":{"lf":0.5,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"dominus":{"lf":0.4,"limp":0,"cv2":400,"fw2":0.06,"sw":0.02,"cz":400},"plank":{"lf":0.5,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"breakout":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":380},"hybrid":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"merc":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400}}};
+const DEMO_PLANS = {"flick":{"octane":{"bt":8,"jh":0.2},"dominus":{"bt":16,"jh":0.2},"plank":{"bt":16,"jh":0.2},"breakout":{"bt":8,"jh":0.2},"hybrid":{"bt":8,"jh":0.2},"merc":{"bt":8,"jh":0.2}},"musty":{"octane":{"bt":8,"jh":0.1},"dominus":{"bt":16,"jh":0.1},"plank":{"bt":24,"jh":0.1},"breakout":{"bt":24,"jh":0.1},"hybrid":{"bt":16,"jh":0.1},"merc":{"bt":8,"jh":0.1}},"pinch":{"octane":{"jd":700,"fd":0.15,"jh":0.1},"dominus":{"jd":800,"fd":0.2,"jh":0.1},"plank":{"jd":800,"fd":0.2,"jh":0.1},"breakout":{"jd":700,"fd":0.25,"jh":0.1},"hybrid":{"jd":700,"fd":0.15,"jh":0.1},"merc":{"jd":700,"fd":0.15,"jh":0.1}},"redirect":{"octane":{"off":40,"jt":1.6,"amax":900,"tz":450},"dominus":{"off":40,"jt":1.6,"amax":900,"tz":450},"plank":{"off":40,"jt":1.6,"amax":900,"tz":450},"breakout":{"off":40,"jt":1.6,"amax":900,"tz":450},"hybrid":{"off":40,"jt":1.6,"amax":900,"tz":450},"merc":{"off":40,"jt":1.6,"amax":900,"tz":450}},"walldribble":{"octane":{"wd":230,"jh":0.1,"cv":950,"wz":30,"bv":1250},"dominus":{"wd":200,"jh":0.1,"cv":950,"wz":30,"bv":1250},"plank":{"wd":200,"jh":0.05,"cv":950,"wz":30,"bv":1250},"merc":{"wd":260,"jh":0.2,"cv":800,"wz":0,"bv":1250}},"flipreset":{"octane":{"lf":0.8,"va":60,"limp":1,"cz":400},"dominus":{"lf":0.8,"va":60,"limp":1,"cz":400},"plank":{"lf":0.8,"va":60,"limp":1,"cz":400},"breakout":{"lf":0.8,"va":60,"limp":1,"cz":400},"hybrid":{"lf":0.8,"va":60,"limp":1,"cz":400},"merc":{"lf":0.8,"va":60,"limp":1,"cz":400}},"dribblereset":{"octane":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"dominus":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"plank":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"breakout":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"hybrid":{"lf":0.8,"va":60,"limp":0,"at":3,"az":700},"merc":{"lf":0.8,"va":60,"limp":1,"at":2,"az":700}},"doublereset":{"octane":{"lf":0.5,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"dominus":{"lf":0.4,"limp":0,"cv2":400,"fw2":0.06,"sw":0.02,"cz":400},"plank":{"lf":0.5,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"breakout":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":380},"hybrid":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"merc":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400}},"psycho":{"octane":{"ft":0.15,"dz":40,"cv":900},"dominus":{"ft":0.15,"dz":40,"cv":900},"plank":{"ft":0.15,"dz":40,"cv":900},"breakout":{"ft":0.15,"dz":40,"cv":900},"hybrid":{"ft":0.15,"dz":40,"cv":900},"merc":{"ft":0.15,"dz":40,"cv":900}}};
 // DEMO_PLANS_END
 function dryRunDemo(lesson, car, tune) {
   const w = new World();
@@ -4636,7 +4762,9 @@ class TutorialRun {
     const ctx = this.ctx, c = this.car;
     ctx.t += dt;
     for (const e of events) {
-      if (e.type === 'hit' && e.car === c) { ctx.touches++; if (airborne(ctx)) ctx.airTouches++; }
+      if (e.type === 'hit' && e.car === c) { ctx.touches++; if (airborne(ctx)) ctx.airTouches++; ctx.data.lastTouchUp = c.up.z; ctx.data.lastTouchFwd = c.fwd.clone(); }
+      if (e.type === 'hit' && e.car === c && c.isFlipping && c.up.z < -0.2) ctx.data.upsideHit = true;
+      if (e.type === 'pinch' && e.car === c) ctx.data.pinch = Math.max(ctx.data.pinch || 0, e.speed);
     }
     if (!airborne(ctx) && onGround(ctx)) ctx.data.airResets = 0;
     for (const e of events) if (e.type === 'hit' && e.car === c && c.isFlipping && ctx.resets > 0) ctx.data.resetHit = true;
@@ -4649,6 +4777,7 @@ class TutorialRun {
       }
     }
     ctx.data.lastSpeed = Math.hypot(c.vel.x, c.vel.y);
+    if (Math.abs(this.w.ball.pos.y) > ARENA.L + this.w.ball.radius) ctx.data.goal = true;
     const air = airborne(ctx);
     if (air) this.airT += dt;
     if (this.wasAir && !air && c.numArenaWheels >= 3) ctx.landedClean = !c.worldContact && c.up.z > 0.85 && this.airT > 0.4;
