@@ -224,3 +224,37 @@ function dressStadium(group, quality) {
   }
   return { crowd, cheer };
 }
+
+// Garage backdrop: a row of pit garages behind the turntable (the garage camera always looks
+// along the same direction), with cones, barriers and light posts.
+function dressGarage(scene) {
+  const g = new THREE.Group();
+  const view = new THREE.Vector2(-Math.cos(-0.9), -Math.sin(-0.9)); // camera -> turntable
+  const face = view.clone().negate();
+  const c = view.clone().multiplyScalar(1050);
+  const u = new THREE.Vector2(-face.y, face.x);
+  const bays = [];
+  standRow(bays, { x: c.x - u.x * 2100, y: c.y - u.y * 2100 }, { x: c.x + u.x * 2100, y: c.y + u.y * 2100 }, face, 700, -16, 0);
+  instanceProp(g, 'pitsGarage', bays.filter((_, i) => i % 2 === 0), { dim: 0.7 });
+  instanceProp(g, 'pitsGarageClosed', bays.filter((_, i) => i % 2 === 1), { dim: 0.7 });
+  const cones = [], barriers = [], posts = [];
+  const rnd = mulberry32(5);
+  for (let k = 0; k < 9; k++) {
+    const a = -0.9 + Math.PI + (k - 4) * 0.28 + (rnd() - 0.5) * 0.08, r = 480 + rnd() * 90;
+    cones.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, z: -16, yaw: rnd() * 6.28, s: 420, tint: k % 2 });
+  }
+  for (const k of [-1, 1]) {
+    const p = c.clone().multiplyScalar(0.55).addScaledVector(u, k * 620);
+    barriers.push({ x: p.x, y: p.y, z: -16, yaw: Math.atan2(u.y, u.x), s: 900 });
+    const q = c.clone().multiplyScalar(0.78).addScaledVector(u, k * 1100);
+    posts.push({ x: q.x, y: q.y, z: -16, yaw: Math.atan2(-q.y, -q.x) - Math.PI / 2, s: 900 });
+  }
+  instanceProp(g, 'pylon', cones);
+  instanceProp(g, 'barrierWhite', barriers, { dim: 0.8 });
+  instanceProp(g, 'lightPostModern', posts, { dim: 0.6 });
+  scene.add(g);
+  // warm light spilling out of the garages
+  const spill = new THREE.PointLight(0xffc98a, 0.9, 2400, 1.5);
+  spill.position.set(c.x, c.y, 300);
+  scene.add(spill);
+}

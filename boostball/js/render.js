@@ -1171,6 +1171,7 @@ class Garage {
     floor.position.z = -16;
     floor.receiveShadow = true;
     this.scene.add(floor);
+    if (ASSETS.props && ASSETS.props.pitsGarage && typeof dressGarage === 'function') dressGarage(this.scene);
     this.holder = new THREE.Group();
     this.scene.add(this.holder);
     this.scene.environment = envTex || null;
