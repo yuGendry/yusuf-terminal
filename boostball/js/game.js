@@ -278,6 +278,8 @@ class Game {
       this.lesson = lessonById(opts.lesson) || TUTORIALS[0];
       this.tut = new TutorialRun(this.world, this.player, this.lesson);
       this.tutStats = this.tutStats || {};
+      this.tutGhosts = this.tutGhosts || {};
+      if (this.ghostOn === undefined) this.ghostOn = true;
       this.hud.modeLabel.textContent = 'Academy · ' + this.lesson.title;
       this.hud.tutPanel.classList.remove('hidden');
       this.hud.inputViz.classList.remove('hidden');
@@ -295,6 +297,7 @@ class Game {
     this.tutAfterT = 0; this.tutShown = false;
     this.tut.start(phase);
     this.r.ballMesh.visible = true;
+    if (phase === 'demo') { this.tutRec = []; this.tutGhosts[this.lesson.id] = this.tutRec; }
     this.touchLog = [];
     if (phase === 'try') {
       this.state = 'armed';
@@ -315,7 +318,7 @@ class Game {
     this.hud.tutPanel.innerHTML = `<div class="tp-head"><span class="tp-title">${L.title}</span><span class="tp-level">${L.level}</span></div>
       <div class="tp-phase ${demo ? '' : 'try'}">${phase}</div><ol>${steps}</ol>
       ${st.tries ? `<div class="tp-best">${st.wins} / ${st.tries} landed</div>` : ''}
-      <div class="tp-hint"><kbd>1</kbd>/D-pad ← watch · <kbd>2</kbd>/D-pad → try · <kbd>${this.bindLabel('resetBall')}</kbd> restart</div>`;
+      <div class="tp-hint"><kbd>1</kbd>/D-pad ← watch · <kbd>2</kbd>/D-pad → try · <kbd>3</kbd>/D-pad ↑ ghost ${this.ghostOn ? 'on' : 'off'} · <kbd>${this.bindLabel('resetBall')}</kbd> restart</div>`;
     this.tutPanelKey = this.tutMode + this.state + ctx.stepIdx;
   }
   tutResult(res) {
@@ -626,6 +629,7 @@ class Game {
       if (input.pressedEdges.has('Digit1') || dp(14)) this.tutPhase('demo');
       else if (input.pressedEdges.has('Digit2') || dp(15)) this.tutPhase('try');
       else if (input.pressed('resetBall')) this.tutPhase(this.tutMode);
+      if (input.pressedEdges.has('Digit3') || dp(12)) { this.ghostOn = !this.ghostOn; this.toast(this.ghostOn ? 'Ghost ON' : 'Ghost OFF'); this.renderTutPanel(); }
       if (this.state === 'armed') {
         const C = pc.controls;
         if (Math.abs(C.throttle) > 0.1 || C.boost || C.jump || Math.abs(C.steer) > 0.3 || Math.abs(C.pitch) > 0.3) {
@@ -685,6 +689,10 @@ class Game {
     if (this.tut && this.state === 'play') {
       this.tut.post(dt, w.events.slice(this.tutEv0), this.player.events.slice(this.tutCev0));
       this.tutTick(dt);
+      if (this.tutMode === 'demo' && !this.tut.finished) {
+        const c = this.player, q = c.quat, p = c.pos, bp = w.ball.pos;
+        this.tutRec.push(p.x, p.y, p.z, q.x, q.y, q.z, q.w, bp.x, bp.y, bp.z);
+      }
     }
     // respawn demolished cars
     for (const c of w.cars) {
@@ -890,6 +898,12 @@ class Game {
       const st = this.tutStats[this.lesson.id] || { wins: 0, tries: 0 };
       this.hud.scoreBlue.textContent = st.wins; this.hud.scoreOrange.textContent = st.tries - st.wins;
       this.updateInputViz(pc);
+      const rec = this.tutGhosts[this.lesson.id];
+      if (this.ghostOn && this.tutMode === 'try' && rec && rec.length) {
+        const n = rec.length / 10;
+        const i = Math.min(n - 1, Math.max(0, Math.round(this.tut.ctx.t / PHYS.TICK) - 1)) * 10;
+        this.r.showGhost(pc.body, rec.slice(i, i + 7), rec.slice(i + 7, i + 10));
+      } else this.r.hideGhost();
     }
     this.hud.camInd.textContent = this.input.ballCamOn ? 'BALL CAM' : 'CAR CAM';
     this.hud.camInd.classList.toggle('on', this.input.ballCamOn);

@@ -945,7 +945,26 @@ class Renderer {
     v.model.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     this.carViews.delete(car);
   }
-  clearCars() { for (const c of Array.from(this.carViews.keys())) this.removeCar(c); }
+  clearCars() { for (const c of Array.from(this.carViews.keys())) this.removeCar(c); this.hideGhost(); }
+
+  // Academy ghost: a see-through copy of the car (and ball) replaying the bot's demo
+  showGhost(body, carPose, ballPos) {
+    if (!this.ghost || this.ghost.body !== body) {
+      if (this.ghost) this.scene.remove(this.ghost.car, this.ghost.ball);
+      const car = buildCarModel({ body, primary: '#7fe8ff', accent: '#7fe8ff', wheel: WHEEL_STYLES[0], wheelColor: '#7fe8ff', boostColor: '#7fe8ff', topper: 'None', antenna: 'None' }).group;
+      const mat = new THREE.MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.28, depthWrite: false });
+      car.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = false; o.receiveShadow = false; } if (o.isPoints || o.isSprite) o.visible = false; });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(PHYS.BALL_R, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, depthWrite: false, wireframe: true }));
+      this.scene.add(car, ball);
+      this.ghost = { body, car, ball };
+    }
+    const g = this.ghost;
+    g.car.visible = g.ball.visible = true;
+    g.car.position.set(carPose[0], carPose[1], carPose[2]);
+    g.car.quaternion.set(carPose[3], carPose[4], carPose[5], carPose[6]);
+    g.ball.position.set(ballPos[0], ballPos[1], ballPos[2]);
+  }
+  hideGhost() { if (this.ghost) this.ghost.car.visible = this.ghost.ball.visible = false; }
 
   shockwave(x, y, z, color, size = 2500) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide }));
