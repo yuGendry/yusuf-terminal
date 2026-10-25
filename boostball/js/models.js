@@ -11,7 +11,7 @@ const BODY_MODELS = {
   merc: 'vehicle-truck',
 };
 
-const ASSETS = { ready: false, cars: {}, textures: {}, colormap: null };
+const ASSETS = { ready: false, cars: {}, textures: {}, props: {}, colormap: null };
 
 function b64ToArrayBuffer(b64) {
   const bin = atob(b64);
@@ -55,6 +55,12 @@ async function loadAssets() {
       if (!b64) continue;
       const gltf = await parse(b64ToArrayBuffer(b64));
       ASSETS.cars[body] = makeCarTemplate(gltf.scene, body);
+    }
+    // stadium props (Kenney Racing Kit)
+    for (const key of Object.keys(window.BB_ASSETS)) {
+      const mm = key.match(/^models\/rk_(\w+)\.glb$/);
+      if (!mm) continue;
+      try { ASSETS.props[mm[1]] = (await parse(b64ToArrayBuffer(window.BB_ASSETS[key]))).scene; } catch (e) { console.warn('prop', key, e); }
     }
     for (const t of ['grass_color', 'grass_normal']) {
       const uri = assetDataUri('textures/' + t + '.jpg');

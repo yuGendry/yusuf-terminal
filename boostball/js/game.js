@@ -450,6 +450,7 @@ class Game {
     this.showCenter(team === 0 ? 'BLUE SCORES!' : 'ORANGE SCORES!', name + ' · ' + kmh + ' km/h', team === 0 ? 'blue' : 'orange');
     this.state = 'goal';
     this.goalTimer = 3.2;
+    this.cheerT = 0;
     this.replayPending = this.settings.gameplay.replays !== false && (this.mode === 'exhibition' || this.mode === 'heatseeker') && this.replayBuf && this.replayBuf.length > 60;
     this.replayGoal = { team, x: b.pos.x, y: b.pos.y, z: b.pos.z };
     this.updateScoreHud();
@@ -641,6 +642,8 @@ class Game {
     if (!pc.demolished) this.cam.update(dt, carPos, pc, this.r.ballMesh.position, input.ballCamOn);
     else this.cam.update(dt, this.cam.focus, pc, this.r.ballMesh.position, true);
     this.updateHud(dt);
+    const st = this.r.arena.stadium;
+    if (st && this.cheerT !== undefined && this.cheerT < 4.2) { this.cheerT += dt; st.cheer(this.cheerT); }
     this.sfx.setEngine(pc.vel.length(), pc.isBoosting, !pc.demolished && this.state !== 'goal', pc.onGround);
     this.r.render();
   }

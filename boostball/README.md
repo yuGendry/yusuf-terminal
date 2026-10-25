@@ -59,6 +59,7 @@ You can rebind everything under **Settings → Bindings**. Settings also include
 
 ## Graphics and assets
 - Car models: [Kenney Toy Car Kit](https://kenney.nl/assets/toy-car-kit) (CC0), fitted to each body's real hitbox so what you see is what collides. Settings → Video → Show Hitboxes draws the boxes.
+- Stadium: [Kenney Racing Kit](https://kenney.nl/assets/racing-kit) (CC0): two tiers of grandstands tinted blue/orange per half with an instanced crowd that jumps when someone scores, floodlight towers, billboards, banner towers, flags, TV cameras, fan-zone tents and a tree line. Everything is instanced, so the whole stadium is a few dozen draw calls.
 - Grass: [ambientCG Grass004](https://ambientcg.com/view?id=Grass004) (CC0), tiled over the painted pitch.
 - Reflections from a baked night-stadium environment, plus bloom (toggle in Settings → Video).
 - Raw files live in `assets/`; `node build.js` packs them into `js/assets.js` and the single-file `dist/boostball.html`.
@@ -70,7 +71,8 @@ You can rebind everything under **Settings → Bindings**. Settings also include
 - `js/ai.js`: bots (ball prediction, rotation, shots, aerials, kickoffs, recovery)
 - `js/tutorials.js`: Academy lessons (setup, scripted bot demo, success check) and the lesson runner
 - `js/models.js`: loads the embedded models/textures and fits cars to hitboxes
-- `js/render.js`: stadium, arena meshes, car models, particles, bloom and garage showroom
+- `js/stadium.js`: stadium dressing from the Racing Kit props (instanced) and the crowd
+- `js/render.js`: arena meshes, car models, particles, bloom and garage showroom
 - `js/game.js`: modes, match flow, camera and HUD
 - `js/ui.js`: menus, garage, settings and rebinding
 - `js/input.js`, `js/audio.js`, `js/main.js`

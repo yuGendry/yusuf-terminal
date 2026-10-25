@@ -723,42 +723,49 @@ function buildArena(scene, quality) {
   outer.position.z = -6;
   outer.receiveShadow = false;
   group.add(outer);
-  const crowd = crowdTexture();
-  const standMat = new THREE.MeshStandardMaterial({ map: crowd, roughness: 0.9, color: 0xb8bed0 });
-  const standGeoLong = new THREE.BoxGeometry(12000, 3000, 200);
-  const standGeoShort = new THREE.BoxGeometry(9600, 3000, 200);
-  crowd.repeat.set(10, 3);
-  const addStand = (geo, x, y, rotZ) => {
-    const m = new THREE.Mesh(geo, standMat);
-    m.position.set(x, y, 1500);
-    m.rotation.set(0, 0, rotZ);
-    m.rotateX(-0.75);
-    group.add(m);
-  };
-  addStand(standGeoLong, 6800, 0, Math.PI / 2);
-  addStand(standGeoLong, -6800, 0, -Math.PI / 2);
-  addStand(standGeoShort, 0, 8300, Math.PI);
-  addStand(standGeoShort, 0, -8300, 0);
-  // roof ring + floodlights
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xf4f7ff });
-  for (const [x, y] of [[6200, 7600], [-6200, 7600], [6200, -7600], [-6200, -7600]]) {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(60, 90, 5200, 10), new THREE.MeshStandardMaterial({ color: 0x2a2f3c }));
-    pole.rotation.x = Math.PI / 2; pole.position.set(x, y, 2600);
-    group.add(pole);
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(900, 120, 500), lightMat);
-    panel.position.set(x, y, 5300);
-    panel.lookAt(0, 0, 0);
-    group.add(panel);
+  let stadium = null;
+  if (ASSETS.props && ASSETS.props.grandStand && typeof dressStadium === 'function') {
+    stadium = dressStadium(group, quality);
+  } else {
+    const crowd = crowdTexture();
+    const standMat = new THREE.MeshStandardMaterial({ map: crowd, roughness: 0.9, color: 0xb8bed0 });
+    const standGeoLong = new THREE.BoxGeometry(12000, 3000, 200);
+    const standGeoShort = new THREE.BoxGeometry(9600, 3000, 200);
+    crowd.repeat.set(10, 3);
+    const addStand = (geo, x, y, rotZ) => {
+      const m = new THREE.Mesh(geo, standMat);
+      m.position.set(x, y, 1500);
+      m.rotation.set(0, 0, rotZ);
+      m.rotateX(-0.75);
+      group.add(m);
+    };
+    addStand(standGeoLong, 6800, 0, Math.PI / 2);
+    addStand(standGeoLong, -6800, 0, -Math.PI / 2);
+    addStand(standGeoShort, 0, 8300, Math.PI);
+    addStand(standGeoShort, 0, -8300, 0);
+    // roof ring + floodlights
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0xf4f7ff });
+    for (const [x, y] of [[6200, 7600], [-6200, 7600], [6200, -7600], [-6200, -7600]]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(60, 90, 5200, 10), new THREE.MeshStandardMaterial({ color: 0x2a2f3c }));
+      pole.rotation.x = Math.PI / 2; pole.position.set(x, y, 2600);
+      group.add(pole);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(900, 120, 500), lightMat);
+      panel.position.set(x, y, 5300);
+      panel.lookAt(0, 0, 0);
+      group.add(panel);
+    }
   }
-  // giant screens
-  const screenMat = new THREE.MeshBasicMaterial({ color: 0x223355 });
-  for (const s of [-1, 1]) {
-    const scr = new THREE.Mesh(new THREE.BoxGeometry(2600, 60, 1100), screenMat);
-    scr.position.set(0, s * 9100, 3900);
-    group.add(scr);
+  // giant screens (the prop stadium has billboards instead)
+  if (!stadium) {
+    const screenMat = new THREE.MeshBasicMaterial({ color: 0x223355 });
+    for (const s of [-1, 1]) {
+      const scr = new THREE.Mesh(new THREE.BoxGeometry(2600, 60, 1100), screenMat);
+      scr.position.set(0, s * 9100, 3900);
+      group.add(scr);
+    }
   }
 
-  return { group, pads, floorMat, wallMat, rampMat };
+  return { group, pads, floorMat, wallMat, rampMat, stadium };
 }
 
 // Small scene used only to bake reflections: night-stadium gradient, a ring of floodlight
