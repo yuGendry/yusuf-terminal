@@ -44,6 +44,7 @@
     <span><kbd>R</kbd> reset ball</span>
     <span><kbd>T</kbd> lob to me</span>
     <span><kbd>G</kbd> air dribble pop</span>
+    <span><kbd>V</kbd> ball on roof</span>
     <span><kbd>Y</kbd> wall shot</span>
     <span><kbd>B</kbd> freeze ball</span>
     <span><kbd>U</kbd> ∞ boost</span>
@@ -160,10 +161,21 @@
   </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/environments/RoomEnvironment.js"></script>
+<script src="js/assets.js"></script>
 <script src="js/core.js"></script>
 <script src="js/arena.js"></script>
 <script src="js/physics.js"></script>
+<script src="js/models.js"></script>
 <script src="js/render.js"></script>
 <script src="js/input.js"></script>
 <script src="js/audio.js"></script>

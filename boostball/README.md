@@ -1,13 +1,13 @@
 # Boostball Arena
 
-A browser rocket-car soccer game built with Three.js. It recreates Soccar physics (car, ball, jumps, dodges, wall driving, flip resets) in plain HTML and JavaScript. It has no build step and no assets: textures and sounds are generated in code.
+A browser rocket-car soccer game built with Three.js. It recreates Soccar physics (car, ball, jumps, dodges, wall driving, flip resets, pinches, wavedashes, flicks) in plain HTML and JavaScript.
 
 **Play:** open `dist/boostball.html` in a browser. It's a single file. Three.js and the fonts load from CDNs. You can also open `index.html` from a local web server, for example `npx serve boostball`.
 
 ## Modes
 - **Exhibition** 1v1, 2v2 or 3v3 against bots. There are three bot levels: Rookie, Pro and All-Star. Matches include kickoffs, a 5:00 clock, overtime, demolitions, a scoreboard (Tab) and a results screen with MVP.
 - **Heatseeker** 1v1 and 2v2. After each touch the ball homes toward the opponent's goal and gets faster with every hit.
-- **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, wall shot, freeze ball and reset car.
+- **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, ball on roof (V), wall shot, freeze ball and reset car.
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
 - **Kickoff practice**, solo or against a bot.
 - **Mutators**: gravity, ball size, ball max speed, bounciness, boost amount, game speed, demolitions and match length.
@@ -33,6 +33,14 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 | Boost pads | standard 34-pad layout: 6 big pads (100 boost, 10 s) and 28 small pads (12 boost, 4 s) |
 | Hitboxes | Octane, Dominus, Plank, Breakout, Hybrid and Merc, with their real dimensions and offsets |
 
+Gameplay tuning on top of the measured constants:
+- **Soft touches:** the extra "Psyonix" impulse ramps in from zero below 900 uu/s of relative speed (full strength above that), so the ball can rest on your roof and a ball rolling into you climbs onto the hood.
+- **Dribbling:** car contacts treat the ball as 4× harder to spin, so it rides the roof instead of rolling straight off.
+- **Flicks:** the extra impulse re-applies every other tick while touching, which gives flicks their pop.
+- **Pinches:** a ball squeezed between a car and the floor, wall or ceiling shoots out of the gap at up to max ball speed.
+- **Wavedash / zap dash:** landing mid-dodge stops the flip rotation and keeps the dodge speed.
+- **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it.
+
 Flip resets: when 3 or more wheels touch the ball, your flip comes back. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
 
 ## Controls
@@ -42,14 +50,21 @@ Controller (standard mapping): RT/LT throttle, left stick, A jump, B boost, X po
 
 You can rebind everything under **Settings → Bindings**. Settings also include deadzones, sensitivities, the camera (FOV, distance, height, angle, stiffness, swivel, transition, ball cam toggle or hold), video and audio.
 
+## Graphics and assets
+- Car models: [Kenney Toy Car Kit](https://kenney.nl/assets/toy-car-kit) (CC0), fitted to each body's real hitbox so what you see is what collides. Settings → Video → Show Hitboxes draws the boxes.
+- Grass: [ambientCG Grass004](https://ambientcg.com/view?id=Grass004) (CC0), tiled over the painted pitch.
+- Reflections from a baked night-stadium environment, plus bloom (toggle in Settings → Video).
+- Raw files live in `assets/`; `node build.js` packs them into `js/assets.js` and the single-file `dist/boostball.html`.
+
 ## Code layout
 - `js/core.js`: constants, curves, hitboxes
 - `js/arena.js`: analytic arena collision and the boost pad and kickoff layouts
 - `js/physics.js`: ball, car, suspension, driving, jumps, flips, air control and collisions
 - `js/ai.js`: bots (ball prediction, rotation, shots, aerials, kickoffs, recovery)
-- `js/render.js`: stadium, arena meshes, car models, particles and garage showroom
+- `js/models.js`: loads the embedded models/textures and fits cars to hitboxes
+- `js/render.js`: stadium, arena meshes, car models, particles, bloom and garage showroom
 - `js/game.js`: modes, match flow, camera and HUD
 - `js/ui.js`: menus, garage, settings and rebinding
 - `js/input.js`, `js/audio.js`, `js/main.js`
 
-Run `node build.js` to regenerate `dist/boostball.html` after editing the source.
+Run `node build.js` to regenerate `js/assets.js` and `dist/boostball.html` after editing the source or assets.

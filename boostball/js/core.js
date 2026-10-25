@@ -66,6 +66,9 @@ const PHYS = {
 
   DEMO_RESPAWN: 3,
   STICKY: 0.5,
+  // feel tuning (see README): soft touches ramp the extra impulse in, ball spins less off car contacts
+  PSY_CURVE: [[0, 0], [300, 0.12], [900, 0.65], [2300, 0.55], [4600, 0.30]],
+  CARBALL_SPIN_INERTIA: 4,
 };
 
 const THROTTLE_CURVE = [[0, 1600], [1400, 160], [1410, 0], [2300, 0]];

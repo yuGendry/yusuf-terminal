@@ -32,6 +32,8 @@ const SETTINGS_SCHEMA = {
     ['particles', 'Particles', 'bool'],
     ['nameplates', 'Bot Nameplates', 'bool'],
     ['showFps', 'Show FPS', 'bool'],
+    ['bloom', 'Bloom / Glow', 'bool'],
+    ['showHitbox', 'Show Hitboxes', 'bool'],
   ],
   audio: [
     ['master', 'Master Volume', 0, 1, 0.05],
@@ -552,7 +554,7 @@ class UI {
         </div>
         <div><h4>Free Play tools</h4>
           <p><b>R</b> reset ball · <b>T</b> lob to me · <b>G</b> air-dribble pop</p>
-          <p><b>Y</b> wall shot · <b>B</b> freeze ball · <b>U</b> toggle ∞ boost</p>
+          <p><b>V</b> ball on roof · <b>Y</b> wall shot · <b>B</b> freeze ball · <b>U</b> toggle ∞ boost</p>
           <p><b>Backspace</b> reset car · <b>H</b> hide help</p>
           <p>D-pad: ↑ pop · ↓ lob · ← wall · → reset car</p>
         </div>

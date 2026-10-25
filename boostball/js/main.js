@@ -1,7 +1,7 @@
 // Boot: settings, loadout, renderer, loop.
 'use strict';
 
-(function boot() {
+(async function boot() {
   const stored = safeStore('boostball.settings');
   const settings = deepMerge(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), stored || {});
   // make sure every action has a binding list
@@ -12,6 +12,7 @@
   const loadout = deepMerge(DEFAULT_LOADOUT, safeStore('boostball.loadout') || {});
   const save = () => { safeStore('boostball.settings', settings); safeStore('boostball.loadout', loadout); };
 
+  await loadAssets();
   const canvas = document.getElementById('game');
   let renderer;
   try {
@@ -21,7 +22,7 @@
     document.getElementById('fatal').textContent = 'WebGL is not available in this browser: ' + e.message;
     return;
   }
-  renderer.garage = new Garage();
+  renderer.garage = new Garage(renderer.envTex);
   const input = new Input(settings);
   const sfx = new Sfx(settings);
   const game = new Game(renderer, input, sfx, settings, loadout);

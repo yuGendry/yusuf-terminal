@@ -283,7 +283,7 @@ class World {
     }
 
     const bd = this._bd || (this._bd = { dp: new THREE.Vector3(), dv: new THREE.Vector3(), dw: new THREE.Vector3() });
-    bd.dp.set(0, 0, 0); bd.dv.set(0, 0, 0); bd.dw.set(0, 0, 0);
+    bd.dp.set(0, 0, 0); bd.dv.set(0, 0, 0); bd.dw.set(0, 0, 0); bd.pinched = false;
     for (const car of this.cars) {
       if (car.demolished) continue;
       this.carBallCollide(car);
@@ -526,7 +526,12 @@ class World {
     // flip timer + z damp
     if (car.isFlipping) {
       car.flipTime += dt;
-      if (car.flipTime >= PHYS.FLIP_TIME || (car.onGround && car.flipTime > 0.05)) car.isFlipping = false;
+      if (car.numArenaWheels >= 3 && car.flipTime > 0.02) {
+        // landed mid-dodge (wavedash / zap dash): wheels stop the rotation, the dodge speed is kept
+        car.isFlipping = false;
+        const wn = car.angVel.dot(car.groundNormal);
+        car.angVel.copy(car.groundNormal).multiplyScalar(wn);
+      } else if (car.flipTime >= PHYS.FLIP_TIME) car.isFlipping = false;
       else if (car.flipTime >= PHYS.FLIP_Z_DAMP_START && (car.vel.z < 0 || car.flipTime < PHYS.FLIP_Z_DAMP_END)) {
         car.vel.z *= Math.pow(1 - PHYS.FLIP_Z_DAMP_120, dt * 120);
       }
@@ -697,7 +702,7 @@ class World {
     const Lb = new THREE.Vector3().subVectors(p, ball.pos);
     const Lc = new THREE.Vector3().subVectors(p, car.pos);
     const mb = PHYS.BALL_MASS * (ball.radius / PHYS.BALL_R) ** 3;
-    const Ib = 0.4 * mb * ball.radius * ball.radius;
+    const Ib = 0.4 * mb * ball.radius * ball.radius * (PHYS.CARBALL_SPIN_INERTIA || 1);
     const Sb = skew(new THREE.Matrix3(), Lb), Sc = skew(new THREE.Matrix3(), Lc);
     const invIc = car.invInertiaMatrix(new THREE.Matrix3());
     // K = (1/mb + 1/mc) I - Sb Sb / Ib - Sc invIc Sc
@@ -718,22 +723,30 @@ class World {
     const Jperp = n1.clone().multiplyScalar(jperp);
     const Jpara = J1.clone().sub(Jperp);
     const ratio = Jperp.length() / Math.max(Jpara.length(), 0.001);
-    J1.copy(Jperp).addScaledVector(Jpara, Math.min(1, PHYS.BALL_MU * ratio));
+    J1.copy(Jperp).addScaledVector(Jpara, Math.min(1, (PHYS.CARBALL_MU || PHYS.BALL_MU) * ratio));
 
-    // Psyonix extra impulse on first tick of contact
+    // Psyonix extra impulse: on a new touch, then at most every other tick while touching
+    // (that repeat is what gives flicks their power). Very soft contacts ramp in from zero
+    // so a ball can rest on the roof without hopping.
     const fresh = this.tick - car.lastBallTick > 1;
     car.lastBallTick = this.tick;
     const J2 = new THREE.Vector3();
-    if (fresh) {
+    if (this.tick - (car.lastExtraTick || -10) > 1) {
       const n2 = new THREE.Vector3().subVectors(ball.pos, car.pos);
       n2.z *= 0.35;
       n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
       const dv = Math.min(new THREE.Vector3().subVectors(ball.vel, car.vel).length(), 4600);
-      J2.copy(n2).multiplyScalar(mb * dv * curve(PSYONIX_SCALE, dv));
+      if (dv > 1) {
+        J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv));
+        car.lastExtraTick = this.tick;
+      }
     }
+    this.checkPinch(car, n, p, Lc);
     // ball changes are accumulated and applied after every car is resolved (order independent)
-    this._bd.dw.add(new THREE.Vector3().crossVectors(Lb, J1).divideScalar(Ib));
-    this._bd.dv.addScaledVector(J1, 1 / mb).addScaledVector(J2, 1 / mb);
+    if (!this._bd.pinched) {
+      this._bd.dw.add(new THREE.Vector3().crossVectors(Lb, J1).divideScalar(Ib));
+      this._bd.dv.addScaledVector(J1, 1 / mb).addScaledVector(J2, 1 / mb);
+    }
     // car reaction
     const Jc = J1.clone().negate();
     car.applyImpulseAt(Jc, Lc);
@@ -742,6 +755,35 @@ class World {
       this.events.push({ type: 'hit', car, strength: hitStrength, x: p.x, y: p.y, z: p.z });
     }
     this.registerTouch(car, fresh);
+  }
+
+  // Ball squeezed between a car and a surface shoots out of the gap (ground/wall/kuxir pinches)
+  checkPinch(car, n, p, Lc) {
+    const ball = this.ball;
+    if (this.time - (car.lastPinch || -9) < 0.3) return;
+    const vc = new THREE.Vector3().crossVectors(car.angVel, Lc).add(car.vel);
+    const approach = vc.sub(ball.vel).dot(n); // car closing speed along contact normal
+    if (approach < 450) return;
+    const cs = queryContacts(ball.pos.x, ball.pos.y, ball.pos.z, ball.radius + 6);
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      const na = new THREE.Vector3(c.nx, c.ny, c.nz);
+      const opp = n.dot(na);
+      if (opp > -0.35) continue; // car must push the ball into this surface
+      // escape direction: out of the wedge between the car face and the surface
+      const dir = new THREE.Vector3().addVectors(n, na);
+      if (dir.lengthSq() < 0.04) {
+        dir.copy(car.vel).addScaledVector(na, -car.vel.dot(na));
+        if (dir.lengthSq() < 1) dir.copy(car.fwd).addScaledVector(na, -car.fwd.dot(na));
+      }
+      dir.addScaledVector(na, 0.25).normalize();
+      const speed = Math.min(ball.maxSpeed, approach * 2.4 + 400);
+      this._bd.dv.copy(dir.multiplyScalar(speed)).sub(ball.vel);
+      this._bd.pinched = true;
+      car.lastPinch = this.time;
+      this.events.push({ type: 'pinch', car, speed, x: ball.pos.x, y: ball.pos.y, z: ball.pos.z });
+      return;
+    }
   }
 
   registerTouch(car, fresh) {
@@ -768,7 +810,7 @@ class World {
     _v2.lerp(_v1, Math.min(1, hs.turn * dt)).normalize();
     const target = Math.max(sp, hs.speed);
     b.vel.copy(_v2).multiplyScalar(lerp(sp, target, Math.min(1, 2 * dt)));
-    b.vel.z -= this.gravity * dt * 0.9; // mostly cancel gravity
+    b.vel.z -= this.gravity * dt * 0.5; // partly offsets gravity so the homing arc reaches the goal
   }
 
   // --- car vs car ------------------------------------------------------------

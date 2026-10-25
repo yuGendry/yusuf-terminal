@@ -4,7 +4,7 @@
 const DEFAULT_SETTINGS = {
   camera: { fov: 110, distance: 270, height: 100, angle: -4, stiffness: 0.45, swivel: 5, transition: 1.2, ballCamDefault: true, ballCamMode: 'toggle', shake: true },
   controls: { deadzone: 0.08, dodgeDeadzone: 0.5, steerSens: 1.0, aerialSens: 1.0, deadzoneShape: 'circle', invertPitch: false, vibration: true, kbSeparatePitch: false },
-  video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true },
+  video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true, bloom: true, showHitbox: false },
   audio: { master: 0.7, sfx: 0.9, engine: 0.6 },
   bindings: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD },
   gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', demos: true, freeplayBoost: true, showPrediction: false },
@@ -221,6 +221,7 @@ class Game {
 
   start(mode, opts = {}) {
     this.mode = mode; this.opts = opts;
+    this.centerT = 0; this.hud.centerMsg.className = ''; this.hud.subMsg.className = '';
     this.world = new World();
     this.r.clearCars();
     this.r.particles.clear();
@@ -282,13 +283,18 @@ class Game {
     for (const p of w.pads) { p.active = true; p.timer = 0; }
     const teams = [[], []];
     for (const c of w.cars) teams[c.team].push(c);
+    // real shuffle; never repeat the previous kickoff's spot for the player.
+    // Both teams use mirrored spots, like the real game.
     const pick = (n) => {
-      const spots = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
-      // prefer diagonal/offset spots for small teams
-      if (n === 1) return [spots[0]];
-      return spots.slice(0, n);
+      for (let tries = 0; tries < 8; tries++) {
+        const s = [0, 1, 2, 3, 4];
+        for (let i = s.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [s[i], s[j]] = [s[j], s[i]]; }
+        if (s[0] !== this.lastKickoffSpot) return s.slice(0, n);
+      }
+      return [0, 1, 2, 3, 4].slice(0, n);
     };
     const spots = pick(Math.max(teams[0].length, teams[1].length));
+    this.lastKickoffSpot = spots[0];
     for (let t = 0; t < 2; t++) {
       teams[t].forEach((car, i) => {
         const s = KICKOFF_SPAWNS[spots[i]];
@@ -538,6 +544,15 @@ class Game {
         w.ballFrozen = false; this.r.ballMesh.visible = true;
         this.toast('Wall shot setup');
       }
+      if (input.pressedEdges.has('KeyV')) {
+        // dribble setup: ball resting on the roof
+        const hc = pc.hitboxCenter(new THREE.Vector3());
+        const top = hc.addScaledVector(pc.up, pc.half.z + w.ball.radius + 1);
+        w.ball.reset(top.x, top.y, top.z);
+        w.ball.vel.copy(pc.vel);
+        w.ballFrozen = false; this.r.ballMesh.visible = true;
+        this.toast('Ball on roof');
+      }
       if (input.pressedEdges.has('Backspace')) { pc.place(0, -2500, Math.PI / 2); this.cam.snap(); }
       if (input.pressedEdges.has('KeyH')) this.hud.freeplayHelp.classList.toggle('hidden');
       if (input.pressedEdges.has('KeyU')) { pc.infiniteBoost = !pc.infiniteBoost; this.toast(pc.infiniteBoost ? 'Unlimited boost ON' : 'Unlimited boost OFF'); }
@@ -682,11 +697,6 @@ class Game {
         w.carsFrozen = false; w.ballFrozen = false;
         this.sfx.beep(true);
         this.showCenter('GO!', '', 'count go'); this.centerT = 0.6;
-        if (w.heatseeker) {
-          const team = Math.random() < 0.5 ? 0 : 1;
-          w.heatseeker.team = team; w.heatseeker.active = true;
-          w.ball.vel.set((Math.random() - 0.5) * 300, (team === 0 ? 1 : -1) * 1200, 500);
-        }
         this.kickoffTimer = 0;
       }
     } else if (this.state === 'goal') {

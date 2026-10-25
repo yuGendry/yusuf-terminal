@@ -302,69 +302,81 @@ function buildCarModel(cfg) {
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x1a2a48, metalness: 0.85, roughness: 0.12, emissive: 0x0a1428, emissiveIntensity: 0.6 });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x15171d, metalness: 0.3, roughness: 0.7 });
 
-  const bodyW = hb.w * 0.86;
-  const bodyPts = P(shapeDef.body);
-  const bodyGeo = taperWidth(extrudeProfile(bodyPts, bodyW, 5), zb + hb.h * 0.35, zb + hb.h * 1.15, 0.82);
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.castShadow = true;
-  group.add(body);
-  const cabPts = P(shapeDef.cabin);
-  const cabGeo = taperWidth(extrudeProfile(cabPts, hb.w * 0.7, 4), zb + hb.h * 0.95, Math.max(...cabPts.map(p => p[1])), 0.62);
-  const cabin = new THREE.Mesh(cabGeo, glassMat);
-  cabin.castShadow = true;
-  group.add(cabin);
-  // roof accent strip
-  const roofPts = P(shapeDef.cabin);
-  const roofTop = Math.max(...roofPts.map(p => p[1]));
-  const roofX0 = roofPts[1][0], roofX1 = roofPts[2][0];
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(8, roofX1 - roofX0) * 0.9, hb.w * 0.14, 2), accentMat);
-  strip.position.set((roofX0 + roofX1) / 2, 0, roofTop + 3.2);
-  group.add(strip);
-  // hood stripe
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.3, hb.w * 0.16, 2), accentMat);
-  hood.position.set(x0 + hb.l * 0.82, 0, zb + hb.h * 0.98);
-  hood.rotation.y = 0.18;
-  group.add(hood);
-  // side skirts
-  for (const s of [-1, 1]) {
-    const sk = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.55, 3, hb.h * 0.25), accentMat);
-    sk.position.set(hb.ox - hb.l * 0.03, s * (bodyW / 2 + 5.5), zb + hb.h * 0.32);
-    group.add(sk);
-  }
-  // under-chassis
-  const chassis = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.92, hb.w * 0.7, 8), darkMat);
-  chassis.position.set(hb.ox, 0, zb + 3);
-  group.add(chassis);
-  // spoiler
-  if (shapeDef.spoiler) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(14, hb.w * 0.92, 3), accentMat);
-    wing.position.set(x0 + 6, 0, zb + hb.h * 1.42);
-    wing.rotation.y = -0.15;
-    wing.castShadow = true;
-    group.add(wing);
+  const mdl = buildModelCar(cfg);
+  let roofTop, roofX0, roofX1, bodyMatOut = bodyMat;
+  if (mdl) {
+    // downloaded model fitted to the hitbox
+    for (const c of mdl.group.children.slice()) group.add(c);
+    bodyMatOut = mdl.paintMat;
+    roofTop = hb.oz + hb.h / 2 + 1;
+    roofX0 = hb.ox - hb.l * 0.25; roofX1 = hb.ox + hb.l * 0.1;
+  } else {
+    const bodyW = hb.w * 0.86;
+    const bodyPts = P(shapeDef.body);
+    const bodyGeo = taperWidth(extrudeProfile(bodyPts, bodyW, 5), zb + hb.h * 0.35, zb + hb.h * 1.15, 0.82);
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.castShadow = true;
+    group.add(body);
+    const cabPts = P(shapeDef.cabin);
+    const cabGeo = taperWidth(extrudeProfile(cabPts, hb.w * 0.7, 4), zb + hb.h * 0.95, Math.max(...cabPts.map(p => p[1])), 0.62);
+    const cabin = new THREE.Mesh(cabGeo, glassMat);
+    cabin.castShadow = true;
+    group.add(cabin);
+    // roof accent strip
+    const roofPts = P(shapeDef.cabin);
+    roofTop = Math.max(...roofPts.map(p => p[1]));
+    roofX0 = roofPts[1][0]; roofX1 = roofPts[2][0];
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(8, roofX1 - roofX0) * 0.9, hb.w * 0.14, 2), accentMat);
+    strip.position.set((roofX0 + roofX1) / 2, 0, roofTop + 3.2);
+    group.add(strip);
+    // hood stripe
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.3, hb.w * 0.16, 2), accentMat);
+    hood.position.set(x0 + hb.l * 0.82, 0, zb + hb.h * 0.98);
+    hood.rotation.y = 0.18;
+    group.add(hood);
+    // side skirts
     for (const s of [-1, 1]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(4, 3, hb.h * 0.45), darkMat);
-      post.position.set(x0 + 7, s * hb.w * 0.3, zb + hb.h * 1.18);
-      group.add(post);
+      const sk = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.55, 3, hb.h * 0.25), accentMat);
+      sk.position.set(hb.ox - hb.l * 0.03, s * (bodyW / 2 + 5.5), zb + hb.h * 0.32);
+      group.add(sk);
+    }
+    // under-chassis
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(hb.l * 0.92, hb.w * 0.7, 8), darkMat);
+    chassis.position.set(hb.ox, 0, zb + 3);
+    group.add(chassis);
+    // spoiler
+    if (shapeDef.spoiler) {
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(14, hb.w * 0.92, 3), accentMat);
+      wing.position.set(x0 + 6, 0, zb + hb.h * 1.42);
+      wing.rotation.y = -0.15;
+      wing.castShadow = true;
+      group.add(wing);
+      for (const s of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(4, 3, hb.h * 0.45), darkMat);
+        post.position.set(x0 + 7, s * hb.w * 0.3, zb + hb.h * 1.18);
+        group.add(post);
+      }
+    }
+    // lights
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2d0, emissiveIntensity: 2 });
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff1010, emissiveIntensity: 2 });
+    const frontZ = zb + hb.h * 0.55;
+    for (const s of [-1, 1]) {
+      const hl = new THREE.Mesh(new THREE.BoxGeometry(3, 12, 5), headMat);
+      hl.position.set(x0 + hb.l + 1, s * bodyW * 0.33, frontZ);
+      group.add(hl);
+      const tl = new THREE.Mesh(new THREE.BoxGeometry(3, 14, 5), tailMat);
+      tl.position.set(x0 - 4, s * bodyW * 0.32, zb + hb.h * 0.7);
+      group.add(tl);
     }
   }
-  // lights
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2d0, emissiveIntensity: 2 });
-  const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff1010, emissiveIntensity: 2 });
-  const frontZ = zb + hb.h * 0.55;
-  for (const s of [-1, 1]) {
-    const hl = new THREE.Mesh(new THREE.BoxGeometry(3, 12, 5), headMat);
-    hl.position.set(x0 + hb.l + 1, s * bodyW * 0.33, frontZ);
-    group.add(hl);
-    const tl = new THREE.Mesh(new THREE.BoxGeometry(3, 14, 5), tailMat);
-    tl.position.set(x0 - 4, s * bodyW * 0.32, zb + hb.h * 0.7);
-    group.add(tl);
-  }
   // exhaust
-  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 10, 12), darkMat);
-  exhaust.rotation.z = Math.PI / 2;
-  exhaust.position.set(x0 - 3, 0, zb + hb.h * 0.42);
-  group.add(exhaust);
+  if (!mdl) {
+    const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 10, 12), darkMat);
+    exhaust.rotation.z = Math.PI / 2;
+    exhaust.position.set(x0 - 3, 0, zb + hb.h * 0.42);
+    group.add(exhaust);
+  }
   const boostColor = new THREE.Color(cfg.boostColor || '#ff9a2a');
   const nozzleMat = new THREE.MeshBasicMaterial({ color: boostColor, transparent: true, opacity: 0.0 });
   const nozzle = new THREE.Mesh(new THREE.ConeGeometry(9, 50, 14, 1, true), nozzleMat);
@@ -383,12 +395,21 @@ function buildCarModel(cfg) {
     const wg = new THREE.Group();
     const spin = new THREE.Group();
     const width = w.front ? 11 : 13;
-    const tire = new THREE.Mesh(new THREE.CylinderGeometry(w.r, w.r, width, 20), tireMat);
-    tire.castShadow = true;
-    spin.add(tire);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(w.r * 0.66, w.r * 0.66, width + 1, 16), rimMat);
-    spin.add(rim);
-    if (cfg.wheel === 'Spoked' || cfg.wheel === 'Classic' || !cfg.wheel) {
+    const mWheel = mdl && (!cfg.wheel || cfg.wheel === 'Classic') && mdl.wheelGeos[(w.front ? 'f' : 'b') + (w.y > 0 ? 'l' : 'r')];
+    if (mWheel) {
+      const mw = new THREE.Mesh(mWheel, mdl.baseMat);
+      mw.scale.set(w.r, w.r * 1.1, w.r);
+      mw.castShadow = true;
+      spin.add(mw);
+    } else {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(w.r, w.r, width, 20), tireMat);
+      tire.castShadow = true;
+      spin.add(tire);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(w.r * 0.66, w.r * 0.66, width + 1, 16), rimMat);
+      spin.add(rim);
+    }
+    if (mWheel) { /* model wheel already has its rim */ }
+    else if (cfg.wheel === 'Spoked' || cfg.wheel === 'Classic' || !cfg.wheel) {
       const n = cfg.wheel === 'Spoked' ? 6 : 5;
       for (let i = 0; i < n; i++) {
         const sp = new THREE.Mesh(new THREE.BoxGeometry(w.r * 1.25, width + 1.6, 2.2), cfg.wheel === 'Spoked' ? darkMat : rimMat);
@@ -463,7 +484,7 @@ function buildCarModel(cfg) {
     group.add(holder);
   }
 
-  return { group, wheels, nozzle, nozzleMat, bodyMat, boostColor, exhaustLocal: new THREE.Vector3(x0 - 6, 0, zb + hb.h * 0.42), hb };
+  return { group, wheels, nozzle, nozzleMat, bodyMat: bodyMatOut, boostColor, exhaustLocal: new THREE.Vector3(x0 - 6, 0, zb + hb.h * 0.42), hb };
 }
 
 // ---------------------------------------------------------------- arena
@@ -493,7 +514,21 @@ function buildArena(scene, quality) {
   };
   uvFromXY(floorGeo);
   const fieldTex = fieldTexture();
-  const floorMat = new THREE.MeshStandardMaterial({ map: fieldTex, roughness: 0.92, metalness: 0.0 });
+  const floorMat = new THREE.MeshStandardMaterial({ map: fieldTex, roughness: 0.92, metalness: 0.0, envMapIntensity: 0.35 });
+  const grass = ASSETS.textures && ASSETS.textures.grass_color;
+  if (grass) {
+    // tile a real grass texture over the painted field (stripes + lines stay from the field map)
+    const gain = ASSETS.grassGain || new THREE.Vector3(1, 1, 1);
+    floorMat.onBeforeCompile = (sh) => {
+      sh.uniforms.detailMap = { value: grass };
+      sh.uniforms.detailRepeat = { value: new THREE.Vector2(2 * A.W / 210, 2 * Lt / 210) };
+      sh.uniforms.detailGain = { value: gain };
+      sh.fragmentShader = 'uniform sampler2D detailMap; uniform vec2 detailRepeat; uniform vec3 detailGain;\n' +
+        sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          vec3 dtl = pow(texture2D(detailMap, vUv * detailRepeat).rgb, vec3(2.2)) * detailGain;
+          diffuseColor.rgb *= mix(vec3(1.0), dtl, 0.9);`);
+    };
+  }
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.receiveShadow = true;
   group.add(floor);
@@ -564,7 +599,7 @@ function buildArena(scene, quality) {
   };
   const rampGeo = makeStrip(0, fs, (x, y, z) => teamTint(x, y, z, 0.55));
   const hexTex = hexTexture();
-  const rampMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: hexTex, roughness: 0.6, metalness: 0.2, side: THREE.DoubleSide });
+  const rampMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: hexTex, roughness: 0.45, metalness: 0.35, side: THREE.DoubleSide, envMapIntensity: 0.6 });
   const ramp = new THREE.Mesh(rampGeo, rampMat);
   ramp.receiveShadow = true;
   group.add(ramp);
@@ -726,6 +761,37 @@ function buildArena(scene, quality) {
   return { group, pads, floorMat, wallMat, rampMat };
 }
 
+// Small scene used only to bake reflections: night-stadium gradient, a ring of floodlight
+// panels, the pitch below and team-colored glow at both ends.
+function stadiumEnvScene() {
+  const sc = new THREE.Scene();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} ',
+    fragmentShader: `varying vec3 vP; void main(){ float t = vP.z;
+      vec3 sky = mix(vec3(0.05,0.07,0.14), vec3(0.01,0.015,0.04), smoothstep(0.0,0.8,t));
+      vec3 ground = vec3(0.04,0.09,0.05);
+      vec3 c = t > -0.05 ? sky : ground;
+      c += vec3(0.25,0.22,0.3) * smoothstep(0.25,0.0,abs(t-0.12));
+      c += vec3(0.0,0.08,0.35) * smoothstep(0.2,1.0,-vP.y) * smoothstep(0.4,0.0,abs(t-0.1));
+      c += vec3(0.35,0.12,0.0) * smoothstep(0.2,1.0,vP.y) * smoothstep(0.4,0.0,abs(t-0.1));
+      gl_FragColor = vec4(c,1.0); }`,
+  }));
+  sc.add(dome);
+  const panelMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 3.1, 2.9) });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + 0.3;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(22, 7), panelMat);
+    p.position.set(Math.cos(a) * 60, Math.sin(a) * 60, 42);
+    p.lookAt(0, 0, 0);
+    sc.add(p);
+  }
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 0.55, 0.7) }));
+  top.position.z = 80; top.rotation.x = Math.PI;
+  sc.add(top);
+  return sc;
+}
+
 function buildSky(scene) {
   const geo = new THREE.SphereGeometry(60000, 32, 16);
   const mat = new THREE.ShaderMaterial({
@@ -758,23 +824,38 @@ class Renderer {
     this.camera = new THREE.PerspectiveCamera(70, 1, 10, 130000);
     this.camera.up.set(0, 0, 1);
     this.buildLights();
+    // image-based lighting for glossy paint, ball and metal
+    {
+      const pmrem = new THREE.PMREMGenerator(this.gl);
+      this.envTex = pmrem.fromScene(stadiumEnvScene(), 0.03).texture;
+      this.scene.environment = this.envTex;
+    }
     this.sky = buildSky(this.scene);
     this.arena = buildArena(this.scene, settings.video.quality);
     this.particles = new Particles(this.scene, 7000);
     this.ballMesh = this.buildBall();
     this.carViews = new Map();
     this.shockwaves = [];
+    if (THREE.EffectComposer && THREE.UnrealBloomPass) {
+      const rt = new THREE.WebGLRenderTarget(16, 16, { samples: 4 });
+      this.composer = new THREE.EffectComposer(this.gl, rt);
+      this.renderPass = new THREE.RenderPass(this.scene, this.camera);
+      this.bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.45, 0.45, 0.9);
+      this.composer.addPass(this.renderPass);
+      this.composer.addPass(this.bloomPass);
+      this.composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
+    }
     this.resize();
     window.addEventListener('resize', () => this.resize());
     this.applyVideo();
   }
 
   buildLights() {
-    const hemi = new THREE.HemisphereLight(0xc8d4ff, 0x30283a, 0.75);
+    const hemi = new THREE.HemisphereLight(0xc8d4ff, 0x30283a, 0.45);
     this.scene.add(hemi);
-    const amb = new THREE.AmbientLight(0xffffff, 0.15);
+    const amb = new THREE.AmbientLight(0xffffff, 0.05);
     this.scene.add(amb);
-    const sun = new THREE.DirectionalLight(0xffffff, 1.25);
+    const sun = new THREE.DirectionalLight(0xfff6e8, 1.6);
     sun.position.set(800, -1200, 9000);
     sun.target.position.set(0, 0, 0);
     sun.castShadow = true;
@@ -809,6 +890,10 @@ class Renderer {
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.gl.setSize(w, h, false);
+    if (this.composer) {
+      this.composer.setPixelRatio(this.gl.getPixelRatio());
+      this.composer.setSize(w, h);
+    }
     this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
     this.camera.aspect = w / h;
     this.setFov(this.hfov || 110);
@@ -826,7 +911,7 @@ class Renderer {
   }
 
   buildBall() {
-    const mat = new THREE.MeshStandardMaterial({ map: ballTexture(), metalness: 0.25, roughness: 0.35, emissive: 0x111111 });
+    const mat = new THREE.MeshPhysicalMaterial({ map: ballTexture(), metalness: 0.2, roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.15, emissive: 0x0a0a0a });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(PHYS.BALL_R, 48, 32), mat);
     mesh.castShadow = true;
     this.scene.add(mesh);
@@ -843,7 +928,12 @@ class Renderer {
     label.className = 'nameplate ' + (car.team === 0 ? 'blue' : 'orange');
     label.textContent = car.name;
     document.getElementById('nameplates').appendChild(label);
-    const view = { model, label, cfg, trailT: 0 };
+    const hb = HITBOXES[car.body];
+    const hbox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(hb.l, hb.w, hb.h)), new THREE.LineBasicMaterial({ color: 0x7dff9a }));
+    hbox.position.set(hb.ox, 0, hb.oz);
+    hbox.visible = !!this.settings.video.showHitbox;
+    model.group.add(hbox);
+    const view = { model, label, cfg, trailT: 0, hbox };
     this.carViews.set(car, view);
     return view;
   }
@@ -948,6 +1038,7 @@ class Renderer {
     if (!v) return;
     const g = v.model.group;
     g.visible = !car.demolished;
+    v.hbox.visible = !!this.settings.video.showHitbox;
     v.label.style.display = 'none';
     if (car.demolished) return;
     g.position.lerpVectors(car.prevPos, car.pos, alpha);
@@ -1006,21 +1097,25 @@ class Renderer {
   }
 
   render(scene, camera) {
-    this.gl.render(scene || this.scene, camera || this.camera);
+    scene = scene || this.scene; camera = camera || this.camera;
+    if (this.composer && this.settings.video.bloom !== false) {
+      this.renderPass.scene = scene; this.renderPass.camera = camera;
+      this.composer.render();
+    } else this.gl.render(scene, camera);
   }
 }
 const _rv1 = new THREE.Vector3(), _rv2 = new THREE.Vector3(), _rv3 = new THREE.Vector3();
 
 // ---------------------------------------------------------------- garage showroom
 class Garage {
-  constructor() {
+  constructor(envTex) {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x070a14);
     this.scene.fog = new THREE.Fog(0x070a14, 900, 2600);
     this.camera = new THREE.PerspectiveCamera(38, 1, 1, 10000);
     this.camera.up.set(0, 0, 1);
     this.scene.add(new THREE.HemisphereLight(0xbfd0ff, 0x202030, 0.7));
-    const key = new THREE.SpotLight(0xffffff, 2.2, 2500, 0.6, 0.5, 1);
+    const key = new THREE.SpotLight(0xffffff, 1.3, 2500, 0.6, 0.6, 1);
     key.position.set(300, -400, 700);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -1032,7 +1127,7 @@ class Garage {
     const rim2 = new THREE.DirectionalLight(0xff9a50, 0.6);
     rim2.position.set(500, 300, 100);
     this.scene.add(rim2);
-    const plat = new THREE.Mesh(new THREE.CylinderGeometry(190, 200, 16, 64), new THREE.MeshStandardMaterial({ color: 0x1a1e2a, metalness: 0.7, roughness: 0.35 }));
+    const plat = new THREE.Mesh(new THREE.CylinderGeometry(190, 200, 16, 64), new THREE.MeshStandardMaterial({ color: 0x1a1e2a, metalness: 0.5, roughness: 0.45 }));
     plat.rotation.x = Math.PI / 2; plat.position.z = -8;
     plat.receiveShadow = true;
     this.scene.add(plat);
@@ -1046,6 +1141,7 @@ class Garage {
     this.scene.add(floor);
     this.holder = new THREE.Group();
     this.scene.add(this.holder);
+    this.scene.environment = envTex || null;
     this.model = null;
     this.angle = 0.6;
     this.dragging = false;
