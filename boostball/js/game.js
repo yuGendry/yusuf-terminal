@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS = {
   camera: { fov: 110, distance: 270, height: 100, angle: -4, stiffness: 0.45, swivel: 5, transition: 1.2, ballCamDefault: true, ballCamMode: 'toggle', shake: true },
   controls: { deadzone: 0.08, dodgeDeadzone: 0.5, steerSens: 1.0, aerialSens: 1.0, deadzoneShape: 'circle', invertPitch: false, vibration: true, kbSeparatePitch: false },
   video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true, bloom: true, showHitbox: false },
-  audio: { master: 0.7, sfx: 0.9, engine: 0.6 },
+  audio: { master: 0.7, sfx: 0.9, engine: 0.6, crowd: 0.8 },
   bindings: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD },
   gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', ceiling: 'default', replays: true, demos: true, freeplayBoost: true, showPrediction: false },
 };
@@ -182,6 +182,7 @@ class Game {
   // An idle world used behind the menus
   menuWorld() {
     this.setCeiling(ARENA_DEFAULT_H);
+    this.sfx.crowd(0);
     if (this.hud.replayTag) this.hud.replayTag.classList.add('hidden');
     this.world = new World();
     this.r.clearCars();
@@ -642,6 +643,7 @@ class Game {
     if (!pc.demolished) this.cam.update(dt, carPos, pc, this.r.ballMesh.position, input.ballCamOn);
     else this.cam.update(dt, this.cam.focus, pc, this.r.ballMesh.position, true);
     this.updateHud(dt);
+    this.updateCrowd();
     const st = this.r.arena.stadium;
     if (st && this.cheerT !== undefined && this.cheerT < 4.2) { this.cheerT += dt; st.cheer(this.cheerT); }
     this.sfx.setEngine(pc.vel.length(), pc.isBoosting, !pc.demolished && this.state !== 'goal', pc.onGround);
@@ -849,7 +851,7 @@ class Game {
           const car = e.car;
           car.stats.touches++; car.stats.score += 2;
           if (after === car.team && before !== car.team) { car.stats.shots++; car.stats.score += 20; if (car === pc && this.mode !== 'training') this.toast('Shot on goal'); }
-          if (before >= 0 && before !== car.team && after !== before) { car.stats.saves++; car.stats.score += 50; if (car === pc) this.toast('SAVE!', 'good'); else if (this.mode !== 'freeplay') this.toast(car.name + ' saved it'); }
+          if (before >= 0 && before !== car.team && after !== before) { car.stats.saves++; car.stats.score += 50; this.sfx.react('cheer', 0.6); if (car === pc) this.toast('SAVE!', 'good'); else if (this.mode !== 'freeplay') this.toast(car.name + ' saved it'); }
           this.touchLog.push({ car, time: w.time });
           if (this.touchLog.length > 20) this.touchLog.shift();
         }
@@ -860,6 +862,11 @@ class Game {
         this.sfx.hit(1500);
       } else if (e.type === 'bounce') {
         this.sfx.bounce(e.speed);
+        // off the post / crossbar: the crowd goes "ooh"
+        const nearFrame = Math.abs(Math.abs(e.y) - ARENA.L) < 260 && Math.abs(e.x) < ARENA.GW + 200 && e.z < ARENA.GH + 200 &&
+          (Math.abs(e.x) > ARENA.GW - 160 || e.z > ARENA.GH - 160);
+        if (nearFrame && e.speed > 600 && this.state === 'play' && (this.mode === 'exhibition' || this.mode === 'heatseeker') &&
+            (!this.lastOoh || w.time - this.lastOoh > 2)) { this.lastOoh = w.time; this.sfx.react('ooh', 0.9); }
       } else if (e.type === 'pad') {
         if (e.car === pc) this.sfx.pad(e.big);
       } else if (e.type === 'demo') {
@@ -1015,6 +1022,18 @@ class Game {
       this.fpsAcc = 0; this.fpsN = 0;
     }
     this.hud.fps.classList.toggle('hidden', !this.settings.video.showFps);
+  }
+
+  // crowd volume follows the action: louder near either goal, loudest when a goal looks likely
+  updateCrowd() {
+    const match = this.mode === 'exhibition' || this.mode === 'heatseeker' || this.mode === 'kickoff';
+    if (!match) { this.sfx.crowd(this.mode === 'freeplay' || this.mode === 'training' ? 0.18 : 0); return; }
+    if (this.state === 'goal' || this.state === 'replay') return;
+    const b = this.world.ball;
+    const dGoal = ARENA.L - Math.abs(b.pos.y);
+    let x = 0.3 + 0.45 * clamp(1 - dGoal / 3500, 0, 1);
+    if (this.predGoal >= 0 && this.state === 'play') x = Math.max(x, 0.9);
+    this.sfx.crowd(x);
   }
 
   // live view of the car's inputs: the bot's during a demo, yours when trying

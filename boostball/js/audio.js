@@ -35,11 +35,18 @@ class Sfx {
     const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 900; bf.Q.value = 0.7;
     const bg = ctx.createGain(); bg.gain.value = 0;
     bn.connect(bf); bf.connect(bg); bg.connect(this.sfx); bn.start();
-    // crowd ambience
-    const cn = ctx.createBufferSource(); cn.buffer = this.noise; cn.loop = true;
-    const cf = ctx.createBiquadFilter(); cf.type = 'bandpass'; cf.frequency.value = 500; cf.Q.value = 0.4;
-    const cg = ctx.createGain(); cg.gain.value = 0.0;
-    cn.connect(cf); cf.connect(cg); cg.connect(this.sfx); cn.start();
+    // crowd: two murmur bands with a slow swell, into their own gain (set by excitement)
+    const crowdBus = ctx.createGain(); crowdBus.gain.value = 0; crowdBus.connect(this.sfx);
+    for (const [f, q, v] of [[420, 0.5, 1], [1150, 0.9, 0.55]]) {
+      const n = ctx.createBufferSource(); n.buffer = this.noise; n.loop = true; n.playbackRate.value = 0.93 + Math.random() * 0.14;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      const g = ctx.createGain(); g.gain.value = v;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.17 + Math.random() * 0.2;
+      const lg = ctx.createGain(); lg.gain.value = v * 0.35;
+      lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      n.connect(bp); bp.connect(g); g.connect(crowdBus); n.start(0, Math.random());
+    }
+    const cg = crowdBus;
     this.engine = { osc, osc2, lp, eg, bg, bf, cg };
     this.applyVolume();
   }
@@ -63,7 +70,31 @@ class Sfx {
   }
   crowd(level) {
     if (!this.engine) return;
-    this.engine.cg.gain.setTargetAtTime(level * 0.08, this.ctx.currentTime, 0.4);
+    this.engine.cg.gain.setTargetAtTime(level * 0.09 * (this.settings.audio.crowd ?? 0.8), this.ctx.currentTime, 0.35);
+  }
+  // a crowd voice reaction: noise through vowel formants with a pitch/volume contour
+  // kind: 'cheer' (rising "aaah!"), 'ooh' (rises then falls), 'aww' (falls)
+  react(kind, strength = 1) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const dur = kind === 'cheer' ? 2.6 : 1.4;
+    const vol = 0.32 * strength * (this.settings.audio.crowd ?? 0.8);
+    const out = ctx.createGain(); out.connect(this.sfx);
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(vol, t + (kind === 'aww' ? 0.08 : 0.25));
+    out.gain.exponentialRampToValueAtTime(vol * 0.6, t + dur * 0.55);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const forms = kind === 'ooh' ? [[350, 6], [800, 7]] : [[750, 5], [1150, 6], [2500, 8]];
+    for (const [f, q] of forms) {
+      const s = ctx.createBufferSource(); s.buffer = this.noise; s.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+      const k = kind === 'aww' ? [1.15, 0.8] : kind === 'ooh' ? [0.85, 1.12] : [0.9, 1.08];
+      bp.frequency.setValueAtTime(f * k[0], t);
+      bp.frequency.linearRampToValueAtTime(f * k[1], t + dur * 0.5);
+      if (kind === 'ooh') bp.frequency.linearRampToValueAtTime(f * 0.85, t + dur);
+      s.connect(bp); bp.connect(out);
+      s.start(t, Math.random()); s.stop(t + dur);
+    }
   }
   burst(freq, dur, vol, type = 'noise', q = 1) {
     if (!this.ctx) return;
@@ -103,6 +134,7 @@ class Sfx {
     this.burst(70, 1.2, 0.8, 'sine');
     const notes = [523, 659, 784, 1046];
     notes.forEach((f, i) => setTimeout(() => this.burst(f, 0.6, 0.18, 'sawtooth'), 150 + i * 110));
+    this.react('cheer', 1.3);
     this.crowd(1);
     setTimeout(() => this.crowd(0.35), 2500);
   }

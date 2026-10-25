@@ -39,6 +39,7 @@ const SETTINGS_SCHEMA = {
     ['master', 'Master Volume', 0, 1, 0.05],
     ['sfx', 'Effects Volume', 0, 1, 0.05],
     ['engine', 'Engine & Boost', 0, 1, 0.05],
+    ['crowd', 'Crowd', 0, 1, 0.05],
   ],
 };
 const MATCH_SCHEMA = [
