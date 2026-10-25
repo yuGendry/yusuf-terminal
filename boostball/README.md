@@ -10,7 +10,7 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 - **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, ball on roof (V), wall shot, freeze ball and reset car.
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
 - **Kickoff practice**, solo or against a bot.
-- **Academy**: 10 lessons where a bot demonstrates a mechanic on your car, then you try it from the same start: Air Roll Landing, Wavedash, Half Flip, Speed Flip, Hood Dribble & 45° Flick, Musty Flick, Air Dribble, Wall Air Dribble, Flip Reset and Double Flip Reset. The panel shows the steps (the current one highlights during the demo), and an input display shows the bot's stick and buttons, then yours. Keys: **1** / D-pad ← watch again, **2** / D-pad → try, **R** / Back restart. In try mode the world waits frozen until your first input.
+- **Academy**: 11 lessons where a bot demonstrates a mechanic on your car, then you try it from the same start: Air Roll Landing, Wavedash, Half Flip, Speed Flip, Hood Dribble & 45° Flick, Musty Flick, Air Dribble, Wall Air Dribble, Flip Reset, Air Dribble → Flip Reset and Double Flip Reset. The panel shows the steps (the current one highlights during the demo), and an input display shows the bot's stick and buttons, then yours. Keys: **1** / D-pad ← watch again, **2** / D-pad → try, **R** / Back restart. In try mode the world waits frozen until your first input.
 - **Mutators**: gravity, ball size, ball max speed, bounciness, boost amount, game speed, demolitions and match length.
 
 ## Physics (120 Hz fixed step, Unreal units)

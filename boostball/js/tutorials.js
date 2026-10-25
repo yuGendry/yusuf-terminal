@@ -98,10 +98,10 @@ function holdRelative(ctx, P, opts = {}) {
 // Flip reset the usual way: fly at the ball with a steady closing speed, then
 // just before contact stop boosting and turn the wheels to face it, so it meets
 // the underside of the car softly.
-function* getReset(ctx, maxT) {
+function* getReset(ctx, maxT, opts = {}) {
   const c = ctx.car, b = ctx.ball, C = c.controls;
   const start = ctx.resets;
-  const closeV = 520, lead = 1.0;
+  const closeV = opts.closeV || 520, lead = opts.lead || 1.0;
   let turning = false;
   ctx.data.rs = 0;
   yield* until(ctx, () => ctx.resets > start, maxT || 3, () => {
@@ -135,6 +135,22 @@ function* getReset(ctx, maxT) {
     const dir = need > 1 ? a.clone().normalize() : d;
     aim(ctx, dir, c.up);
     C.boost = need > 300 && c.fwd.dot(dir) > 0.8;
+  });
+}
+
+// Ball resting on the nose (air dribble): pitch back so the underside rotates onto it
+function* rollUnder(ctx, maxT) {
+  const c = ctx.car, b = ctx.ball;
+  const start = ctx.resets;
+  yield* until(ctx, () => ctx.resets > start, maxT, () => {
+    clearControls(ctx);
+    const dn = b.pos.clone().sub(c.hitboxCenter(V3())).normalize();
+    const f = c.up.clone().addScaledVector(dn, -c.up.dot(dn)).normalize();
+    // keep boosting through the first part of the turn: that's the closing speed that
+    // brings the wheels onto the ball
+    const closing = c.vel.clone().sub(b.vel).dot(dn);
+    c.controls.boost = c.fwd.dot(dn) > 0.35 && closing < 150;
+    aim(ctx, f, dn.negate());
   });
 }
 
@@ -428,6 +444,30 @@ const TUTORIALS = [
       yield* wait(ctx, 1.5, () => { clearControls(ctx); recoverLanding(ctx); });
     },
     success(ctx) { return ctx.resets >= 1 && ctx.data.resetHit ? 'Flip reset + flip hit!' : null; },
+  },
+  {
+    id: 'dribblereset', title: 'Air Dribble → Flip Reset', level: 'Expert',
+    limit: 12, air: true,
+    blurb: 'Keep the ball up with air dribble touches, then set your wheels on it for a reset and flip it.',
+    steps: ['Dribble, pop the ball and double jump after it.', 'Keep it up with soft nose touches so it never drops.', 'With the ball on your nose, pull back so your wheels roll under it — soft four-wheel touch = reset.', 'Reset lit — point at the ball and dodge it toward goal.'],
+    setup(ctx) { lessonById('airdribble').setup(ctx); },
+    *demo(ctx) {
+      const c = ctx.car, b = ctx.ball;
+      ctx.step(0);
+      yield* wait(ctx, 0.8, () => balanceDribble(ctx, 700));
+      yield* jumpOff(ctx, 0.2, true);
+      ctx.step(1);
+      yield* until(ctx, () => ctx.airTouches >= 3 && b.pos.z > 700, 4, () => { clearControls(ctx); airDribble(ctx, ARENA.L); });
+      // the ball is resting on the nose: pull back so the wheels roll under it
+      ctx.step(2);
+      yield* rollUnder(ctx, 1.2);
+      if (!ctx.resets) yield* getReset(ctx, 2, { closeV: 400 });
+      ctx.step(3);
+      yield* wait(ctx, 0.2, () => { clearControls(ctx); aim(ctx, b.pos.clone().sub(c.pos), V3(0, 0, 1)); });
+      yield* flipInto(ctx, 2);
+      yield* wait(ctx, 1.5, () => { clearControls(ctx); recoverLanding(ctx); });
+    },
+    success(ctx) { return ctx.airTouches >= 2 && ctx.resets >= 1 && ctx.data.resetHit ? 'Air dribble into a flip reset!' : null; },
   },
   {
     id: 'doublereset', title: 'Double Flip Reset', level: 'Expert',
