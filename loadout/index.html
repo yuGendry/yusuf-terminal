@@ -450,6 +450,7 @@
       <div class="grid" id="grid"></div>
       <button type="button" class="more" id="more" hidden>Show more</button>
     </section>
+    <section id="catall" style="display:grid; gap:14px" hidden></section>
     <section id="catsearch" style="display:grid; gap:14px" hidden></section>
   </section>
 
@@ -791,8 +792,8 @@ function renderFilters() {
 function renderRail() {
   const pool = ITEMS.filter(inPool);
   $("#rail").innerHTML = THEMES.map(t => {
-    const n = t.id === "all" ? pool.length : pool.filter(i => i.themes.includes(t.id)).length;
-    return `<button type="button" class="chip" data-theme-id="${t.id}" aria-pressed="${!view.q && view.theme === t.id}">${esc(t.name)}<span class="n">${n}</span></button>`;
+    const n = t.id === "all" ? pool.length + visibleGroups().length : pool.filter(i => i.themes.includes(t.id)).length;
+    return `<button type="button" class="chip" data-theme-id="${t.id}" aria-pressed="${!view.q && view.theme === t.id}">${esc(t.name)}<span class="n">${n.toLocaleString()}</span></button>`;
   }).join("");
 }
 function picksFor(t) {
@@ -858,14 +859,21 @@ function renderGrid() {
     const on = view.plat !== "any" ? " on " + PLAT_NAME[view.plat] : "";
     $("#list-title").textContent = (view.theme === "all" ? `All ${what}` : `${t.name}: ${what}`) + on;
   }
-  $("#list-count").textContent = `${list.length} ${list.length === 1 ? "match" : "matches"}`;
+  const groups = !view.q && view.theme === "all" ? sortedGroups(visibleGroups()) : [];
+  const total = list.length + groups.length;
+  $("#list-count").textContent = groups.length
+    ? `${total.toLocaleString()} titles · ${list.length} reviewed by Loadout`
+    : `${list.length} ${list.length === 1 ? "match" : "matches"}`;
   $("#grid").innerHTML = list.length ? list.slice(0, view.limit).map(card).join("")
-    : `<div class="empty" style="grid-column:1/-1"><strong>Nothing matches “${esc(view.q)}”</strong>Try a name, a platform like “PS5”, a genre like “roguelike”, or a category like “budgeting”.</div>`;
+    : groups.length ? `<div class="empty" style="grid-column:1/-1"><strong>No Loadout reviews match these filters</strong>See every matching title below.</div>`
+    : `<div class="empty" style="grid-column:1/-1"><strong>Nothing matches${view.q ? ` “${esc(view.q)}”` : " these filters"}</strong>Try a name, a platform like “PS5”, a genre like “roguelike”, or a category like “budgeting”.</div>`;
+  renderAllOther(groups);
   $("#more").hidden = list.length <= view.limit;
   catSearchSection();
   $("#more").textContent = `Show more (${list.length - Math.min(list.length, view.limit)} left)`;
 }
 function renderDiscover() {
+  allOtherLimit = 48;
   renderFilters(); renderRail(); renderBand(); renderGrid();
   saveJSON("loadout.prefs", { kind: view.kind, theme: view.theme, sort: view.sort });
 }
@@ -1237,6 +1245,47 @@ function curatedFor(k, r) {
 const CAT_ITEMS = [];
 for (const k of CAT_KEYS) CAT[k].items.forEach((r, i) => CAT_ITEMS.push({ p: k, r, i, hay: (r[0] + " " + r[1] + " " + r[2] + " " + CAT[k].label + " " + (r[10] || "")).toLowerCase(), curated: curatedFor(k, r) }));
 const CAT_TOTAL = CAT_ITEMS.length;
+const catKind = e => ["steam", "playstation", "xbox", "switch"].includes(e.p) || /^game/i.test(e.r[2] || "") ? "game" : "app";
+const PLAT_TO_CAT = { playstation: ["playstation"], ps5: ["playstation", "PS5"], ps4: ["playstation", "PS4"], xbox: ["xbox"], xsx: ["xbox"],
+  xone: ["xbox"], nintendo: ["switch"], sw: ["switch", "Nintendo Switch"], sw2: ["switch", "Nintendo Switch 2"], pc: ["steam"], mac: ["mac"],
+  ios: ["iphone", "ipad"], mobile: ["iphone", "ipad", "android"], android: ["android"], web: [], win: [] };
+// One entry per title: the same app on iPhone and iPad, or a game listed twice, counts once.
+const CAT_GROUPS = [];
+{
+  const byKey = new Map();
+  for (const e of CAT_ITEMS) {
+    if (e.curated) continue;
+    const key = catKind(e) + "|" + slug(e.r[0]).replace(/-(ps4-and-ps5|ps4-ps5|ps5-version|for-ps5|ps5|ps4|standard-edition)$/, "");
+    let g = byKey.get(key);
+    if (!g) { g = { kind: catKind(e), name: e.r[0], items: [], count: 0, year: 0 }; byKey.set(key, g); CAT_GROUPS.push(g); }
+    g.items.push(e);
+    g.count = Math.max(g.count, e.r[5] || 0);
+    g.year = Math.max(g.year, e.r[7] || 0);
+  }
+}
+function catInView(e) {
+  if (view.plat === "any") return true;
+  const m = PLAT_TO_CAT[view.plat] || [], keys = m.filter(x => CAT[x]), sub = m.find(x => !CAT[x]);
+  return keys.includes(e.p) && (!sub || (e.r[10] || "").split("/").includes(sub));
+}
+function visibleGroups() {
+  if (view.cat !== "all") return [];
+  return CAT_GROUPS.filter(g => (view.kind === "all" || g.kind === view.kind) && g.items.some(catInView));
+}
+function sortedGroups(gs) {
+  const by = view.sort === "az" ? (a, b) => a.name.localeCompare(b.name) : view.sort === "new" ? (a, b) => b.year - a.year || b.count - a.count : (a, b) => b.count - a.count;
+  return gs.sort(by);
+}
+let allOtherLimit = 48;
+function renderAllOther(groups) {
+  const box = $("#catall");
+  if (!box) return;
+  if (!groups.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<div class="list-head"><h2>Every other title</h2><span>${groups.length.toLocaleString()} more from ${CAT_KEYS.map(k => CAT[k].label).join(", ")}, with real store ratings</span></div>
+    <div class="cgrid">${groups.slice(0, allOtherLimit).map(g => catCard(g.items.find(catInView) || g.items[0], [...new Set(g.items.map(e => CAT[e.p].label))])).join("")}</div>
+    ${groups.length > allOtherLimit ? `<button type="button" class="more" id="allother-more">Show more (${(groups.length - allOtherLimit).toLocaleString()} left)</button>` : ""}`;
+}
 const catView = { p: CAT_KEYS[0] || "", q: "", g: "all", s: "rank", limit: 60 };
 function catThumb(e) {
   const sp = CAT[e.p].sprite, idx = e.r[8];
@@ -1255,7 +1304,7 @@ function catRating(e, long) {
   const val = pl.ratingType === "pct" ? `${r[4]}%` : (+r[4]).toFixed(1);
   return `<span class="stars" title="Real player rating from ${esc(pl.source)}"><b>★</b> ${val}${r[5] ? ` <small>${compact(r[5])}</small>` : ""}</span>`;
 }
-function catCard(e) {
+function catCard(e, labels) {
   const r = e.r;
   return `<button type="button" class="ccard" data-cat="${e.p}:${e.i}">
     ${catThumb(e)}
@@ -1263,6 +1312,7 @@ function catCard(e) {
       <b>${esc(r[0])}</b>
       <span class="meta">${esc(r[1] || CAT[e.p].label)}${r[2] ? " · " + esc(r[2]) : ""}${r[7] ? " · " + r[7] : ""}</span>
       <span class="crow">${catRating(e)}${r[3] ? `<span class="cprice">${esc(r[3])}</span>` : ""}${e.curated ? `<span class="status-tag">Loadout review</span>` : ""}</span>
+      ${labels ? `<span class="ptags">${labels.map(l => `<span class="ptag">${esc(l)}</span>`).join("")}</span>` : ""}
     </span>
   </button>`;
 }
@@ -1403,6 +1453,7 @@ document.addEventListener("click", e => {
   const cc = t.closest("[data-cat]"); if (cc) { openCat(cc.dataset.cat); return; }
   const cp = t.closest("[data-catp]"); if (cp) { catView.p = cp.dataset.catp; catView.limit = 60; catView.g = "all"; renderPlatforms(); return; }
   if (t.closest("#cat-more")) { catView.limit += 60; renderPlatforms(); return; }
+  if (t.closest("#allother-more")) { allOtherLimit += 48; renderGrid(); return; }
   if (t.closest("[data-catsearch]")) {
     const m = catMatches(CAT_ITEMS.filter(e => !e.curated), view.q);
     const counts = {}; m.forEach(e => counts[e.p] = (counts[e.p] || 0) + 1);
