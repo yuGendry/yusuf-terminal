@@ -2933,6 +2933,12 @@ class Renderer {
     v.model.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     this.carViews.delete(car);
   }
+  // rebuild the arena meshes (after the ceiling height changes)
+  rebuildArena() {
+    this.scene.remove(this.arena.group);
+    this.arena.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    this.arena = buildArena(this.scene, this.settings.video.quality);
+  }
   clearCars() { for (const c of Array.from(this.carViews.keys())) this.removeCar(c); this.hideGhost(); }
 
   // Academy ghost: a see-through copy of the car (and ball) replaying the bot's demo
@@ -4662,7 +4668,7 @@ const DEFAULT_SETTINGS = {
   video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true, bloom: true, showHitbox: false },
   audio: { master: 0.7, sfx: 0.9, engine: 0.6 },
   bindings: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD },
-  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', demos: true, freeplayBoost: true, showPrediction: false },
+  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', ceiling: 'default', demos: true, freeplayBoost: true, showPrediction: false },
 };
 const DEFAULT_LOADOUT = { name: 'You', body: 'octane', primary: '#1e6bff', accent: '#ffffff', wheel: 'Classic', wheelColor: '#c9ced8', boostColor: '#ff9a2a', boostStyle: 'Flame', topper: 'None', antenna: 'None' };
 
@@ -4672,6 +4678,7 @@ const MUTATORS = {
   ballSpeed: { default: 6000, slow: 2600, fast: 9000, super: 14000 },
   bounce: { default: 0.6, low: 0.3, high: 0.85, super: 1.0 },
   gameSpeed: { default: 1, slow: 0.7, slowmo: 0.5 },
+  ceiling: { default: 2044, high: 2500, veryhigh: 3000 },
 };
 
 function deepMerge(base, over) {
@@ -4834,6 +4841,7 @@ class Game {
 
   // An idle world used behind the menus
   menuWorld() {
+    this.setCeiling(2044);
     this.world = new World();
     this.r.clearCars();
     this.world.ball.reset(0, 0, PHYS.BALL_R + 300);
@@ -4856,6 +4864,12 @@ class Game {
     world.boostMode = G.boost === 'default' ? 'normal' : G.boost;
     world.demolitions = G.demos;
     this.timeScale = MUTATORS.gameSpeed[G.gameSpeed] || 1;
+    this.setCeiling(MUTATORS.ceiling[G.ceiling] || 2044);
+  }
+  setCeiling(h) {
+    if (ARENA.H === h) return;
+    ARENA.H = h;
+    this.r.rebuildArena();
   }
 
   makeCar(team, isBot, name, cfg) {
@@ -5662,6 +5676,7 @@ const MATCH_SCHEMA = [
   ['ballSpeed', 'Ball Max Speed', ['default', 'slow', 'fast', 'super'], { default: 'Default', slow: 'Slow', fast: 'Fast', super: 'Super Fast' }],
   ['bounce', 'Ball Bounciness', ['default', 'low', 'high', 'super'], { default: 'Default', low: 'Low', high: 'High', super: 'Super High' }],
   ['boost', 'Boost Amount', ['default', 'unlimited', 'recharge', 'none'], { default: 'Default', unlimited: 'Unlimited', recharge: 'Recharge', none: 'No Boost' }],
+  ['ceiling', 'Ceiling Height', ['default', 'high', 'veryhigh'], { default: 'Standard (2044)', high: 'High (2500)', veryhigh: 'Very High (3000)' }],
   ['gameSpeed', 'Game Speed', ['default', 'slow', 'slowmo'], { default: 'Default', slow: 'Slow', slowmo: 'Slo-mo' }],
   ['freeplayBoost', 'Unlimited Boost in Free Play', 'bool'],
 ];

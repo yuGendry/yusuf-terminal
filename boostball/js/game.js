@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS = {
   video: { quality: 'high', shadows: true, renderScale: 1, particles: true, showFps: false, nameplates: true, bloom: true, showHitbox: false },
   audio: { master: 0.7, sfx: 0.9, engine: 0.6 },
   bindings: { keys: DEFAULT_KEYS, pad: DEFAULT_PAD },
-  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', demos: true, freeplayBoost: true, showPrediction: false },
+  gameplay: { matchLength: 300, botLevel: 'pro', gravity: 'default', ballSize: 'default', ballSpeed: 'default', bounce: 'default', boost: 'default', gameSpeed: 'default', ceiling: 'default', demos: true, freeplayBoost: true, showPrediction: false },
 };
 const DEFAULT_LOADOUT = { name: 'You', body: 'octane', primary: '#1e6bff', accent: '#ffffff', wheel: 'Classic', wheelColor: '#c9ced8', boostColor: '#ff9a2a', boostStyle: 'Flame', topper: 'None', antenna: 'None' };
 
@@ -17,6 +17,7 @@ const MUTATORS = {
   ballSpeed: { default: 6000, slow: 2600, fast: 9000, super: 14000 },
   bounce: { default: 0.6, low: 0.3, high: 0.85, super: 1.0 },
   gameSpeed: { default: 1, slow: 0.7, slowmo: 0.5 },
+  ceiling: { default: 2044, high: 2500, veryhigh: 3000 },
 };
 
 function deepMerge(base, over) {
@@ -179,6 +180,7 @@ class Game {
 
   // An idle world used behind the menus
   menuWorld() {
+    this.setCeiling(2044);
     this.world = new World();
     this.r.clearCars();
     this.world.ball.reset(0, 0, PHYS.BALL_R + 300);
@@ -201,6 +203,12 @@ class Game {
     world.boostMode = G.boost === 'default' ? 'normal' : G.boost;
     world.demolitions = G.demos;
     this.timeScale = MUTATORS.gameSpeed[G.gameSpeed] || 1;
+    this.setCeiling(MUTATORS.ceiling[G.ceiling] || 2044);
+  }
+  setCeiling(h) {
+    if (ARENA.H === h) return;
+    ARENA.H = h;
+    this.r.rebuildArena();
   }
 
   makeCar(team, isBot, name, cfg) {

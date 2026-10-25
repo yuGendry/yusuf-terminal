@@ -945,6 +945,12 @@ class Renderer {
     v.model.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     this.carViews.delete(car);
   }
+  // rebuild the arena meshes (after the ceiling height changes)
+  rebuildArena() {
+    this.scene.remove(this.arena.group);
+    this.arena.group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    this.arena = buildArena(this.scene, this.settings.video.quality);
+  }
   clearCars() { for (const c of Array.from(this.carViews.keys())) this.removeCar(c); this.hideGhost(); }
 
   // Academy ghost: a see-through copy of the car (and ball) replaying the bot's demo
