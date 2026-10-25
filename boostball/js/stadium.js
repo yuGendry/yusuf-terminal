@@ -34,7 +34,7 @@ function instanceProp(group, name, placements, opts = {}) {
       if (tint >= 0 && /red|pylon/i.test(mname)) mat.color.copy(STADIUM_TINT[tint]);
       else if (!(opts.map && opts.map[mname])) mat.color.multiplyScalar(opts.dim || 0.55);
       if (opts.glow && opts.glow.test(mname)) { mat.emissive = new THREE.Color(0xfff6dd); mat.emissiveIntensity = 2.2; }
-      if (opts.map && opts.map[mname]) { mat.map = opts.map[mname]; mat.needsUpdate = true; }
+      if (opts.map && opts.map[mname]) { mat.map = opts.map[mname]; mat.emissiveMap = mat.map; mat.emissive = new THREE.Color(0xffffff); mat.emissiveIntensity = 0.85; mat.needsUpdate = true; }
       mat.envMapIntensity = 0.5;
       const im = new THREE.InstancedMesh(o.geometry, mat, list.length);
       list.forEach((p, i) => im.setMatrixAt(i, propMatrix(p).multiply(local)));
@@ -115,19 +115,41 @@ function crowdLayer(group, tiles, standName, quality) {
   return im;
 }
 
+// The billboards are screens: one shared canvas showing the brand, or the live score and clock
+const BOARD = { canvas: null, tex: null, key: '' };
 function billboardTexture() {
-  const c = document.createElement('canvas');
+  const c = BOARD.canvas = document.createElement('canvas');
   c.width = 512; c.height = 256;
-  const g = c.getContext('2d');
+  BOARD.tex = new THREE.CanvasTexture(c);
+  BOARD.tex.encoding = THREE.sRGBEncoding;
+  drawBoard(null);
+  return BOARD.tex;
+}
+// state: null (brand) or { blue, orange, clock, flash: 'GOAL!' | null, team }
+function drawBoard(state) {
+  if (!BOARD.canvas) return;
+  const key = JSON.stringify(state);
+  if (key === BOARD.key) return;
+  BOARD.key = key;
+  const g = BOARD.canvas.getContext('2d');
   const grd = g.createLinearGradient(0, 0, 512, 0);
   grd.addColorStop(0, '#1e5cff'); grd.addColorStop(1, '#ff7a1a');
   g.fillStyle = grd; g.fillRect(0, 0, 512, 256);
-  g.fillStyle = 'rgba(8,12,26,0.55)'; g.fillRect(0, 70, 512, 116);
-  g.fillStyle = '#fff'; g.font = 'bold 76px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('BOOSTBALL', 256, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.encoding = THREE.sRGBEncoding; t.flipY = false;
-  return t;
+  g.fillStyle = 'rgba(8,12,26,0.6)'; g.fillRect(12, 40, 488, 176);
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (!state) {
+    g.font = 'bold 76px sans-serif'; g.fillText('BOOSTBALL', 256, 128);
+  } else if (state.flash) {
+    g.fillStyle = state.team === 0 ? '#7fb2ff' : '#ffb27a';
+    g.font = 'bold 110px sans-serif'; g.fillText(state.flash, 256, 128);
+  } else {
+    g.font = 'bold 96px sans-serif';
+    g.fillStyle = '#9cc2ff'; g.fillText(String(state.blue), 96, 116);
+    g.fillStyle = '#ffc08a'; g.fillText(String(state.orange), 416, 116);
+    g.fillStyle = '#fff'; g.font = 'bold 54px sans-serif'; g.fillText(state.clock, 256, 116);
+    g.font = '28px sans-serif'; g.fillStyle = 'rgba(255,255,255,0.75)'; g.fillText('BLUE        ·        ORANGE', 256, 182);
+  }
+  BOARD.tex.needsUpdate = true;
 }
 
 // Returns { crowd: [InstancedMesh], cheer(t) } so the game can make the crowd jump on goals.
@@ -180,7 +202,31 @@ function dressStadium(group, quality) {
   for (const sx of [-1, 1]) for (const y of [-3000, 0, 3000]) {
     boards.push({ x: sx * (side + S * 2.2), y: y - sx * 700, z: S * 0.85 + S2 * 1.05, yaw: sx < 0 ? Math.PI / 2 : -Math.PI / 2, s: 1500 });
   }
-  instanceProp(group, 'billboard', boards, { map: { tankco: billboardTexture() } });
+  instanceProp(group, 'billboard', boards);
+  // screens: clean textured planes on both faces of each billboard panel, sized from the
+  // panel mesh itself (model space, before the Y-up turn)
+  const tex = billboardTexture();
+  const box = new THREE.Box3();
+  ASSETS.props.billboard.updateMatrixWorld(true);
+  ASSETS.props.billboard.traverse(o => {
+    if (o.isMesh && o.material.name === 'tankco') { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); }
+  });
+  const ctr = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+  const screenMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+  // the panel is about twice as wide as it is tall; the mesh also has a lower strip, so anchor to the top
+  const sw = size.x * 0.97, sh = Math.min(size.y, size.x * 0.49) * 0.97;
+  ctr.y = box.max.y - sh / 2 - size.x * 0.015;
+  const screenGeo = new THREE.PlaneGeometry(sw, sh);
+  const screens = new THREE.InstancedMesh(screenGeo, screenMat, boards.length * 2);
+  boards.forEach((p, i) => {
+    for (const f of [0, 1]) {
+      const local = new THREE.Matrix4().compose(new THREE.Vector3(ctr.x, ctr.y, f ? box.min.z - 0.004 : box.max.z + 0.004),
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), f ? Math.PI : 0), new THREE.Vector3(1, 1, 1));
+      screens.setMatrixAt(i * 2 + f, propMatrix(p).multiply(_yUp).multiply(local));
+    }
+  });
+  screens.frustumCulled = false;
+  group.add(screens);
 
   // team banner towers at the goal-end corners and flags along the roof line
   const banners = [], flags = [];
@@ -222,7 +268,7 @@ function dressStadium(group, quality) {
       im.instanceMatrix.needsUpdate = true;
     }
   }
-  return { crowd, cheer };
+  return { crowd, cheer, board: drawBoard };
 }
 
 // Garage backdrop: a row of pit garages behind the turntable (the garage camera always looks

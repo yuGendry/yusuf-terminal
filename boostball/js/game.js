@@ -183,6 +183,7 @@ class Game {
   menuWorld() {
     this.setCeiling(ARENA_DEFAULT_H);
     this.sfx.crowd(0);
+    if (this.r.arena.stadium) this.r.arena.stadium.board(null);
     if (this.hud.replayTag) this.hud.replayTag.classList.add('hidden');
     this.world = new World();
     this.r.clearCars();
@@ -645,6 +646,7 @@ class Game {
     this.updateHud(dt);
     this.updateCrowd();
     const st = this.r.arena.stadium;
+    if (st) st.board(this.boardState());
     if (st && this.cheerT !== undefined && this.cheerT < 4.2) { this.cheerT += dt; st.cheer(this.cheerT); }
     this.sfx.setEngine(pc.vel.length(), pc.isBoosting, !pc.demolished && this.state !== 'goal', pc.onGround);
     this.r.render();
@@ -1022,6 +1024,16 @@ class Game {
       this.fpsAcc = 0; this.fpsN = 0;
     }
     this.hud.fps.classList.toggle('hidden', !this.settings.video.showFps);
+  }
+
+  // what the stadium screens show
+  boardState() {
+    if (this.mode !== 'exhibition' && this.mode !== 'heatseeker' && this.mode !== 'kickoff') return null;
+    if ((this.state === 'goal' || this.state === 'replay') && this.replayGoal) return { flash: this.state === 'replay' ? 'REPLAY' : 'GOAL!', team: this.replayGoal.team };
+    const s = this.mode === 'kickoff' ? this.kickoffWins : this.score;
+    const t = Math.max(0, this.time);
+    const clock = this.mode === 'kickoff' ? 'KICKOFF' : (this.overtime ? '+' : '') + Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+    return { blue: s[0], orange: s[1], clock };
   }
 
   // crowd volume follows the action: louder near either goal, loudest when a goal looks likely
