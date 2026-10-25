@@ -559,7 +559,12 @@ class World {
     if (Math.abs(fx) < 0.1) fx = 0;
     if (Math.abs(fy) < 0.1) fy = 0;
     const len = Math.hypot(fx, fy);
-    if (len < 1e-3) { car.vel.addScaledVector(car.up, PHYS.JUMP_IMPULSE); car.hasDoubleJumped = true; return; }
+    if (len < 1e-3) {
+      // stall: yaw and air roll cancel out, so the flip is spent without any impulse or spin
+      car.hasDoubleJumped = true; car.hasFlipped = true;
+      car.events.push('stall');
+      return;
+    }
     fx /= len; fy /= len;
     car.isFlipping = true; car.hasFlipped = true; car.flipTime = 0; car.flipCancelled = false;
     car.flipX = fx; car.flipY = fy;

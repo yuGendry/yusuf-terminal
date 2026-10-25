@@ -192,7 +192,8 @@ class Game {
   }
 
   applyMutators(world) {
-    const G = this.settings.gameplay;
+    // Academy lessons always run on standard physics so the demos and your tries match
+    const G = this.mode === 'tutorial' ? DEFAULT_SETTINGS.gameplay : this.settings.gameplay;
     world.gravity = MUTATORS.gravity[G.gravity] || -650;
     world.ball.radius = MUTATORS.ballSize[G.ballSize] || PHYS.BALL_R;
     world.ball.maxSpeed = MUTATORS.ballSpeed[G.ballSpeed] || 6000;

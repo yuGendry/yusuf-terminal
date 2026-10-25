@@ -15,6 +15,8 @@ function* until(ctx, cond, maxSecs, each) {
   const end = ctx.t + (maxSecs || 10);
   while (!cond() && ctx.t < end) { if (each) each(); yield; }
 }
+// lesson tuning knob (the demo planner tries a few values per car body)
+function tv(ctx, key, def) { const T = ctx.tune; return T && T[key] !== undefined ? T[key] : def; }
 function holdControls(ctx, c) { Object.assign(ctx.car.controls, c); }
 function clearControls(ctx) {
   const C = ctx.car.controls;
@@ -109,9 +111,11 @@ function* getReset(ctx, maxT, opts = {}) {
     const d = b.pos.clone().sub(c.hitboxCenter(V3())), dist = d.length(); d.normalize();
     const v = c.vel.clone().sub(b.vel), closing = v.dot(d);
     const gap = dist - b.radius - c.half.z;
-    if (!turning && gap < Math.max(closing, 150) * lead) turning = true;
-    if (turning && (gap > 420 || closing < 40)) turning = false;
+    if (!turning && closing > 60 && (gap < closing * lead || gap < 25)) turning = true;
+    if (turning && (gap > 420 || closing < 20)) turning = false;
     ctx.data.rs = turning ? 1 : 0;
+    // a wheel is on the ball: let go of the stick so the suspension rocks the rest onto it
+    if (tv(ctx, 'limp', 1) && c.numBallWheels > 0 && c.up.dot(d) < -0.7) { ctx.data.rs = 2; return; }
     if (turning) {
       // wheels toward the ball; the nose points where we need a sideways nudge so the
       // ball lands in the middle of the underside, and short boosts make the nudge
@@ -130,11 +134,13 @@ function* getReset(ctx, maxT, opts = {}) {
       return;
     }
     // aim the relative velocity straight at the ball at closeV
-    const a = d.clone().multiplyScalar(closeV).sub(v).multiplyScalar(3);
+    // (slower when already close, so there's still time to turn the wheels in)
+    const vT = Math.min(closeV, Math.max(gap, 0) / (lead * tv(ctx, 'lf', 0.8)) + tv(ctx, 'va', 60));
+    const a = d.clone().multiplyScalar(vT).sub(v).multiplyScalar(3);
     const need = a.length();
     const dir = need > 1 ? a.clone().normalize() : d;
     aim(ctx, dir, c.up);
-    C.boost = need > 300 && c.fwd.dot(dir) > 0.8;
+    C.boost = need > 150 && c.fwd.dot(dir) > 0.85;
   });
 }
 
@@ -154,6 +160,18 @@ function* rollUnder(ctx, maxT) {
   });
 }
 
+// Wheels on (or just off) the ball: dodge toward where the ball sits under the car, so the
+// spinning body sweeps through it (front flip if it's ahead of center, back flip if behind)
+function* flipToward(ctx) {
+  const c = ctx.car, b = ctx.ball;
+  const off = b.pos.clone().sub(c.hitboxCenter(V3()));
+  let fx = off.dot(c.fwd), fy = -off.dot(c.left);
+  const n = Math.hypot(fx, fy) || 1;
+  fx /= n; fy /= n;
+  if (Math.abs(fx) < 0.35 && Math.abs(fy) < 0.35) { fx = 1; fy = 0; }
+  yield* wait(ctx, 0.05, () => { clearControls(ctx); Object.assign(c.controls, { jump: true, pitch: -fx, yaw: fy }); });
+}
+
 // Point the nose at the ball, boost in, and dodge into it when close
 function* flipInto(ctx, maxT) {
   const c = ctx.car, b = ctx.ball, C = c.controls;
@@ -161,11 +179,21 @@ function* flipInto(ctx, maxT) {
   yield* until(ctx, () => flipped, maxT || 2, () => {
     clearControls(ctx);
     const hc = c.hitboxCenter(V3());
-    const to = b.pos.clone().addScaledVector(b.vel.clone().sub(c.vel), 0.08).sub(hc);
-    const d = to.length(); to.normalize();
+    const d = b.pos.clone().sub(hc), dist = d.length(), dn = d.clone().divideScalar(dist);
+    const v = c.vel.clone().sub(b.vel), closing = v.dot(dn);
+    const latV = v.clone().addScaledVector(dn, -closing).length();
+    // first line the relative velocity up straight at the ball, then point the nose and dodge
+    if (latV > 90 || closing < 250) {
+      const a = dn.clone().multiplyScalar(tv(ctx, 'fv', 550)).sub(v).multiplyScalar(3);
+      const dir = a.clone().normalize();
+      aim(ctx, dir, c.up.z > -0.3 ? V3(0, 0, 1) : c.up);
+      C.boost = a.length() > 150 && c.fwd.dot(dir) > 0.85;
+      return;
+    }
+    const to = b.pos.clone().addScaledVector(b.vel.clone().sub(c.vel), 0.08).sub(hc).normalize();
     aim(ctx, to, c.up.z > -0.3 ? V3(0, 0, 1) : c.up);
-    C.boost = c.fwd.dot(to) > 0.9 && d > 280;
-    if (d < 300 && c.fwd.dot(to) > 0.92) { C.jump = true; C.pitch = -1; C.yaw = 0; flipped = true; }
+    const tHit = (dist - b.radius - c.half.x) / Math.max(closing, 1);
+    if (tHit < tv(ctx, 'ft', 0.18) && c.fwd.dot(to) > 0.85) { C.jump = true; C.pitch = -1; C.yaw = 0; flipped = true; }
   });
   yield* wait(ctx, 0.06, () => { clearControls(ctx); C.jump = true; C.pitch = -1; });
   yield* wait(ctx, 0.6, () => { clearControls(ctx); });
@@ -305,17 +333,18 @@ const TUTORIALS = [
     *demo(ctx) {
       const c = ctx.car, C = c.controls;
       ctx.step(0);
-      yield* wait(ctx, 1.0, () => balanceDribble(ctx, 850));
+      yield* wait(ctx, 1.0, () => balanceDribble(ctx, 850, tv(ctx, 'bt', 8)));
       ctx.step(1);
-      yield* wait(ctx, 0.8, () => balanceDribble(ctx, 950));
+      yield* wait(ctx, 0.8, () => balanceDribble(ctx, 950, tv(ctx, 'bt', 8)));
       ctx.step(2);
-      yield* wait(ctx, 0.2, () => { clearControls(ctx); C.jump = true; });
+      yield* wait(ctx, tv(ctx, 'jh', 0.2), () => { clearControls(ctx); C.jump = true; });
       yield* wait(ctx, 0.008, () => { clearControls(ctx); });
       ctx.step(3);
       yield* wait(ctx, 0.05, () => { clearControls(ctx); C.jump = true; C.pitch = -1; C.yaw = 0.5; });
       yield* wait(ctx, 0.5, () => { clearControls(ctx); });
       yield* wait(ctx, 1.0, () => { clearControls(ctx); recoverLanding(ctx); });
     },
+    knobs: { bt: [8, 0, 16, -6, 24], jh: [0.2, 0.15, 0.25] },
     success(ctx) {
       const b = ctx.ball;
       if (ctx.flips > 0 && b.vel.length() > 1150 && b.vel.y > 700) return 'Flick! ' + Math.round(b.vel.length() * 0.036) + ' km/h';
@@ -336,15 +365,16 @@ const TUTORIALS = [
     *demo(ctx) {
       const c = ctx.car, C = c.controls;
       ctx.step(0);
-      yield* wait(ctx, 1.4, () => balanceDribble(ctx, 900));
+      yield* wait(ctx, 1.4, () => balanceDribble(ctx, 900, tv(ctx, 'bt', 8)));
       ctx.step(1);
-      yield* wait(ctx, 0.1, () => { clearControls(ctx); C.jump = true; });
+      yield* wait(ctx, tv(ctx, 'jh', 0.1), () => { clearControls(ctx); C.jump = true; });
       yield* wait(ctx, 0.033, () => { clearControls(ctx); C.pitch = 1; });
       ctx.step(2);
       yield* wait(ctx, 0.05, () => { clearControls(ctx); C.jump = true; C.pitch = 1; });
       ctx.step(3);
       yield* wait(ctx, 1.4, () => { clearControls(ctx); if (ctx.t > 1.9) recoverLanding(ctx); else C.pitch = 1; });
     },
+    knobs: { bt: [8, 0, 16, -6, 24], jh: [0.1, 0.07, 0.13, 0.16] },
     success(ctx) {
       const b = ctx.ball;
       if (ctx.flips > 0 && b.vel.length() > 1300 && b.vel.y > 1000) return 'Musty! ' + Math.round(b.vel.length() * 0.036) + ' km/h';
@@ -388,10 +418,10 @@ const TUTORIALS = [
     steps: ['Follow the ball as it rolls up the side wall.', 'Stay right under it and push it up the wall with your nose.', 'Jump off the wall (and double jump) with the ball on the nose.', 'Feather boost to keep it on the nose and fly it at the goal.'],
     setup(ctx) {
       ctx.car.place(2300, -2700, 0.15);
-      ctx.car.vel.set(950, 140, 0);
+      ctx.car.vel.set(tv(ctx, 'cv', 950), 140, 0);
       ctx.car.infiniteBoost = true;
       ctx.ball.reset(2850, -2620, 93);
-      ctx.ball.vel.set(1250, 220, 0);
+      ctx.ball.vel.set(tv(ctx, 'bv', 1250), 220, 0);
     },
     *demo(ctx) {
       const c = ctx.car, C = c.controls, b = ctx.ball;
@@ -400,17 +430,18 @@ const TUTORIALS = [
       const offWall = () => ARENA.W - Math.abs(b.pos.x) - b.radius;
       yield* until(ctx, () => c.up.x < -0.8 && c.pos.distanceTo(b.pos) < 300 && (offWall() > 45 || b.vel.z < 450), 4, () => {
         clearControls(ctx);
-        const tgt = b.pos.clone(); tgt.z -= 30;
+        const tgt = b.pos.clone(); tgt.z -= tv(ctx, 'wz', 30);
         ctx.bot.driveTo(tgt, 1, false);
         C.boost = c.numArenaWheels >= 3 && c.up.z > 0.7 && c.pos.distanceTo(b.pos) > 260;
-        if (c.up.x < -0.6) { ctx.step(1); C.throttle = c.pos.distanceTo(b.pos) > 230 ? 1 : 0.3; }
+        if (c.up.x < -0.6) { ctx.step(1); C.throttle = c.pos.distanceTo(b.pos) > tv(ctx, 'wd', 230) ? 1 : 0.3; }
       });
       ctx.step(2);
       ctx.data.leftWall = true;
-      yield* jumpOff(ctx, 0.1, true);
+      yield* jumpOff(ctx, tv(ctx, 'jh', 0.1), true);
       ctx.step(3);
       yield* until(ctx, () => b.pos.y > ARENA.L || (onGround(ctx) && ctx.t > 3), 7, () => { clearControls(ctx); airDribble(ctx, ARENA.L); });
     },
+    knobs: { wd: [230, 200, 260, 290], jh: [0.1, 0.05, 0.15, 0.2], cv: [950, 800, 1100, 1250], wz: [30, 0, 60], bv: [1250, 1100, 1400] },
     success(ctx) {
       if (ctx.ball.pos.y > ARENA.L + ctx.ball.radius && ctx.airTouches >= 2) return 'Wall air dribble goal! (' + ctx.airTouches + ' touches)';
       if (ctx.airTouches >= 5 && ctx.car.pos.z > 300) return ctx.airTouches + ' air touches off the wall!';
@@ -424,7 +455,7 @@ const TUTORIALS = [
     steps: ['Your jumps are already used — there is no flip left.', 'Boost straight at the ball at a steady, medium speed.', 'Just before you reach it, stop boosting and turn your wheels to face it — a soft four-wheel touch lights FLIP (RESET).', 'Point the nose at the ball and dodge into it.'],
     setup(ctx) {
       const c = ctx.car;
-      c.place(0, -1650, Math.PI / 2, 450);
+      c.place(0, -1650, Math.PI / 2, tv(ctx, 'cz', 400));
       c.vel.set(0, 600, 1400);
       c.hasJumped = true; c.hasDoubleJumped = true;
       c.infiniteBoost = true;
@@ -443,6 +474,7 @@ const TUTORIALS = [
       yield* flipInto(ctx, 2);
       yield* wait(ctx, 1.5, () => { clearControls(ctx); recoverLanding(ctx); });
     },
+    knobs: { lf: [0.8, 0.4, 0.5, 0.6, 0.35], va: [60, 100, 200], limp: [1, 0], cz: [400, 380, 420] },
     success(ctx) { return ctx.resets >= 1 && ctx.data.resetHit ? 'Flip reset + flip hit!' : null; },
   },
   {
@@ -457,7 +489,7 @@ const TUTORIALS = [
       yield* wait(ctx, 0.8, () => balanceDribble(ctx, 700));
       yield* jumpOff(ctx, 0.2, true);
       ctx.step(1);
-      yield* until(ctx, () => ctx.airTouches >= 3 && b.pos.z > 700, 4, () => { clearControls(ctx); airDribble(ctx, ARENA.L); });
+      yield* until(ctx, () => ctx.airTouches >= tv(ctx, 'at', 3) && b.pos.z > tv(ctx, 'az', 700), 4, () => { clearControls(ctx); airDribble(ctx, ARENA.L); });
       // the ball is resting on the nose: pull back so the wheels roll under it
       ctx.step(2);
       yield* rollUnder(ctx, 1.2);
@@ -467,16 +499,17 @@ const TUTORIALS = [
       yield* flipInto(ctx, 2);
       yield* wait(ctx, 1.5, () => { clearControls(ctx); recoverLanding(ctx); });
     },
+    knobs: { lf: [0.8, 0.4, 0.5, 0.6, 0.35], va: [60, 100, 200], limp: [1, 0], at: [3, 2, 4, 5], az: [700, 900] },
     success(ctx) { return ctx.airTouches >= 2 && ctx.resets >= 1 && ctx.data.resetHit ? 'Air dribble into a flip reset!' : null; },
   },
   {
     id: 'doublereset', title: 'Double Flip Reset', level: 'Expert',
     limit: 9, air: true,
     blurb: 'Two resets in one aerial, then finish with the flip.',
-    steps: ['Your jumps are used — fly at the ball.', 'Turn your wheels into it for the first reset.', 'Tap jump to pop off the ball (that spends the reset), then boost straight back at it.', 'Wheels on it again for reset #2, then dodge into the ball.'],
+    steps: ['Your jumps are used — fly at the ball.', 'Turn your wheels into it for the first reset.', 'Stall to spend it without leaving the ball: air roll left + steer right + jump.', 'Get your wheels on it again for reset #2, then dodge into the ball.'],
     setup(ctx) {
       const c = ctx.car;
-      c.place(0, -1650, Math.PI / 2, 450);
+      c.place(0, -1650, Math.PI / 2, tv(ctx, 'cz', 400));
       c.vel.set(0, 600, 1400);
       c.hasJumped = true; c.hasDoubleJumped = true;
       c.infiniteBoost = true;
@@ -491,19 +524,69 @@ const TUTORIALS = [
       yield* getReset(ctx, 3.5);
       // spend the reset's jump to pop off the ball, then come back down onto it
       ctx.step(2);
+      // stall: air roll left + yaw right + jump spends the reset without leaving the ball
+      yield* until(ctx, () => !ctx.car.onGround, 0.4, () => { clearControls(ctx); });
+      yield* wait(ctx, tv(ctx, 'sw', 0.02), () => { clearControls(ctx); });
+      yield* wait(ctx, 1 / 120, () => { clearControls(ctx); Object.assign(ctx.car.controls, { jump: true, yaw: 1, roll: -1 }); });
       yield* wait(ctx, 0.05, () => { clearControls(ctx); });
-      yield* wait(ctx, 1 / 120, () => { clearControls(ctx); ctx.car.controls.jump = true; });
-      yield* wait(ctx, 0.1, () => { clearControls(ctx); });
-      yield* getReset(ctx, 3);
+      yield* getReset(ctx, 3, { closeV: tv(ctx, 'cv2', 520) });
       ctx.step(3);
-      yield* flipInto(ctx, 2);
+      // wheels are on the ball: a front flip right away swings the nose down through it
+      yield* until(ctx, () => !ctx.car.onGround, 0.4, () => { clearControls(ctx); });
+      yield* wait(ctx, tv(ctx, 'fw2', 0.06), () => { clearControls(ctx); });
+      yield* flipToward(ctx);
+      yield* wait(ctx, 0.5, () => { clearControls(ctx); });
       yield* wait(ctx, 1.5, () => { clearControls(ctx); recoverLanding(ctx); });
     },
+    knobs: { lf: [0.8, 0.5, 0.4], limp: [1, 0], cv2: [520, 400, 650], fw2: [0.06, 0.02, 0.12], sw: [0.02, 0.08], cz: [400, 380, 420] },
     success(ctx) { return ctx.data.airResets >= 2 && ctx.data.resetHit ? 'Double reset!' : null; },
   },
 ];
 
 function lessonById(id) { return TUTORIALS.find(l => l.id === id); }
+
+// ------------------------------------------------------------- demo planner
+// Physics is deterministic, so before a demo plays we dry-run it on a scratch world with
+// the player's car body and pick the first knob setting that lands the move. The real
+// demo then replays exactly that run.
+const _demoPlans = {};
+// precomputed by tools/plan-demos.js (a dry run still verifies them at runtime)
+// DEMO_PLANS_BEGIN
+const DEMO_PLANS = {"flick":{"octane":{"bt":8,"jh":0.2},"dominus":{"bt":16,"jh":0.2},"plank":{"bt":16,"jh":0.2},"breakout":{"bt":8,"jh":0.2},"hybrid":{"bt":8,"jh":0.2},"merc":{"bt":8,"jh":0.2}},"musty":{"octane":{"bt":8,"jh":0.1},"dominus":{"bt":16,"jh":0.1},"plank":{"bt":24,"jh":0.1},"breakout":{"bt":24,"jh":0.1},"hybrid":{"bt":16,"jh":0.1},"merc":{"bt":8,"jh":0.1}},"walldribble":{"octane":{"wd":230,"jh":0.1,"cv":950,"wz":30,"bv":1250},"dominus":{"wd":200,"jh":0.1,"cv":950,"wz":30,"bv":1250},"plank":{"wd":200,"jh":0.05,"cv":950,"wz":30,"bv":1250},"merc":{"wd":260,"jh":0.2,"cv":800,"wz":0,"bv":1250}},"flipreset":{"octane":{"lf":0.8,"va":60,"limp":1,"cz":400},"dominus":{"lf":0.8,"va":60,"limp":1,"cz":400},"plank":{"lf":0.8,"va":60,"limp":1,"cz":400},"breakout":{"lf":0.8,"va":60,"limp":1,"cz":400},"hybrid":{"lf":0.8,"va":60,"limp":1,"cz":400},"merc":{"lf":0.8,"va":60,"limp":1,"cz":400}},"dribblereset":{"octane":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"dominus":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"plank":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"breakout":{"lf":0.8,"va":60,"limp":1,"at":3,"az":700},"hybrid":{"lf":0.8,"va":60,"limp":0,"at":3,"az":700},"merc":{"lf":0.8,"va":60,"limp":1,"at":2,"az":700}},"doublereset":{"octane":{"lf":0.5,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"dominus":{"lf":0.4,"limp":0,"cv2":400,"fw2":0.06,"sw":0.02,"cz":400},"plank":{"lf":0.5,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"breakout":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":380},"hybrid":{"lf":0.8,"limp":1,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400},"merc":{"lf":0.4,"limp":0,"cv2":520,"fw2":0.06,"sw":0.02,"cz":400}}};
+// DEMO_PLANS_END
+function dryRunDemo(lesson, car, tune) {
+  const w = new World();
+  const c = w.addCar(new Car({ body: car.body, team: car.team }));
+  c.dodgeDeadzone = car.dodgeDeadzone;
+  const run = new TutorialRun(w, c, lesson);
+  run.start('demo', tune);
+  for (let i = 0; i < 120 * 14 && !run.result && !run.finished; i++) {
+    run.pre(PHYS.TICK);
+    w.step(PHYS.TICK);
+    run.post(PHYS.TICK, w.events, c.events);
+    w.events.length = 0; c.events.length = 0;
+  }
+  return !!(run.result && run.result.ok);
+}
+function planDemo(lesson, car) {
+  const key = lesson.id + ':' + car.body + ':' + car.dodgeDeadzone;
+  if (key in _demoPlans) return _demoPlans[key];
+  let combos = [{}];
+  for (const [k, vals] of Object.entries(lesson.knobs || {})) {
+    const next = [];
+    for (const v of vals) for (const cmb of combos) next.push({ ...cmb, [k]: v });
+    combos = next;
+  }
+  let pick = combos[0];
+  const known = (DEMO_PLANS[lesson.id] || {})[car.body];
+  if (known) combos.unshift(known);
+  const t0 = Date.now();
+  for (const tune of combos) {
+    if (dryRunDemo(lesson, car, tune)) { pick = tune; break; }
+    if (Date.now() - t0 > 1500) break; // never stall the game for long
+  }
+  return (_demoPlans[key] = pick);
+}
 
 // ------------------------------------------------------------- runner
 class TutorialRun {
@@ -513,13 +596,14 @@ class TutorialRun {
     this.mode = 'demo';
     this.result = null;
   }
-  start(mode) {
+  start(mode, tune) {
     this.mode = mode;
     const w = this.w;
     w.ballFrozen = false;
     for (const p of w.pads) { p.active = true; p.timer = 0; }
     const ctx = this.ctx = {
       w, car: this.car, ball: w.ball, bot: this.bot, t: 0, data: {}, stepIdx: 0,
+      tune: tune !== undefined ? tune : planDemo(this.lesson, this.car),
       touches: 0, airTouches: 0, resets: 0, flips: 0, landedClean: false,
       step: (i) => { ctx.stepIdx = i; },
     };

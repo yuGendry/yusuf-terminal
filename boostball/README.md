@@ -45,6 +45,7 @@ Gameplay tuning on top of the measured constants:
 - **Pinches:** a ball squeezed between a car and the floor, wall or ceiling shoots out of the gap at up to max ball speed.
 - **Wavedash / zap dash:** landing mid-dodge stops the flip rotation and keeps the dodge speed.
 - **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it. Hitting that goal's backboard, crossbar or posts sends it back toward the other goal.
+- **Stall:** jumping with air roll and yaw pushed in opposite directions (e.g. air roll left + steer right) spends your flip without any impulse or spin, like the real game. Handy for double resets.
 - **Speed flips:** after a dodge is cancelled (hold the stick against the flip), air roll and yaw act on the leftover rotation, so a diagonal flip + cancel + counter air roll lands flat at supersonic speed.
 
 Flip resets: you need a real wheels-first touch while airborne. The ball has to meet the flat underside squarely (within about 25° of straight under the car) at under 800 uu/s of closing speed, or at least 3 wheels have to land on it. Glancing edge or side touches and smashing into it don't count, and you only get a reset after you've used a jump. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
@@ -73,5 +74,7 @@ You can rebind everything under **Settings → Bindings**. Settings also include
 - `js/game.js`: modes, match flow, camera and HUD
 - `js/ui.js`: menus, garage, settings and rebinding
 - `js/input.js`, `js/audio.js`, `js/main.js`
+
+Academy demos are scripted bot runs with a few tuning knobs per lesson. Because the physics is deterministic, `node tools/plan-demos.js path/to/three.min.js` searches the knobs for each car body and stores the settings that land the move in `js/tutorials.js`. The game re-checks them with a quick dry run before each demo, and searches briefly if a stored setting stops working.
 
 Run `node build.js` to regenerate `js/assets.js` and `dist/boostball.html` after editing the source or assets.
