@@ -324,7 +324,7 @@ class World {
       if (disc >= 0) {
         let tb = -bq - Math.sqrt(disc);
         if (tb < 0 && cq < 0) tb = 0;
-        if (tb >= 0 && tb <= PHYS.SUSP_LEN && (t < 0 || tb < t)) {
+        if (tb >= 0 && tb <= PHYS.SUSP_LEN + 10 && (t < 0 || tb < t)) {
           t = tb; onBall = true;
           const hx = _v2.x + dx * tb - ball.pos.x, hy = _v2.y + dy * tb - ball.pos.y, hz = _v2.z + dz * tb - ball.pos.z;
           const hl = Math.sqrt(hx * hx + hy * hy + hz * hz) || 1;
@@ -382,11 +382,8 @@ class World {
     }
 
     // jump state bookkeeping
+    if (car.numArenaWheels === 0 && car.numBallWheels >= 2 && !car.isJumping) this.grantFlipReset(car);
     if (car.onGround && !car.isJumping) {
-      if (car.hasJumped || car.hasDoubleJumped || car.hasFlipped) {
-        if (car.numArenaWheels === 0 && car.numBallWheels >= 3) car.events.push('flipreset');
-      }
-      if (car.numArenaWheels === 0 && car.numBallWheels >= 3 && (car.hasDoubleJumped || car.hasFlipped || car.hasJumped)) car.flipResetReady = true;
       car.hasJumped = false; car.hasDoubleJumped = false; car.hasFlipped = false;
       car.airTime = 0; car.airTimeSinceJump = 0;
       if (car.numArenaWheels >= 3) car.flipResetReady = false;
@@ -744,16 +741,26 @@ class World {
     car.lastBallTick = this.tick;
     const J2 = new THREE.Vector3();
     if (this.tick - (car.lastExtraTick || -10) > 1) {
-      const n2 = new THREE.Vector3().subVectors(ball.pos, car.pos);
-      n2.z *= 0.35;
-      n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
+      const airborne = car.numArenaWheels === 0;
+      let n2;
+      if (airborne) {
+        // air touches push along the car->ball line, so the ball stays on the nose (air dribbles)
+        n2 = new THREE.Vector3().subVectors(ball.pos, car.hitboxCenter(new THREE.Vector3())).normalize();
+      } else {
+        n2 = new THREE.Vector3().subVectors(ball.pos, car.pos);
+        n2.z *= 0.35;
+        n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
+      }
       const dv = Math.min(new THREE.Vector3().subVectors(ball.vel, car.vel).length(), 4600);
       if (dv > 1) {
-        J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv));
+        const soft = airborne ? clamp(dv / 450, 0.35, 1) : 1;
+        J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv) * soft);
         car.lastExtraTick = this.tick;
       }
     }
     this.checkPinch(car, n, p, Lc);
+    // flip reset: the ball meeting the underside (wheels / chassis) while airborne gives the flip back
+    if (car.numArenaWheels === 0 && !car.isJumping && n.dot(car.up) < -0.7) this.grantFlipReset(car);
     // ball changes are accumulated and applied after every car is resolved (order independent)
     if (!this._bd.pinched) {
       // overlap is resolved with a little separating speed (like Bullet's penetration recovery),
@@ -775,6 +782,14 @@ class World {
       this.events.push({ type: 'hit', car, strength: hitStrength, x: p.x, y: p.y, z: p.z });
     }
     this.registerTouch(car, fresh);
+  }
+
+  grantFlipReset(car) {
+    if (!(car.hasJumped || car.hasDoubleJumped || car.hasFlipped)) return;
+    car.hasJumped = false; car.hasDoubleJumped = false; car.hasFlipped = false;
+    car.airTimeSinceJump = 0;
+    car.flipResetReady = true;
+    car.events.push('flipreset');
   }
 
   // Ball squeezed between a car and a surface shoots out of the gap (ground/wall/kuxir pinches)
@@ -858,16 +873,7 @@ class World {
   }
 
   heatseekStep(dt) {
-    const hs = this.heatseeker, b = this.ball;
-    if (!hs.active || hs.team < 0) return;
-    const ty = hs.team === 0 ? ARENA.L + 200 : -ARENA.L - 200;
-    _v1.set(0 - b.pos.x, ty - b.pos.y, ARENA.GH * 0.45 - b.pos.z).normalize();
-    const sp = Math.max(b.vel.length(), 1);
-    _v2.copy(b.vel).divideScalar(sp);
-    _v2.lerp(_v1, Math.min(1, hs.turn * dt)).normalize();
-    const target = Math.max(sp, hs.speed);
-    b.vel.copy(_v2).multiplyScalar(lerp(sp, target, Math.min(1, 2 * dt)));
-    b.vel.z -= this.gravity * dt * 0.5; // partly offsets gravity so the homing arc reaches the goal
+    heatseekApply(this.ball, this.heatseeker, this.gravity, dt);
   }
 
   // --- car vs car ------------------------------------------------------------
@@ -945,12 +951,27 @@ class World {
   }
 }
 
-// Ball path prediction (arena only)
-function predictBall(ball, gravity, seconds, dt, out) {
+// Heatseeker homing: steer toward the targeted goal and hold at least the current homing speed
+const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
+function heatseekApply(b, hs, gravity, dt) {
+  if (!hs || !hs.active || hs.team < 0) return;
+  const ty = hs.team === 0 ? ARENA.L + 200 : -ARENA.L - 200;
+  _h1.set(0 - b.pos.x, ty - b.pos.y, ARENA.GH * 0.45 - b.pos.z).normalize();
+  const sp = Math.max(b.vel.length(), 1);
+  _h2.copy(b.vel).divideScalar(sp);
+  _h2.lerp(_h1, Math.min(1, hs.turn * dt)).normalize();
+  const target = Math.max(sp, hs.speed);
+  b.vel.copy(_h2).multiplyScalar(lerp(sp, target, Math.min(1, 2 * dt)));
+  b.vel.z -= gravity * dt * 0.5; // partly offsets gravity so the homing arc reaches the goal
+}
+
+// Ball path prediction (arena only; follows Heatseeker homing when given)
+function predictBall(ball, gravity, seconds, dt, out, hs) {
   const b = { pos: ball.pos.clone(), vel: ball.vel.clone(), angVel: ball.angVel.clone(), radius: ball.radius, restitution: ball.restitution, maxSpeed: ball.maxSpeed };
   const n = Math.round(seconds / dt);
   out.length = n;
   for (let i = 0; i < n; i++) {
+    if (hs) heatseekApply(b, hs, gravity, dt);
     ballArenaStep(b, dt, gravity, null);
     let s = out[i];
     if (!s) s = out[i] = { t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };

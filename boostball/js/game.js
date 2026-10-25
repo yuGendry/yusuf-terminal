@@ -45,40 +45,43 @@ class CameraRig {
   update(dt, carPos, car, ballPos, ballCam) {
     const S = this.settings.camera;
     const cam = this.r.camera;
-    if (!this.init) {
-      this.focus.copy(carPos);
-      this.dir.set(car.fwd.x, car.fwd.y, 0).normalize();
-      this.init = true;
-    }
-    const kFollow = 1 - Math.exp(-dt * (12 + 60 * S.stiffness));
-    this.focus.lerp(carPos, kFollow);
-    // lag in position grows with speed (lower stiffness = more pull-back)
-    this.ballBlend += ((ballCam ? 1 : 0) - this.ballBlend) * Math.min(1, dt * 4 * S.transition);
-    const toBall = _c1.subVectors(ballPos, this.focus);
-    const hb = Math.hypot(toBall.x, toBall.y);
-    const ballDir = _c2.set(toBall.x, toBall.y, 0);
-    if (hb > 1) ballDir.divideScalar(hb); else ballDir.copy(this.dir);
-    // car direction: forward on ground, velocity in air
-    const carDir = _c3.set(car.fwd.x, car.fwd.y, 0);
+    const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+    // heading the car "drives" along: forward on the ground, velocity in the air
+    let carYaw = Math.atan2(car.fwd.y, car.fwd.x);
     if (car.numArenaWheels < 3 || Math.abs(car.up.z) < 0.5) {
       const vh = Math.hypot(car.vel.x, car.vel.y);
-      if (vh > 300) carDir.set(car.vel.x / vh, car.vel.y / vh, 0);
-      else if (carDir.lengthSq() < 0.01) carDir.copy(this.dir);
+      if (vh > 300) carYaw = Math.atan2(car.vel.y, car.vel.x);
+      else if (Math.hypot(car.fwd.x, car.fwd.y) < 0.2) carYaw = this.yaw === undefined ? carYaw : this.yaw;
     }
-    if (carDir.lengthSq() < 1e-4) carDir.copy(this.dir);
-    carDir.normalize();
-    const target = _c4.copy(carDir).lerp(ballDir, this.ballBlend);
-    if (target.lengthSq() < 1e-4) target.copy(this.dir);
-    target.normalize();
-    const rate = ballCam ? 14 : 7 + S.swivel;
-    this.dir.lerp(target, Math.min(1, dt * rate)).normalize();
-    // elevation for ball cam
-    const elT = this.ballBlend * clamp(Math.atan2(ballPos.z - this.focus.z, Math.max(hb, 1)), -0.25, 0.9);
-    this.elev += (elT - this.elev) * Math.min(1, dt * 8);
-    const ce = Math.cos(this.elev * 0.55), se = Math.sin(this.elev * 0.55);
-    const pos = _c5.copy(this.focus).addScaledVector(this.dir, -S.distance * ce);
-    pos.z += S.height - S.distance * se;
-    // keep inside arena
+    if (!this.init) {
+      this.focus.copy(carPos);
+      this.yaw = carYaw; this.pitch = 0;
+      this.init = true;
+    }
+    // follow the car; low stiffness lets the camera trail a little at speed
+    this.focus.lerp(carPos, 1 - Math.exp(-dt * (14 + 60 * S.stiffness)));
+    this.ballBlend += ((ballCam ? 1 : 0) - this.ballBlend) * Math.min(1, dt * 4 * S.transition);
+
+    // ball direction as yaw/pitch, stable when the ball is right above the car
+    const dx = ballPos.x - this.focus.x, dy = ballPos.y - this.focus.y, dz = ballPos.z - this.focus.z;
+    const hd = Math.hypot(dx, dy);
+    if (hd > 140 || this.ballYaw === undefined) this.ballYaw = Math.atan2(dy, dx);
+    const ballPitch = clamp(Math.atan2(dz, Math.max(hd, 350)), -0.35, 1.05);
+
+    const blendYaw = carYaw + angDiff(carYaw, this.ballYaw) * this.ballBlend;
+    const pitchGoal = ballPitch * this.ballBlend;
+    const rate = ballCam ? 10 : 5 + S.swivel;
+    this.yaw += angDiff(this.yaw, blendYaw) * (1 - Math.exp(-dt * rate));
+    this.pitch += (pitchGoal - this.pitch) * (1 - Math.exp(-dt * 8));
+
+    // place the camera behind the car on the ball line; higher balls swing it lower
+    const camPitch = this.pitch * 0.6;
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    const pos = _c5.copy(this.focus);
+    pos.x -= cy * Math.cos(camPitch) * S.distance;
+    pos.y -= sy * Math.cos(camPitch) * S.distance;
+    pos.z += S.height - Math.sin(camPitch) * S.distance;
+    // keep inside the arena
     const cs = queryContacts(pos.x, pos.y, pos.z, 40);
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
@@ -92,17 +95,14 @@ class CameraRig {
       if (this.shake < 0.5) this.shake = 0;
     }
     cam.position.copy(pos);
-    // look direction
-    const carLook = _c6.copy(this.dir);
-    const ballLook = _c1.subVectors(ballPos, pos).normalize();
-    const look = carLook.lerp(ballLook, this.ballBlend).normalize();
-    const pitch = S.angle * Math.PI / 180;
-    // apply pitch offset around the horizontal right axis
-    const h = Math.hypot(look.x, look.y) || 1;
-    const curEl = Math.atan2(look.z, h);
-    const newEl = clamp(curEl + pitch, -1.45, 1.45);
-    look.set(look.x / h * Math.cos(newEl), look.y / h * Math.cos(newEl), Math.sin(newEl));
-    cam.lookAt(pos.x + look.x * 1000, pos.y + look.y * 1000, pos.z + look.z * 1000);
+    // look along the camera yaw, pitched toward the ball plus the angle setting,
+    // never so far up that the car drops out of the bottom of the frame
+    let lookPitch = clamp(this.pitch * 0.8 + S.angle * Math.PI / 180, -1.2, 1.1);
+    // keep the car inside the lower part of the frame
+    const carPitch = Math.atan2(this.focus.z - pos.z, Math.max(1, Math.hypot(this.focus.x - pos.x, this.focus.y - pos.y)));
+    const halfV = cam.fov * Math.PI / 360;
+    lookPitch = Math.min(lookPitch, carPitch + halfV * 0.72);
+    cam.lookAt(pos.x + cy * Math.cos(lookPitch) * 1000, pos.y + sy * Math.cos(lookPitch) * 1000, pos.z + Math.sin(lookPitch) * 1000);
     if (this.r.hfov !== S.fov) this.r.setFov(S.fov);
   }
   orbit(t) {
@@ -584,7 +584,7 @@ class Game {
       this.ballPred.length = 180;
       return;
     }
-    predictBall(b, this.world.gravity, 3, 1 / 60, this.ballPred);
+    predictBall(b, this.world.gravity, 3, 1 / 60, this.ballPred, this.world.heatseeker);
   }
 
   predictedGoal() {
@@ -648,7 +648,7 @@ class Game {
         if (this.state === 'play' && e.car) {
           // shot / save detection
           const before = this.predGoal;
-          predictBall(w.ball, w.gravity, 3.5, 1 / 60, this.ballPred);
+          predictBall(w.ball, w.gravity, 3.5, 1 / 60, this.ballPred, w.heatseeker);
           const after = this.predictedGoal();
           const car = e.car;
           car.stats.touches++; car.stats.score += 2;

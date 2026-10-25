@@ -1046,7 +1046,7 @@ class World {
       if (disc >= 0) {
         let tb = -bq - Math.sqrt(disc);
         if (tb < 0 && cq < 0) tb = 0;
-        if (tb >= 0 && tb <= PHYS.SUSP_LEN && (t < 0 || tb < t)) {
+        if (tb >= 0 && tb <= PHYS.SUSP_LEN + 10 && (t < 0 || tb < t)) {
           t = tb; onBall = true;
           const hx = _v2.x + dx * tb - ball.pos.x, hy = _v2.y + dy * tb - ball.pos.y, hz = _v2.z + dz * tb - ball.pos.z;
           const hl = Math.sqrt(hx * hx + hy * hy + hz * hz) || 1;
@@ -1104,11 +1104,8 @@ class World {
     }
 
     // jump state bookkeeping
+    if (car.numArenaWheels === 0 && car.numBallWheels >= 2 && !car.isJumping) this.grantFlipReset(car);
     if (car.onGround && !car.isJumping) {
-      if (car.hasJumped || car.hasDoubleJumped || car.hasFlipped) {
-        if (car.numArenaWheels === 0 && car.numBallWheels >= 3) car.events.push('flipreset');
-      }
-      if (car.numArenaWheels === 0 && car.numBallWheels >= 3 && (car.hasDoubleJumped || car.hasFlipped || car.hasJumped)) car.flipResetReady = true;
       car.hasJumped = false; car.hasDoubleJumped = false; car.hasFlipped = false;
       car.airTime = 0; car.airTimeSinceJump = 0;
       if (car.numArenaWheels >= 3) car.flipResetReady = false;
@@ -1466,16 +1463,26 @@ class World {
     car.lastBallTick = this.tick;
     const J2 = new THREE.Vector3();
     if (this.tick - (car.lastExtraTick || -10) > 1) {
-      const n2 = new THREE.Vector3().subVectors(ball.pos, car.pos);
-      n2.z *= 0.35;
-      n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
+      const airborne = car.numArenaWheels === 0;
+      let n2;
+      if (airborne) {
+        // air touches push along the car->ball line, so the ball stays on the nose (air dribbles)
+        n2 = new THREE.Vector3().subVectors(ball.pos, car.hitboxCenter(new THREE.Vector3())).normalize();
+      } else {
+        n2 = new THREE.Vector3().subVectors(ball.pos, car.pos);
+        n2.z *= 0.35;
+        n2.addScaledVector(car.fwd, -0.35 * n2.dot(car.fwd)).normalize();
+      }
       const dv = Math.min(new THREE.Vector3().subVectors(ball.vel, car.vel).length(), 4600);
       if (dv > 1) {
-        J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv));
+        const soft = airborne ? clamp(dv / 450, 0.35, 1) : 1;
+        J2.copy(n2).multiplyScalar(mb * dv * curve(PHYS.PSY_CURVE || PSYONIX_SCALE, dv) * soft);
         car.lastExtraTick = this.tick;
       }
     }
     this.checkPinch(car, n, p, Lc);
+    // flip reset: the ball meeting the underside (wheels / chassis) while airborne gives the flip back
+    if (car.numArenaWheels === 0 && !car.isJumping && n.dot(car.up) < -0.7) this.grantFlipReset(car);
     // ball changes are accumulated and applied after every car is resolved (order independent)
     if (!this._bd.pinched) {
       // overlap is resolved with a little separating speed (like Bullet's penetration recovery),
@@ -1497,6 +1504,14 @@ class World {
       this.events.push({ type: 'hit', car, strength: hitStrength, x: p.x, y: p.y, z: p.z });
     }
     this.registerTouch(car, fresh);
+  }
+
+  grantFlipReset(car) {
+    if (!(car.hasJumped || car.hasDoubleJumped || car.hasFlipped)) return;
+    car.hasJumped = false; car.hasDoubleJumped = false; car.hasFlipped = false;
+    car.airTimeSinceJump = 0;
+    car.flipResetReady = true;
+    car.events.push('flipreset');
   }
 
   // Ball squeezed between a car and a surface shoots out of the gap (ground/wall/kuxir pinches)
@@ -1580,16 +1595,7 @@ class World {
   }
 
   heatseekStep(dt) {
-    const hs = this.heatseeker, b = this.ball;
-    if (!hs.active || hs.team < 0) return;
-    const ty = hs.team === 0 ? ARENA.L + 200 : -ARENA.L - 200;
-    _v1.set(0 - b.pos.x, ty - b.pos.y, ARENA.GH * 0.45 - b.pos.z).normalize();
-    const sp = Math.max(b.vel.length(), 1);
-    _v2.copy(b.vel).divideScalar(sp);
-    _v2.lerp(_v1, Math.min(1, hs.turn * dt)).normalize();
-    const target = Math.max(sp, hs.speed);
-    b.vel.copy(_v2).multiplyScalar(lerp(sp, target, Math.min(1, 2 * dt)));
-    b.vel.z -= this.gravity * dt * 0.5; // partly offsets gravity so the homing arc reaches the goal
+    heatseekApply(this.ball, this.heatseeker, this.gravity, dt);
   }
 
   // --- car vs car ------------------------------------------------------------
@@ -1667,12 +1673,27 @@ class World {
   }
 }
 
-// Ball path prediction (arena only)
-function predictBall(ball, gravity, seconds, dt, out) {
+// Heatseeker homing: steer toward the targeted goal and hold at least the current homing speed
+const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
+function heatseekApply(b, hs, gravity, dt) {
+  if (!hs || !hs.active || hs.team < 0) return;
+  const ty = hs.team === 0 ? ARENA.L + 200 : -ARENA.L - 200;
+  _h1.set(0 - b.pos.x, ty - b.pos.y, ARENA.GH * 0.45 - b.pos.z).normalize();
+  const sp = Math.max(b.vel.length(), 1);
+  _h2.copy(b.vel).divideScalar(sp);
+  _h2.lerp(_h1, Math.min(1, hs.turn * dt)).normalize();
+  const target = Math.max(sp, hs.speed);
+  b.vel.copy(_h2).multiplyScalar(lerp(sp, target, Math.min(1, 2 * dt)));
+  b.vel.z -= gravity * dt * 0.5; // partly offsets gravity so the homing arc reaches the goal
+}
+
+// Ball path prediction (arena only; follows Heatseeker homing when given)
+function predictBall(ball, gravity, seconds, dt, out, hs) {
   const b = { pos: ball.pos.clone(), vel: ball.vel.clone(), angVel: ball.angVel.clone(), radius: ball.radius, restitution: ball.restitution, maxSpeed: ball.maxSpeed };
   const n = Math.round(seconds / dt);
   out.length = n;
   for (let i = 0; i < n; i++) {
+    if (hs) heatseekApply(b, hs, gravity, dt);
     ballArenaStep(b, dt, gravity, null);
     let s = out[i];
     if (!s) s = out[i] = { t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
@@ -3549,6 +3570,7 @@ class Bot {
     } else { this.stuckT = 0; if (c.vel.length() > 500) this.stuckCount = 0; }
 
     // on a wall with nothing to do there: drive back down toward the play
+    if (this.wallUntil > game.world.time && c.numArenaWheels >= 3 && c.up.z < 0.6 && this.wallPlay(game, dirY, 0)) return;
     if (c.numArenaWheels >= 3 && c.up.z < 0.55 && !(ball.pos.z > 300 && c.pos.distanceTo(ball.pos) < 900)) {
       const down = new THREE.Vector3(0, 0, -1).addScaledVector(c.up, c.up.z).normalize();
       const toBall = new THREE.Vector3().subVectors(ball.pos, c.pos);
@@ -3607,7 +3629,26 @@ class Bot {
     const R = ball.radius;
     const maxZ = L.jumpShots ? 320 : 150;
     let pick = null;
-    for (let i = 2; i < pred.length; i += 2) {
+    const hs = game.world.heatseeker;
+    if (hs && hs.active && danger && this.heatGoalie(game, dirY)) return true;
+    if (hs && hs.active && danger) {
+      // Heatseeker defence: any touch retargets the ball, so just get a piece of it.
+      // Prefer meeting it in front of our net, where its path is predictable.
+      const zone = (s) => { const depth = ARENA.L + s.y * dirY; return depth > 150 && depth < 1600; };
+      for (let pass = 0; pass < 2 && !pick; pass++)
+      for (let i = 2; i < pred.length; i += 2) {
+        const s = pred[i];
+        if (s.z > maxZ + 60) continue;
+        if (pass === 0 && !zone(s)) continue;
+        const H = new THREE.Vector3(s.x - c.pos.x, s.y - c.pos.y, 0);
+        if (H.lengthSq() < 1) H.set(c.fwd.x, c.fwd.y, 0);
+        H.normalize();
+        const P = new THREE.Vector3(s.x - H.x * (R + 40), s.y - H.y * (R + 40), 0);
+        const t = this.timeTo(P, H) - 0.15;
+        if (t <= s.t) { pick = { s, H, P, t, clearing: true, direct: true }; break; }
+      }
+    }
+    for (let i = 2; i < pred.length && !pick; i += 2) {
       const s = pred[i];
       if (s.z > maxZ) continue;
       if (Math.abs(s.x) > 3900 || Math.abs(s.y) > ARENA.L + 50) continue;
@@ -3619,6 +3660,7 @@ class Bot {
       const t = this.timeTo(P, H);
       if (t <= s.t) { pick = { s, H, P, t, clearing }; break; }
     }
+    if (!pick && L.jumpShots && this.wallPlay(game, dirY, danger)) return true;
     if (!pick) {
       // nothing reachable soon: chase the ball's landing point if it's on our side, else defend
       if (danger) {
@@ -3633,7 +3675,7 @@ class Bot {
     const dist = toP.length();
     // wrong side of the ball: rotate around it instead of pushing it toward our own net
     const ahead = new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0).dot(H);
-    if (ahead > -60 && dist < 2200) {
+    if (!pick.direct && ahead > -60 && dist < 2200) {
       const side = (new THREE.Vector3(-H.y, H.x, 0).dot(new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0)) >= 0) ? 1 : -1;
       const wp = new THREE.Vector3(s.x - H.x * 900 - H.y * side * 700, s.y - H.y * 900 + H.x * side * 700, 0);
       wp.x = clamp(wp.x, -3700, 3700); wp.y = clamp(wp.y, -4900, 4900);
@@ -3641,7 +3683,7 @@ class Bot {
       return true;
     }
     // curve in: aim at a point behind P along the shot line, converging as we get close
-    const lead = clamp(dist * 0.42, 0, 1000);
+    const lead = pick.direct ? 0 : clamp(dist * 0.42, 0, 1000);
     const aim = new THREE.Vector3(P.x - H.x * lead, P.y - H.y * lead, 0);
     aim.x = clamp(aim.x, -3900, 3900); aim.y = clamp(aim.y, -5000, 5000);
     const r = this.driveTo(aim, 1, false);
@@ -3661,7 +3703,7 @@ class Bot {
         this.dodge(1, clamp(-bAng * 2.2, -1, 1), true);
         return true;
       }
-      if (L.jumpShots && s.z > 170 && s.t < 0.55 && s.t > 0.2 && dist < 400 + vf * s.t) {
+      if (L.jumpShots && s.z > 170 && s.t < (s.z > 260 ? 0.7 : 0.55) && s.t > 0.15 && dist < 400 + Math.max(vf, 0) * s.t) {
         const dbl = s.z > 260;
         this.startSeq(dbl ? [{ t: 0.18, jump: true }, { t: 0.04, jump: false }, { t: 0.05, jump: true }, { t: 0.6, jump: false }]
           : [{ t: 0.2, jump: true }, { t: 0.06, jump: false }, { t: 0.05, jump: true, pitch: -1 }, { t: 0.5, jump: false }]);
@@ -3669,6 +3711,80 @@ class Bot {
       }
       // aerial for high balls on the way
       if (L.aerial && this.tryAerial(game, dirY)) return true;
+    }
+    return true;
+  }
+
+  // Wall play: meet a ball riding up a wall by driving up under it, then jump off into it
+  wallPlay(game, dirY, danger) {
+    const c = this.car, ball = game.world.ball, pred = game.ballPred, R = ball.radius;
+    let pick = null;
+    for (let i = 4; i < pred.length; i += 3) {
+      const s = pred[i];
+      if (s.z < 230 || s.z > 1500) continue;
+      const sh = arenaShell(s.x, s.y, s.z);
+      if (sh.d > R + 150 || Math.abs(sh.nz) > 0.6) continue;
+      // don't climb our own back wall next to our goal
+      if (sh.ny * dirY > 0.7 && Math.abs(s.x) < 1500) continue;
+      // surface point under the ball, slightly behind it so we hit it toward the middle/opponent side
+      const sp = new THREE.Vector3(s.x - sh.nx * sh.d, s.y - sh.ny * sh.d, s.z - sh.nz * sh.d);
+      const along = new THREE.Vector3(0, dirY, 0).addScaledVector(new THREE.Vector3(sh.nx, sh.ny, sh.nz), -dirY * sh.ny).normalize();
+      sp.addScaledVector(along, -110).z -= 60;
+      const base = new THREE.Vector3(sp.x + sh.nx * 300, sp.y + sh.ny * 300, 0);
+      const t = this.timeTo(base, new THREE.Vector3(-sh.nx, -sh.ny, 0).normalize()) + (sp.z + 300) / 1150;
+      if (t <= s.t) { pick = { s, sp }; break; }
+    }
+    if (!pick) return false;
+    this.wallUntil = game.world.time + 0.5;
+    const C = c.controls;
+    this.driveTo(pick.sp, 1, true);
+    if (!(this.level.boost && c.boost > 10)) C.boost = false;
+    // on the wall and close: jump off into the ball, flick toward it
+    const onWall = c.numArenaWheels >= 3 && c.up.z < 0.7;
+    const bl = this.local(ball.pos);
+    const d = Math.hypot(bl.x, bl.y, bl.z);
+    if (onWall && d < 230 + Math.max(0, c.vel.dot(c.fwd)) * 0.1) {
+      const ang = Math.atan2(bl.y, bl.x);
+      this.startSeq([{ t: 0.1, jump: true }, { t: 0.05, jump: false }, { t: 0.05, jump: true, pitch: -1, yaw: clamp(-ang * 2, -1, 1) }, { t: 0.5, jump: false }]);
+      this.wallUntil = 0;
+    }
+    return true;
+  }
+
+  // Heatseeker goalie: block the homing path in front of our goal line
+  heatGoalie(game, dirY) {
+    const c = this.car, C = c.controls, ball = game.world.ball, pred = game.ballPred;
+    const lineY = -dirY * (ARENA.L - 260);
+    // only when we're between the ball and our goal
+    if ((c.pos.y - ball.pos.y) * dirY > -200) return false;
+    let G = null;
+    for (let i = 0; i < pred.length; i++) {
+      const s = pred[i];
+      if ((s.y - lineY) * dirY <= 0) { G = s; break; }
+    }
+    const spot = G ? new THREE.Vector3(clamp(G.x, -ARENA.GW + 80, ARENA.GW - 80), lineY, 0) : new THREE.Vector3(0, lineY, 0);
+    const l = this.local(spot);
+    const dist = Math.hypot(l.x, l.y);
+    const vf = c.vel.dot(c.fwd);
+    if (dist > 160) {
+      // arriving late: go challenge it directly instead
+      if (G && G.t < dist / 1500 + 0.15) return false;
+      this.driveTo(spot, 1, dist > 1500);
+      // brake so we stop on the spot instead of sailing into our own net
+      const vStop = Math.sqrt(2 * 2800 * Math.max(0, dist - 80));
+      if (Math.abs(vf) > vStop + 80) { C.throttle = -sign(vf); C.boost = false; }
+    } else {
+      // set: stop and hold the spot (side-on blocks even more of the goal)
+      C.steer = 0; C.boost = false;
+      C.throttle = Math.abs(vf) > 60 ? -sign(vf) : 0;
+    }
+    if (G && c.numArenaWheels >= 3) {
+      const h = G.z;
+      const lead = h > 330 ? 0.42 : h > 180 ? 0.32 : 0;
+      if (lead && G.t < lead + 0.05 && G.t > lead - 0.12) {
+        this.startSeq(h > 330 ? [{ t: 0.2, jump: true }, { t: 0.03, jump: false }, { t: 0.05, jump: true }, { t: 0.5, jump: false }]
+          : [{ t: 0.2, jump: true }, { t: 0.5, jump: false }]);
+      }
     }
     return true;
   }
@@ -3847,40 +3963,43 @@ class CameraRig {
   update(dt, carPos, car, ballPos, ballCam) {
     const S = this.settings.camera;
     const cam = this.r.camera;
-    if (!this.init) {
-      this.focus.copy(carPos);
-      this.dir.set(car.fwd.x, car.fwd.y, 0).normalize();
-      this.init = true;
-    }
-    const kFollow = 1 - Math.exp(-dt * (12 + 60 * S.stiffness));
-    this.focus.lerp(carPos, kFollow);
-    // lag in position grows with speed (lower stiffness = more pull-back)
-    this.ballBlend += ((ballCam ? 1 : 0) - this.ballBlend) * Math.min(1, dt * 4 * S.transition);
-    const toBall = _c1.subVectors(ballPos, this.focus);
-    const hb = Math.hypot(toBall.x, toBall.y);
-    const ballDir = _c2.set(toBall.x, toBall.y, 0);
-    if (hb > 1) ballDir.divideScalar(hb); else ballDir.copy(this.dir);
-    // car direction: forward on ground, velocity in air
-    const carDir = _c3.set(car.fwd.x, car.fwd.y, 0);
+    const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+    // heading the car "drives" along: forward on the ground, velocity in the air
+    let carYaw = Math.atan2(car.fwd.y, car.fwd.x);
     if (car.numArenaWheels < 3 || Math.abs(car.up.z) < 0.5) {
       const vh = Math.hypot(car.vel.x, car.vel.y);
-      if (vh > 300) carDir.set(car.vel.x / vh, car.vel.y / vh, 0);
-      else if (carDir.lengthSq() < 0.01) carDir.copy(this.dir);
+      if (vh > 300) carYaw = Math.atan2(car.vel.y, car.vel.x);
+      else if (Math.hypot(car.fwd.x, car.fwd.y) < 0.2) carYaw = this.yaw === undefined ? carYaw : this.yaw;
     }
-    if (carDir.lengthSq() < 1e-4) carDir.copy(this.dir);
-    carDir.normalize();
-    const target = _c4.copy(carDir).lerp(ballDir, this.ballBlend);
-    if (target.lengthSq() < 1e-4) target.copy(this.dir);
-    target.normalize();
-    const rate = ballCam ? 14 : 7 + S.swivel;
-    this.dir.lerp(target, Math.min(1, dt * rate)).normalize();
-    // elevation for ball cam
-    const elT = this.ballBlend * clamp(Math.atan2(ballPos.z - this.focus.z, Math.max(hb, 1)), -0.25, 0.9);
-    this.elev += (elT - this.elev) * Math.min(1, dt * 8);
-    const ce = Math.cos(this.elev * 0.55), se = Math.sin(this.elev * 0.55);
-    const pos = _c5.copy(this.focus).addScaledVector(this.dir, -S.distance * ce);
-    pos.z += S.height - S.distance * se;
-    // keep inside arena
+    if (!this.init) {
+      this.focus.copy(carPos);
+      this.yaw = carYaw; this.pitch = 0;
+      this.init = true;
+    }
+    // follow the car; low stiffness lets the camera trail a little at speed
+    this.focus.lerp(carPos, 1 - Math.exp(-dt * (14 + 60 * S.stiffness)));
+    this.ballBlend += ((ballCam ? 1 : 0) - this.ballBlend) * Math.min(1, dt * 4 * S.transition);
+
+    // ball direction as yaw/pitch, stable when the ball is right above the car
+    const dx = ballPos.x - this.focus.x, dy = ballPos.y - this.focus.y, dz = ballPos.z - this.focus.z;
+    const hd = Math.hypot(dx, dy);
+    if (hd > 140 || this.ballYaw === undefined) this.ballYaw = Math.atan2(dy, dx);
+    const ballPitch = clamp(Math.atan2(dz, Math.max(hd, 350)), -0.35, 1.05);
+
+    const blendYaw = carYaw + angDiff(carYaw, this.ballYaw) * this.ballBlend;
+    const pitchGoal = ballPitch * this.ballBlend;
+    const rate = ballCam ? 10 : 5 + S.swivel;
+    this.yaw += angDiff(this.yaw, blendYaw) * (1 - Math.exp(-dt * rate));
+    this.pitch += (pitchGoal - this.pitch) * (1 - Math.exp(-dt * 8));
+
+    // place the camera behind the car on the ball line; higher balls swing it lower
+    const camPitch = this.pitch * 0.6;
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    const pos = _c5.copy(this.focus);
+    pos.x -= cy * Math.cos(camPitch) * S.distance;
+    pos.y -= sy * Math.cos(camPitch) * S.distance;
+    pos.z += S.height - Math.sin(camPitch) * S.distance;
+    // keep inside the arena
     const cs = queryContacts(pos.x, pos.y, pos.z, 40);
     for (let i = 0; i < cs.length; i++) {
       const c = cs[i];
@@ -3894,17 +4013,14 @@ class CameraRig {
       if (this.shake < 0.5) this.shake = 0;
     }
     cam.position.copy(pos);
-    // look direction
-    const carLook = _c6.copy(this.dir);
-    const ballLook = _c1.subVectors(ballPos, pos).normalize();
-    const look = carLook.lerp(ballLook, this.ballBlend).normalize();
-    const pitch = S.angle * Math.PI / 180;
-    // apply pitch offset around the horizontal right axis
-    const h = Math.hypot(look.x, look.y) || 1;
-    const curEl = Math.atan2(look.z, h);
-    const newEl = clamp(curEl + pitch, -1.45, 1.45);
-    look.set(look.x / h * Math.cos(newEl), look.y / h * Math.cos(newEl), Math.sin(newEl));
-    cam.lookAt(pos.x + look.x * 1000, pos.y + look.y * 1000, pos.z + look.z * 1000);
+    // look along the camera yaw, pitched toward the ball plus the angle setting,
+    // never so far up that the car drops out of the bottom of the frame
+    let lookPitch = clamp(this.pitch * 0.8 + S.angle * Math.PI / 180, -1.2, 1.1);
+    // keep the car inside the lower part of the frame
+    const carPitch = Math.atan2(this.focus.z - pos.z, Math.max(1, Math.hypot(this.focus.x - pos.x, this.focus.y - pos.y)));
+    const halfV = cam.fov * Math.PI / 360;
+    lookPitch = Math.min(lookPitch, carPitch + halfV * 0.72);
+    cam.lookAt(pos.x + cy * Math.cos(lookPitch) * 1000, pos.y + sy * Math.cos(lookPitch) * 1000, pos.z + Math.sin(lookPitch) * 1000);
     if (this.r.hfov !== S.fov) this.r.setFov(S.fov);
   }
   orbit(t) {
@@ -4386,7 +4502,7 @@ class Game {
       this.ballPred.length = 180;
       return;
     }
-    predictBall(b, this.world.gravity, 3, 1 / 60, this.ballPred);
+    predictBall(b, this.world.gravity, 3, 1 / 60, this.ballPred, this.world.heatseeker);
   }
 
   predictedGoal() {
@@ -4450,7 +4566,7 @@ class Game {
         if (this.state === 'play' && e.car) {
           // shot / save detection
           const before = this.predGoal;
-          predictBall(w.ball, w.gravity, 3.5, 1 / 60, this.ballPred);
+          predictBall(w.ball, w.gravity, 3.5, 1 / 60, this.ballPred, w.heatseeker);
           const after = this.predictedGoal();
           const car = e.car;
           car.stats.touches++; car.stats.score += 2;

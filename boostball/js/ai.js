@@ -160,6 +160,7 @@ class Bot {
     } else { this.stuckT = 0; if (c.vel.length() > 500) this.stuckCount = 0; }
 
     // on a wall with nothing to do there: drive back down toward the play
+    if (this.wallUntil > game.world.time && c.numArenaWheels >= 3 && c.up.z < 0.6 && this.wallPlay(game, dirY, 0)) return;
     if (c.numArenaWheels >= 3 && c.up.z < 0.55 && !(ball.pos.z > 300 && c.pos.distanceTo(ball.pos) < 900)) {
       const down = new THREE.Vector3(0, 0, -1).addScaledVector(c.up, c.up.z).normalize();
       const toBall = new THREE.Vector3().subVectors(ball.pos, c.pos);
@@ -218,7 +219,26 @@ class Bot {
     const R = ball.radius;
     const maxZ = L.jumpShots ? 320 : 150;
     let pick = null;
-    for (let i = 2; i < pred.length; i += 2) {
+    const hs = game.world.heatseeker;
+    if (hs && hs.active && danger && this.heatGoalie(game, dirY)) return true;
+    if (hs && hs.active && danger) {
+      // Heatseeker defence: any touch retargets the ball, so just get a piece of it.
+      // Prefer meeting it in front of our net, where its path is predictable.
+      const zone = (s) => { const depth = ARENA.L + s.y * dirY; return depth > 150 && depth < 1600; };
+      for (let pass = 0; pass < 2 && !pick; pass++)
+      for (let i = 2; i < pred.length; i += 2) {
+        const s = pred[i];
+        if (s.z > maxZ + 60) continue;
+        if (pass === 0 && !zone(s)) continue;
+        const H = new THREE.Vector3(s.x - c.pos.x, s.y - c.pos.y, 0);
+        if (H.lengthSq() < 1) H.set(c.fwd.x, c.fwd.y, 0);
+        H.normalize();
+        const P = new THREE.Vector3(s.x - H.x * (R + 40), s.y - H.y * (R + 40), 0);
+        const t = this.timeTo(P, H) - 0.15;
+        if (t <= s.t) { pick = { s, H, P, t, clearing: true, direct: true }; break; }
+      }
+    }
+    for (let i = 2; i < pred.length && !pick; i += 2) {
       const s = pred[i];
       if (s.z > maxZ) continue;
       if (Math.abs(s.x) > 3900 || Math.abs(s.y) > ARENA.L + 50) continue;
@@ -230,6 +250,7 @@ class Bot {
       const t = this.timeTo(P, H);
       if (t <= s.t) { pick = { s, H, P, t, clearing }; break; }
     }
+    if (!pick && L.jumpShots && this.wallPlay(game, dirY, danger)) return true;
     if (!pick) {
       // nothing reachable soon: chase the ball's landing point if it's on our side, else defend
       if (danger) {
@@ -244,7 +265,7 @@ class Bot {
     const dist = toP.length();
     // wrong side of the ball: rotate around it instead of pushing it toward our own net
     const ahead = new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0).dot(H);
-    if (ahead > -60 && dist < 2200) {
+    if (!pick.direct && ahead > -60 && dist < 2200) {
       const side = (new THREE.Vector3(-H.y, H.x, 0).dot(new THREE.Vector3(c.pos.x - s.x, c.pos.y - s.y, 0)) >= 0) ? 1 : -1;
       const wp = new THREE.Vector3(s.x - H.x * 900 - H.y * side * 700, s.y - H.y * 900 + H.x * side * 700, 0);
       wp.x = clamp(wp.x, -3700, 3700); wp.y = clamp(wp.y, -4900, 4900);
@@ -252,7 +273,7 @@ class Bot {
       return true;
     }
     // curve in: aim at a point behind P along the shot line, converging as we get close
-    const lead = clamp(dist * 0.42, 0, 1000);
+    const lead = pick.direct ? 0 : clamp(dist * 0.42, 0, 1000);
     const aim = new THREE.Vector3(P.x - H.x * lead, P.y - H.y * lead, 0);
     aim.x = clamp(aim.x, -3900, 3900); aim.y = clamp(aim.y, -5000, 5000);
     const r = this.driveTo(aim, 1, false);
@@ -272,7 +293,7 @@ class Bot {
         this.dodge(1, clamp(-bAng * 2.2, -1, 1), true);
         return true;
       }
-      if (L.jumpShots && s.z > 170 && s.t < 0.55 && s.t > 0.2 && dist < 400 + vf * s.t) {
+      if (L.jumpShots && s.z > 170 && s.t < (s.z > 260 ? 0.7 : 0.55) && s.t > 0.15 && dist < 400 + Math.max(vf, 0) * s.t) {
         const dbl = s.z > 260;
         this.startSeq(dbl ? [{ t: 0.18, jump: true }, { t: 0.04, jump: false }, { t: 0.05, jump: true }, { t: 0.6, jump: false }]
           : [{ t: 0.2, jump: true }, { t: 0.06, jump: false }, { t: 0.05, jump: true, pitch: -1 }, { t: 0.5, jump: false }]);
@@ -280,6 +301,80 @@ class Bot {
       }
       // aerial for high balls on the way
       if (L.aerial && this.tryAerial(game, dirY)) return true;
+    }
+    return true;
+  }
+
+  // Wall play: meet a ball riding up a wall by driving up under it, then jump off into it
+  wallPlay(game, dirY, danger) {
+    const c = this.car, ball = game.world.ball, pred = game.ballPred, R = ball.radius;
+    let pick = null;
+    for (let i = 4; i < pred.length; i += 3) {
+      const s = pred[i];
+      if (s.z < 230 || s.z > 1500) continue;
+      const sh = arenaShell(s.x, s.y, s.z);
+      if (sh.d > R + 150 || Math.abs(sh.nz) > 0.6) continue;
+      // don't climb our own back wall next to our goal
+      if (sh.ny * dirY > 0.7 && Math.abs(s.x) < 1500) continue;
+      // surface point under the ball, slightly behind it so we hit it toward the middle/opponent side
+      const sp = new THREE.Vector3(s.x - sh.nx * sh.d, s.y - sh.ny * sh.d, s.z - sh.nz * sh.d);
+      const along = new THREE.Vector3(0, dirY, 0).addScaledVector(new THREE.Vector3(sh.nx, sh.ny, sh.nz), -dirY * sh.ny).normalize();
+      sp.addScaledVector(along, -110).z -= 60;
+      const base = new THREE.Vector3(sp.x + sh.nx * 300, sp.y + sh.ny * 300, 0);
+      const t = this.timeTo(base, new THREE.Vector3(-sh.nx, -sh.ny, 0).normalize()) + (sp.z + 300) / 1150;
+      if (t <= s.t) { pick = { s, sp }; break; }
+    }
+    if (!pick) return false;
+    this.wallUntil = game.world.time + 0.5;
+    const C = c.controls;
+    this.driveTo(pick.sp, 1, true);
+    if (!(this.level.boost && c.boost > 10)) C.boost = false;
+    // on the wall and close: jump off into the ball, flick toward it
+    const onWall = c.numArenaWheels >= 3 && c.up.z < 0.7;
+    const bl = this.local(ball.pos);
+    const d = Math.hypot(bl.x, bl.y, bl.z);
+    if (onWall && d < 230 + Math.max(0, c.vel.dot(c.fwd)) * 0.1) {
+      const ang = Math.atan2(bl.y, bl.x);
+      this.startSeq([{ t: 0.1, jump: true }, { t: 0.05, jump: false }, { t: 0.05, jump: true, pitch: -1, yaw: clamp(-ang * 2, -1, 1) }, { t: 0.5, jump: false }]);
+      this.wallUntil = 0;
+    }
+    return true;
+  }
+
+  // Heatseeker goalie: block the homing path in front of our goal line
+  heatGoalie(game, dirY) {
+    const c = this.car, C = c.controls, ball = game.world.ball, pred = game.ballPred;
+    const lineY = -dirY * (ARENA.L - 260);
+    // only when we're between the ball and our goal
+    if ((c.pos.y - ball.pos.y) * dirY > -200) return false;
+    let G = null;
+    for (let i = 0; i < pred.length; i++) {
+      const s = pred[i];
+      if ((s.y - lineY) * dirY <= 0) { G = s; break; }
+    }
+    const spot = G ? new THREE.Vector3(clamp(G.x, -ARENA.GW + 80, ARENA.GW - 80), lineY, 0) : new THREE.Vector3(0, lineY, 0);
+    const l = this.local(spot);
+    const dist = Math.hypot(l.x, l.y);
+    const vf = c.vel.dot(c.fwd);
+    if (dist > 160) {
+      // arriving late: go challenge it directly instead
+      if (G && G.t < dist / 1500 + 0.15) return false;
+      this.driveTo(spot, 1, dist > 1500);
+      // brake so we stop on the spot instead of sailing into our own net
+      const vStop = Math.sqrt(2 * 2800 * Math.max(0, dist - 80));
+      if (Math.abs(vf) > vStop + 80) { C.throttle = -sign(vf); C.boost = false; }
+    } else {
+      // set: stop and hold the spot (side-on blocks even more of the goal)
+      C.steer = 0; C.boost = false;
+      C.throttle = Math.abs(vf) > 60 ? -sign(vf) : 0;
+    }
+    if (G && c.numArenaWheels >= 3) {
+      const h = G.z;
+      const lead = h > 330 ? 0.42 : h > 180 ? 0.32 : 0;
+      if (lead && G.t < lead + 0.05 && G.t > lead - 0.12) {
+        this.startSeq(h > 330 ? [{ t: 0.2, jump: true }, { t: 0.03, jump: false }, { t: 0.05, jump: true }, { t: 0.5, jump: false }]
+          : [{ t: 0.2, jump: true }, { t: 0.5, jump: false }]);
+      }
     }
     return true;
   }

@@ -5,7 +5,7 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 **Play:** open `dist/boostball.html` in a browser. It's a single file. Three.js and the fonts load from CDNs. You can also open `index.html` from a local web server, for example `npx serve boostball`.
 
 ## Modes
-- **Exhibition** 1v1, 2v2 or 3v3 against bots. There are three bot levels: Rookie, Pro and All-Star. Bots pick the earliest reachable ball-prediction moment, curve in lined up with the goal, time their arrival, finish with dodges / jump shots / aerials, cross balls from the corners, rotate back when on the wrong side, defend shots on their net and back out when stuck. Matches include kickoffs, a 5:00 clock, overtime, demolitions, a scoreboard (Tab) and a results screen with MVP.
+- **Exhibition** 1v1, 2v2 or 3v3 against bots. There are three bot levels: Rookie, Pro and All-Star. Bots pick the earliest reachable ball-prediction moment, curve in lined up with the goal, time their arrival, finish with dodges / jump shots / aerials, cross balls from the corners, drive up walls to play balls off the wall, rotate back when on the wrong side, defend shots on their net (including a Heatseeker goalie that reads the homing path) and back out when stuck. Matches include kickoffs, a 5:00 clock, overtime, demolitions, a scoreboard (Tab) and a results screen with MVP.
 - **Heatseeker** 1v1 and 2v2. After each touch the ball homes toward the opponent's goal and gets faster with every hit.
 - **Free Play** has unlimited boost and ball tools: reset, lob to me, air-dribble pop, ball on roof (V), wall shot, freeze ball and reset car.
 - **Training packs**: Striker, Aerial, Goalie and Air Dribble. Each pack has 10 seeded shots that stay frozen until you move.
@@ -39,12 +39,14 @@ Gameplay tuning on top of the measured constants:
 - **Grounded cars:** a ball can't lever a car off its wheels, and a ball wedged under the car squirts out instead of pinning it.
 - **Dribbling:** car contacts treat the ball as 2× harder to spin, so it rides the roof a bit better.
 - **Flicks:** the extra impulse re-applies every other tick while touching, which gives flicks their pop.
+- **Air dribbles:** while airborne, the extra touch impulse pushes along the car-to-ball line (and gentle air touches are softened), so the ball stays on your nose.
+- **Ball cam:** follows the ball-to-car line with angle-based smoothing, looks up for high balls, never spins when the ball is directly overhead and keeps your car in frame.
 - **Pinches:** a ball squeezed between a car and the floor, wall or ceiling shoots out of the gap at up to max ball speed.
 - **Wavedash / zap dash:** landing mid-dodge stops the flip rotation and keeps the dodge speed.
 - **Heatseeker:** the ball waits at center until the first touch, then homes toward the goal of the team that didn't touch it. Hitting that goal's backboard, crossbar or posts sends it back toward the other goal.
 - **Speed flips:** after a dodge is cancelled (hold the stick against the flip), air roll and yaw act on the leftover rotation, so a diagonal flip + cancel + counter air roll lands flat at supersonic speed.
 
-Flip resets: when 3 or more wheels touch the ball, your flip comes back. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
+Flip resets: when the ball meets your car's underside (or 2+ wheels touch it) while you're airborne, your flip comes back. The HUD shows **FLIP (RESET)**. Landing on the ceiling with your wheels also restores your flip.
 
 ## Controls
 Keyboard: W/S throttle (also pitch in the air), A/D steer, Space/RMB jump, Shift/LMB boost, C powerslide or air roll, Q/E air roll left/right, F ball cam, Tab scoreboard, Esc pause.
