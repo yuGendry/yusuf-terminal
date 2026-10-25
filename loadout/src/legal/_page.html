@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · {{siteName}}</title>
+<style>
+  :root { --bg: #eef1f6; --surface: #fff; --ink: #12162a; --ink-2: #4a5270; --line: #d4d9e6; --accent: #2b44e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0e1120; --surface: #171b2e; --ink: #e8ebf7; --ink-2: #a2a9c6; --line: #2b3150; --accent: #8898ff; color-scheme: dark; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  article { background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px; padding: 28px clamp(18px, 4vw, 36px); }
+  h1 { font-size: clamp(26px, 5vw, 34px); line-height: 1.15; margin: 0 0 6px; }
+  h2 { font-size: 19px; margin: 28px 0 6px; }
+  p, li { color: var(--ink-2); }
+  a { color: var(--accent); }
+  .back { display: inline-block; margin-bottom: 16px; font-weight: 700; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Back to {{siteName}}</a>
+  <article>
+{{body}}
+  </article>
+</main>
+</body>
+</html>

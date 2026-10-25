@@ -1,8 +1,13 @@
 # Loadout
 
-A single-page app for looking up games and apps: reviews, advanced reviews, real player ratings, best picks per theme, and a Pro demo (library tracking, store, gift cards).
+A single-page app for looking up games and apps: reviews, advanced reviews, real player ratings, best picks per theme, and Loadout Pro.
 
-`index.html` is generated. Edit the files in `src/`, then rebuild:
+There are two builds from the same source:
+
+- `index.html`: the Claude artifact demo, with a demo store and demo Pro.
+- `site/`: the real website, with Google and email sign-in (Firebase) and a real Pro subscription (Stripe). Games and gift cards link to the official stores. To put it online, follow [SETUP.md](SETUP.md). The server code is in `backend/` (`firebase.json` sits in this folder).
+
+Both are generated. Edit the files in `src/` (and `site.config.json` for the website), then rebuild:
 
 ```sh
 python3 loadout/tools/build.py

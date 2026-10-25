@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function isPro(uid) {
+      let path = /databases/$(database)/documents/customers/$(uid);
+      return exists(path) && get(path).data.get('pro', false) == true;
+    }
+
+    // Subscription status. Written only by the Stripe webhook (Admin SDK), so nobody can give themselves Pro.
+    match /customers/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    // A member's synced library and ratings. Only Pro members can save; anyone can read their own.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isPro(uid)
+        && request.resource.data.keys().hasOnly(['library', 'ratings', 'updated'])
+        && request.resource.data.library is map
+        && request.resource.data.ratings is map;
+      allow delete: if isOwner(uid);
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

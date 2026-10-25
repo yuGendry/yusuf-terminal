@@ -1,3 +1,6 @@
+// SITE_CONFIG exists only in the real website build (site/index.html); the artifact build is the demo.
+const SITE_MODE = typeof SITE_CONFIG !== "undefined";
+
 const THEMES = [
   { id: "all", name: "Everything", desc: "The whole catalog. Here are our two highest-scored picks right now." },
   { id: "cozy", name: "Cozy evening", desc: "Low stakes, warm colors, nothing chasing you.",
@@ -82,7 +85,12 @@ const PATTERNS = [
   "repeating-radial-gradient(circle at 80% 15%, rgba(255,255,255,.16) 0 6px, transparent 6px 16px)",
 ];
 const PRO_DISCOUNT = 0.10;
-const PRO_GATED = new Set(["deals", "gifts", "library"]);
+const PRO_GATED = new Set(SITE_MODE ? ["library"] : ["deals", "gifts", "library"]);
+const GIFT_LINKS = {
+  psn: "https://www.playstation.com/en-us/playstation-gift-cards/", xbox: "https://www.microsoft.com/en-us/store/b/gift-cards",
+  eshop: "https://www.nintendo.com/us/store/", steam: "https://store.steampowered.com/digitalgiftcards/", apple: "https://www.apple.com/shop/gift-cards",
+  gplay: "https://play.google/giftcards/", roblox: "https://www.roblox.com/giftcards", spotify: "https://www.spotify.com/us/premium/gift/",
+};
 
 /* ---------- Helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -100,7 +108,7 @@ const rows = raw => raw.split("\n").map(l => l.trim()).filter(l => l && !l.start
 for (const line of rows(GAMES_RAW)) {
   const [name, maker, year, genre, plat, price, score, themes, blurb, review, pros, cons] = line.split("|");
   const id = slug(name), h = hash(id), p = parseFloat(price);
-  const deal = p > 0 && h % 10 < 3 ? [20, 25, 33, 40, 50, 60][(h >>> 4) % 6] : 0;
+  const deal = !SITE_MODE && p > 0 && h % 10 < 3 ? [20, 25, 33, 40, 50, 60][(h >>> 4) % 6] : 0; // demo deals only
   const codes = plat.split("");
   ITEMS.push({ id, h, kind: "game", name, maker, year: +year, cat: genre, codes, pk: new Set(codes.flatMap(c => GAME_PLAT[c] || [])),
     platLabels: codes.map(c => GAME_PLAT_LABEL[c]), price: p, deal, score: +score, themes: themes.split(" "), blurb, review,
@@ -198,7 +206,11 @@ async function flushDb() {
   if (dbPending) { dbPending = false; flushDb(); }
 }
 function setSync(on) {
-  $("#sync-note").textContent = on ? "Your library, cart and ratings are saved to your account." : "Your library, cart and ratings are saved on this device.";
+  const el = $("#sync-note");
+  if (!el) return;
+  el.textContent = SITE_MODE
+    ? (on ? "Your library and ratings sync to your account." : "Your ratings are saved on this device. Pro syncs your library to your account.")
+    : (on ? "Your library, cart and ratings are saved to your account." : "Your library, cart and ratings are saved on this device.");
 }
 async function connectDb() {
   const c = window.claude;
@@ -476,6 +488,11 @@ const linkRow = links => `<div class="storelinks">${links.map(([l, u]) => `<a hr
 function buyBox(i) {
   const lib = S.library[i.id];
   let html = "";
+  if (SITE_MODE) {
+    const price = i.kind === "game" ? (i.price === 0 ? `<span class="bigprice" style="color:var(--good)">Free to play</span>` : `<span class="bigprice">${money(i.price)}</span> <span class="tiny">typical price</span>`)
+      : `<span class="bigprice" style="font-size:17px;font-family:var(--body);font-weight:700">${esc(i.priceText)}</span>`;
+    return `<div class="buybox"><div class="buyrow"><div>${price}</div></div><div><p class="tiny" style="margin-bottom:6px">Get it from the official stores (prices can change there)</p>${linkRow(storeLinks(i))}</div></div>`;
+  }
   if (i.kind === "game") {
     const inCart = S.cart.some(c => c.type === "game" && c.id === i.id);
     const priceLine = i.price === 0 ? `<span class="bigprice" style="color:var(--good)">Free to play</span>`
@@ -495,11 +512,11 @@ function buyBox(i) {
   return `<div class="buybox">${html}</div>`;
 }
 function trackBox(i) {
-  if (!S.pro) return `<div class="d-section"><h3>Track it</h3><div class="locked"><span>Add it to your library, track progress and get price alerts with <b>Loadout Pro</b>.</span><button type="button" class="btn gold small" data-go="pro">See Pro</button></div></div>`;
+  if (!S.pro) return `<div class="d-section"><h3>Track it</h3><div class="locked"><span>${SITE_MODE ? "Add it to your library, track your progress and sync it to every device with <b>Loadout Pro</b>." : "Add it to your library, track progress and get price alerts with <b>Loadout Pro</b>."}</span><button type="button" class="btn gold small" data-go="pro">See Pro</button></div></div>`;
   const lib = S.library[i.id];
   const keys = i.kind === "app" ? Object.keys(APP_STATUS) : Object.keys(STATUS);
   let html = `<div class="track" role="group" aria-label="Library status">${keys.map(k => `<button type="button" data-status="${k}" aria-pressed="${!!lib && lib.status === k}">${esc(statusLabel(i, k))}</button>`).join("")}${lib ? `<button type="button" data-status="" aria-label="Remove from library">Remove</button>` : ""}</div>`;
-  if (i.kind === "game" && i.price > 0 && !(lib && lib.owned)) {
+  if (!SITE_MODE && i.kind === "game" && i.price > 0 && !(lib && lib.owned)) {
     const hit = lib && lib.target && salePrice(i) <= lib.target;
     html += `<div class="watch" style="margin-top:12px"><label for="watch-in">Alert me when it's</label><input id="watch-in" type="number" min="1" step="1" inputmode="decimal" placeholder="$ price" value="${lib && lib.target ? lib.target : ""}"><span>or less</span><button type="button" class="btn small ghost" id="watch-save">Set price watch</button>${hit ? `<span class="hit">Price hit: now ${money(salePrice(i))}</span>` : ""}</div>`;
   }
@@ -621,6 +638,7 @@ const ICONS = {
 };
 const TAB_NAME = { deals: "Store & deals", gifts: "Gift cards", library: "My library" };
 function renderPro() {
+  if (SITE_MODE) return renderProSite();
   const why = view.pendingTab && !S.pro ? `<p class="note" style="font-size:14px;color:var(--gold);font-weight:700;margin:0">${esc(TAB_NAME[view.pendingTab] || "That")} is part of Loadout Pro.</p>` : "";
   $("#view-pro").innerHTML = `
     ${why}
@@ -671,6 +689,16 @@ function renderDeals() {
     ${sec("Top rated", "", top)}`;
 }
 function renderGifts() {
+  if (SITE_MODE) {
+    $("#view-gifts").innerHTML = `
+      <div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">Gift cards</h1><p class="band-sub">Buy gift cards straight from the official stores. Loadout doesn't sell gift cards itself.</p></div>
+      <div class="gift-grid">${GIFTS.filter(g => GIFT_LINKS[g.id]).map(g => `<article class="gift">
+        <div class="gcard" style="background:${PATTERNS[1]}, linear-gradient(135deg, ${g.c[0]}, ${g.c[1]})"><b>${esc(g.name)}</b><div style="display:flex;justify-content:space-between;align-items:end"><span>GIFT CARD</span></div></div>
+        <div class="meta">${esc(g.sub)}${g.id === "eshop" ? ". Nintendo sells eShop cards through retailers; the eShop also takes cards directly." : ""}</div>
+        <a class="btn gift-link" href="${GIFT_LINKS[g.id]}" target="_blank" rel="noopener noreferrer">${g.id === "eshop" ? "Go to the Nintendo eShop" : "Buy on the official site"} ↗</a>
+      </article>`).join("")}</div>`;
+    return;
+  }
   $("#view-gifts").innerHTML = `
     <div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">Gift cards</h1><p class="band-sub">Top up a console wallet or send one as a present. Demo store: no codes are issued.</p></div>
     <div class="gift-grid">${GIFTS.map(g => {
@@ -692,7 +720,7 @@ function renderLibrary() {
   const watches = entries.filter(x => x.e.target && !x.e.owned).length;
   const statusOpts = (i, cur) => (i.kind === "app" ? Object.keys(APP_STATUS) : Object.keys(STATUS)).map(k => `<option value="${k}"${k === cur ? " selected" : ""}>${esc(statusLabel(i, k))}</option>`).join("");
   $("#view-library").innerHTML = `
-    <div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">My library</h1><p class="band-sub">${entries.length} tracked · ${owned} bought in Loadout · ${watches} price ${watches === 1 ? "watch" : "watches"}</p></div>
+    <div><h1 class="sec-title" style="font-size:clamp(22px,3.6vw,32px)">My library</h1><p class="band-sub">${SITE_MODE ? `${entries.length} tracked` : `${entries.length} tracked · ${owned} bought in Loadout · ${watches} price ${watches === 1 ? "watch" : "watches"}`}</p></div>
     <div class="stats" role="group" aria-label="Filter library">${LIB_FILTERS.map(([k, l]) => `<button type="button" class="stat" data-lib="${k}" aria-pressed="${view.libFilter === k}"><b>${count(k)}</b><span>${l}</span></button>`).join("")}</div>
     ${list.length ? `<div class="lib">${list.map(({ i, e }) => {
       const hit = i.kind === "game" && e.target && !e.owned && salePrice(i) <= e.target;
@@ -710,7 +738,7 @@ function renderLibrary() {
       </div>`;
     }).join("")}</div>`
     : `<div class="empty"><strong>${entries.length ? "Nothing in this list yet" : "Your library is empty"}</strong>Open any game or app and choose a status under “Track it”.<div style="margin-top:14px"><button type="button" class="btn" data-go="discover">Browse games and apps</button></div></div>`}
-    <section style="display:grid;gap:10px">
+    <section style="display:grid;gap:10px"${SITE_MODE ? " hidden" : ""}>
       <h2 class="sec-title" style="font-size:19px">Orders</h2>
       ${S.orders.length ? `<div class="orders">${S.orders.map(o => `<div class="order"><div><b>${esc(o.id)}</b> · ${esc(new Date(o.at).toLocaleDateString())}<div class="meta">${esc(o.lines.join(", "))}</div></div><div style="text-align:right"><span class="price">${money(o.total)}</span><div class="meta">Saved ${money(o.saved)} · demo order</div></div></div>`).join("")}</div>` : `<p class="note" style="font-size:14px">No orders yet.</p>`}
     </section>`;
@@ -918,7 +946,7 @@ function catSearchSection() {
 /* ---------- Navigation ---------- */
 function renderBadges() {
   const n = S.cart.reduce((a, c) => a + c.qty, 0);
-  const b = $("#cart-count"); b.hidden = !n; b.textContent = n;
+  const b = $("#cart-count"); if (b) { b.hidden = !n; b.textContent = n; }
   const pb = $("#pro-btn"); pb.textContent = S.pro ? "Pro ✓" : "Get Pro"; pb.classList.toggle("on", S.pro);
   document.querySelectorAll("#nav .lock").forEach(l => { l.hidden = S.pro; });
 }
@@ -927,6 +955,7 @@ function renderTab() {
 }
 function renderAll() { renderBadges(); renderTab(); if (document.body.classList.contains("drawer-open") && $("#drawer").dataset.id) openItem($("#drawer").dataset.id, true); }
 function go(tab, pending) {
+  if (SITE_MODE && (tab === "deals" || tab === "cart")) tab = "discover";
   if (PRO_GATED.has(tab) && !S.pro) { view.pendingTab = tab; tab = "pro"; }
   else view.pendingTab = tab === "pro" ? (pending || null) : null;
   if (tab !== "cart") view.lastOrder = null;
@@ -1044,9 +1073,14 @@ document.addEventListener("keydown", e => {
 {
   const n = ITEMS.filter(i => i.players.length).length, pics = ITEMS.filter(i => (STORE_ITEMS[i.id] || {}).art).length;
   $("#data-note").textContent = n
-    ? `Our scores and reviews are Loadout's own. Player ratings are real, imported from Steam, the App Store, Google Play and the PlayStation Store ${asOf()} for ${n} of ${ITEMS.length} titles. Prices and deals are sample figures.`
+    ? `Our scores and reviews are Loadout's own. Player ratings are real, imported from Steam, the App Store, Google Play and the PlayStation Store ${asOf()} for ${n} of ${ITEMS.length} titles. ${SITE_MODE ? "Prices are typical prices; check the store for today's price." : "Prices and deals are sample figures."}`
     : "Our scores and reviews are Loadout's own. Real player ratings haven't been imported yet. Prices and deals are sample figures.";
 }
-const startTab = (location.hash || "").slice(1);
-go(["discover", "platforms", "pro", "deals", "gifts", "library", "cart"].includes(startTab) ? startTab : "discover");
-connectDb();
+function startApp() {
+  const startTab = (location.hash || "").slice(1);
+  if (SITE_MODE) siteInit();
+  go(["discover", "platforms", "pro", "deals", "gifts", "library", "cart"].includes(startTab) ? startTab : "discover");
+  if (!SITE_MODE) connectDb();
+}
+// The website build appends site.js after this file and calls startApp() at its end, once its own code is ready.
+if (!SITE_MODE) startApp();

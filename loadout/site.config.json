@@ -1,0 +1,18 @@
+{
+  "_readme": "Public settings for the real website build (python3 loadout/tools/build.py). Nothing here is secret: Firebase web config is meant to be public. Secret keys (Stripe) go in Firebase secrets, never here. See SETUP.md.",
+  "siteName": "Loadout",
+  "ownerName": "YOUR_NAME",
+  "contactEmail": "YOUR_EMAIL@example.com",
+  "siteUrl": "https://YOUR_PROJECT_ID.web.app",
+  "proPrice": "$3.99",
+  "proInterval": "month",
+  "functionsRegion": "us-central1",
+  "firebase": {
+    "apiKey": "YOUR_FIREBASE_API_KEY",
+    "authDomain": "YOUR_PROJECT_ID.firebaseapp.com",
+    "projectId": "YOUR_PROJECT_ID",
+    "storageBucket": "YOUR_PROJECT_ID.firebasestorage.app",
+    "messagingSenderId": "YOUR_SENDER_ID",
+    "appId": "YOUR_APP_ID"
+  }
+}
