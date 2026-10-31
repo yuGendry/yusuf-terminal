@@ -81,6 +81,7 @@ const BUMP_UP = [[0, 2 / 6], [1400, 278], [2200, 417]];
 // Hitboxes: length, width, height, offset x, offset z (relative to car origin)
 const HITBOXES = {
   octane:   { name: 'Octane',   l: 118.01, w: 84.20, h: 36.16, ox: 13.88, oz: 20.75 },
+  fennec:   { name: 'Fennec',   l: 118.01, w: 84.20, h: 36.16, ox: 13.88, oz: 20.75 }, // uses the Octane hitbox
   dominus:  { name: 'Dominus',  l: 127.93, w: 83.28, h: 31.30, ox: 9.00,  oz: 15.75 },
   plank:    { name: 'Plank',    l: 128.82, w: 84.67, h: 29.39, ox: 9.01,  oz: 12.09 },
   breakout: { name: 'Breakout', l: 131.49, w: 80.52, h: 30.30, ox: 12.50, oz: 11.75 },

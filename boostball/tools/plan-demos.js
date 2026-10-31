@@ -18,7 +18,7 @@ src += ';globalThis.API = { TUTORIALS, TutorialRun, World, Car, PHYS };';
 vm.runInContext(src, ctx, { filename: 'tutorials-bundle.js' });
 const { TUTORIALS, TutorialRun, World, Car, PHYS } = ctx.API;
 
-const BODIES = ['octane', 'dominus', 'plank', 'breakout', 'hybrid', 'merc'];
+const BODIES = ['octane', 'fennec', 'dominus', 'plank', 'breakout', 'hybrid', 'merc'];
 function lands(lesson, body, tune) {
   const w = new World();
   const c = w.addCar(new Car({ body }));

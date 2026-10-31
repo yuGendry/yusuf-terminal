@@ -395,8 +395,17 @@ function buildCarModel(cfg) {
     const wg = new THREE.Group();
     const spin = new THREE.Group();
     const width = w.front ? 11 : 13;
-    const mWheel = mdl && (!cfg.wheel || cfg.wheel === 'Classic') && mdl.wheelGeos[(w.front ? 'f' : 'b') + (w.y > 0 ? 'l' : 'r')];
-    if (mWheel) {
+    const wKey = (w.front ? 'f' : 'b') + (w.y > 0 ? 'l' : 'r');
+    const rlWheel = mdl && mdl.rlWheels && (!cfg.wheel || cfg.wheel === 'Classic') && mdl.rlWheels[wKey];
+    const mWheel = rlWheel || (mdl && (!cfg.wheel || cfg.wheel === 'Classic') && mdl.wheelGeos[wKey]);
+    if (rlWheel) {
+      for (const p of rlWheel) {
+        const mw = new THREE.Mesh(p.geo, p.mat);
+        mw.scale.setScalar(w.r);
+        mw.castShadow = true;
+        spin.add(mw);
+      }
+    } else if (mWheel) {
       const mw = new THREE.Mesh(mWheel, mdl.baseMat);
       mw.scale.set(w.r, w.r * 1.1, w.r);
       mw.castShadow = true;
@@ -605,7 +614,7 @@ function buildArena(scene, quality) {
   group.add(ramp);
   const wallGeo = makeStrip(fs, prof.length - 1, (x, y, z) => teamTint(x, y, z, 0.8).multiplyScalar(1.0 + z / A.H * 0.4));
   const wallMat = new THREE.MeshStandardMaterial({
-    vertexColors: true, map: gridTexture('#ffffff', '#9fb6ff', 256, 2), transparent: true, opacity: 0.38,
+    vertexColors: true, map: gridTexture('#ffffff', '#9fb6ff', 256, 2), transparent: true, opacity: ASSETS.rlStadium ? 0.13 : 0.38,
     roughness: 0.2, metalness: 0.4, side: THREE.DoubleSide, depthWrite: false,
   });
   const wall = new THREE.Mesh(wallGeo, wallMat);
@@ -724,7 +733,9 @@ function buildArena(scene, quality) {
   outer.receiveShadow = false;
   group.add(outer);
   let stadium = null;
-  if (ASSETS.props && ASSETS.props.grandStand && typeof dressStadium === 'function') {
+  if (ASSETS.rlStadium && typeof dressRLStadium === 'function') {
+    stadium = dressRLStadium(group);
+  } else if (ASSETS.props && ASSETS.props.grandStand && typeof dressStadium === 'function') {
     stadium = dressStadium(group, quality);
   } else {
     const crowd = crowdTexture();
@@ -918,6 +929,14 @@ class Renderer {
   }
 
   buildBall() {
+    const rl = typeof buildRLBall === 'function' ? buildRLBall() : null;
+    if (rl) {
+      this.scene.add(rl);
+      const glow = new THREE.Mesh(new THREE.SphereGeometry(PHYS.BALL_R * 1.06, 32, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }));
+      rl.add(glow);
+      rl.userData.glow = glow;
+      return rl;
+    }
     const mat = new THREE.MeshPhysicalMaterial({ map: ballTexture(), metalness: 0.2, roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.15, emissive: 0x0a0a0a });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(PHYS.BALL_R, 48, 32), mat);
     mesh.castShadow = true;

@@ -83,6 +83,7 @@ async function loadAssets() {
       tex.needsUpdate = true;
       ASSETS.textures[t] = tex;
     }
+    if (typeof loadRLAssets === 'function') await loadRLAssets(parse);
     ASSETS.ready = true;
   } catch (e) {
     console.warn('Model assets failed to load, using built-in shapes', e);
@@ -210,6 +211,7 @@ function makeCarTemplate(root, body) {
 function buildModelCar(cfg) {
   const tpl = ASSETS.cars[cfg.body];
   if (!ASSETS.ready || !tpl) return null;
+  if (tpl.rl) return buildRLCar(tpl, cfg);
   const hb = HITBOXES[cfg.body];
   const group = new THREE.Group();
   const baseMat = new THREE.MeshStandardMaterial({ map: ASSETS.colormapTex, roughness: 0.55, metalness: 0.15 });

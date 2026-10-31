@@ -32,7 +32,7 @@ A browser rocket-car soccer game built with Three.js. It recreates Soccar physic
 | Car–ball | rigid-body impulse plus the extra "Psyonix" impulse (scale 0.65 → 0.30 by relative speed) |
 | Bumps and demos | bump velocity curves; a supersonic hit demolishes, with a 3 s respawn |
 | Boost pads | standard 34-pad layout: 6 big pads (100 boost, 10 s) and 28 small pads (12 boost, 4 s) |
-| Hitboxes | Octane, Dominus, Plank, Breakout, Hybrid and Merc, with their real dimensions and offsets |
+| Hitboxes | Octane (also used by the Fennec), Dominus, Plank, Breakout, Hybrid and Merc, with their real dimensions and offsets |
 
 Gameplay tuning on top of the measured constants:
 - **Ball bounces:** Coulomb friction (μ 0.35) limited to what a rolling sphere can lose, so glancing wall/floor bounces keep 70–80% of their speed along the surface, and ground balls roll far instead of dying.
@@ -58,6 +58,7 @@ Controller (standard mapping): RT/LT throttle, left stick, A jump, B boost, X po
 You can rebind everything under **Settings → Bindings**. Settings also include deadzones, sensitivities, the camera (FOV, distance, height, angle, stiffness, swivel, transition, ball cam toggle or hold), video and audio.
 
 ## Graphics and assets
+- **Detailed models (user-supplied):** Octane, Dominus and Fennec cars, the ball and the Champions Field stadium come from model files supplied by the project owner (`assets/models/rl_*.glb`, converted from FBX/USDZ). They are not covered by an open license and appear to be Rocket League assets, so keep this repository and the built file private. The cars are fitted so their wheels sit on the physics wheels, the body paint follows your garage colours (the paint mask splits primary and accent), and the stadium surrounds our own arena: its pitch and dome are hidden, the seats are tinted blue/orange per half, and its screens show the live score. Delete the `rl_*` files and rebuild to go back to the open-licensed models below.
 - Car models: [Kenney Toy Car Kit](https://kenney.nl/assets/toy-car-kit) (CC0), fitted to each body's real hitbox so what you see is what collides. Settings → Video → Show Hitboxes draws the boxes.
 - Stadium: [Kenney Racing Kit](https://kenney.nl/assets/racing-kit) (CC0): two tiers of grandstands tinted blue/orange per half with an instanced crowd that jumps when someone scores, floodlight towers, billboard screens (live score and clock, GOAL! flash), banner towers, flags, TV cameras, fan-zone tents and a tree line. The garage sits in a pit lane (pit garages, cones, barriers, light posts). Everything is instanced, so the whole stadium is a few dozen draw calls.
 - Grass: [ambientCG Grass004](https://ambientcg.com/view?id=Grass004) (CC0), tiled over the painted pitch.
@@ -73,6 +74,7 @@ You can rebind everything under **Settings → Bindings**. Settings also include
 - `js/ai.js`: bots (ball prediction, rotation, shots, aerials, kickoffs, recovery)
 - `js/tutorials.js`: Academy lessons (setup, scripted bot demo, success check) and the lesson runner
 - `js/models.js`: loads the embedded models/textures and fits cars to hitboxes
+- `js/rlmodels.js`: loads the detailed car/ball/stadium models and fits them to the game
 - `js/stadium.js`: stadium dressing from the Racing Kit props (instanced) and the crowd
 - `js/render.js`: arena meshes, car models, particles, bloom and garage showroom
 - `js/game.js`: modes, match flow, camera and HUD
