@@ -134,12 +134,30 @@ table.sc td{padding:6px 10px;text-align:right;border-bottom:1px solid rgba(255,2
 table.sc tr.me td{background:rgba(255,210,62,.12);color:var(--gold)}
 table.sc .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
 #vignette{position:fixed;inset:0;pointer-events:none;z-index:9;box-shadow:inset 0 0 160px rgba(255,0,40,0);transition:box-shadow .2s}
+#end{overflow-y:auto;justify-content:safe center}
+#end table.sc td{padding:4px 10px}
 #pause,#end{background:rgba(6,3,12,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #end h1{font-family:'Orbitron';font-weight:900;font-size:clamp(30px,6vw,72px);margin:0;letter-spacing:4px;text-align:center}
 #end .sub{font-size:20px;color:var(--dim);margin:6px 0 10px;text-align:center}
 #stats{display:flex;gap:26px;justify-content:center;margin:10px 0 4px;flex-wrap:wrap}
 #stats div{text-align:center;font-family:'Orbitron';font-size:11px;letter-spacing:3px;color:var(--dim)}
 #stats b{display:block;font-size:26px;color:#fff;letter-spacing:1px}
+.rankcard{display:flex;align-items:center;gap:16px;background:var(--glass);border:1px solid var(--line);padding:12px 20px;margin:0 0 14px;min-width:min(460px,92vw);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.badge{width:62px;height:70px;flex:none;display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);font-family:'Orbitron';font-weight:900;font-size:22px;color:#07040f;position:relative}
+.badge::after{content:'';position:absolute;inset:4px;clip-path:inherit;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,0) 60%);pointer-events:none}
+.rk{flex:1;min-width:0}
+.rk .t{font-family:'Orbitron';font-weight:900;font-size:20px;letter-spacing:3px}
+.rk .s{font-size:15px;color:var(--dim);letter-spacing:1px;margin-top:2px}
+.rk .bar{height:6px;background:rgba(255,255,255,.1);margin-top:7px;position:relative;overflow:hidden}
+.rk .bar i{position:absolute;left:0;top:0;bottom:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.rk .n{font-size:13px;color:var(--gold);margin-top:5px;letter-spacing:1px}
+.row.off{opacity:.35;pointer-events:none}
+.rpbox{max-width:600px;margin-top:12px}
+.rpbox .gain{font-family:'Orbitron';font-weight:900;font-size:30px;letter-spacing:2px}
+.rpbox .parts{font-size:15px;color:var(--dim);margin-top:6px;display:grid;grid-template-columns:1fr auto;gap:2px 18px}
+.rpbox .up{font-family:'Orbitron';font-size:13px;letter-spacing:4px;margin-top:8px;animation:pulse 1s infinite}
+#spec{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);text-align:center;font-family:'Orbitron';letter-spacing:3px;font-size:13px;color:var(--dim);text-shadow:0 0 8px #000}
+#spec b{display:block;font-size:22px;margin:4px 0;letter-spacing:2px}
 #clickToPlay{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';letter-spacing:6px;font-size:18px;background:rgba(6,3,12,.4);cursor:pointer}
 </style>
 </head>
@@ -166,6 +184,7 @@ table.sc .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
   <div id="announce"></div>
   <div id="kbanner"></div>
   <div id="count"></div>
+  <div id="spec" class="hidden"></div>
 </div>
 
 <div id="death" class="hidden"><div class="k">ELIMINATED BY</div><div class="face" id="dFace"></div><div class="n" id="dName"></div><div class="q" id="dQuote"></div><div class="r" id="dResp">RESPAWNING</div></div>
@@ -181,13 +200,16 @@ table.sc .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
 <div id="menu" class="screen hidden">
   <div class="logo">PISTOL<br>PANIC<small>PROTO ARENA</small></div>
   <div class="tag">Pistols only. Bullets are scattered around the map. The bots have feelings.</div>
+  <div id="rankCard" class="rankcard"></div>
   <button class="big" id="playBtn">DEPLOY</button>
   <div class="panel">
     <div class="sect">MATCH</div>
     <div class="grid2">
+      <div class="row"><label>Mode</label><div class="seg" id="sMode"><span data-v="dm">Deathmatch</span><span data-v="ls">Last Stand</span></div></div>
+      <div class="row"><label>Queue</label><div class="seg" id="sQueue"><span data-v="1">Ranked</span><span data-v="0">Casual</span></div></div>
       <div class="row"><label>Bots</label><span><input type="range" id="sBots" min="1" max="11" step="1"><output id="oBots"></output></span></div>
-      <div class="row"><label>Difficulty</label><div class="seg" id="sDiff"><span data-v="easy">Easy</span><span data-v="normal">Norm</span><span data-v="hard">Hard</span><span data-v="insane">Insane</span></div></div>
-      <div class="row"><label>Kill limit</label><div class="seg" id="sKills"><span data-v="10">10</span><span data-v="20">20</span><span data-v="30">30</span><span data-v="50">50</span></div></div>
+      <div class="row" id="rowDiff"><label>Difficulty</label><div class="seg" id="sDiff"><span data-v="easy">Easy</span><span data-v="normal">Norm</span><span data-v="hard">Hard</span><span data-v="insane">Insane</span></div></div>
+      <div class="row" id="rowKills"><label>Kill limit</label><div class="seg" id="sKills"><span data-v="10">10</span><span data-v="20">20</span><span data-v="30">30</span><span data-v="50">50</span></div></div>
       <div class="row"><label>Time limit</label><div class="seg" id="sTime"><span data-v="4">4m</span><span data-v="6">6m</span><span data-v="10">10m</span><span data-v="20">20m</span></div></div>
     </div>
     <div class="sect" style="margin-top:18px">SETTINGS</div>
@@ -208,6 +230,7 @@ table.sc .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
       <div><b>R</b>Reload</div><div><b>V</b>Pistol whip</div><div><b>F</b>Inspect pistol</div><div><b>TAB</b>Scoreboard</div>
       <div><b>M</b>Music on/off</div><div><b>ESC</b>Pause</div>
     </div>
+    <div class="note"><b>Ranked</b> sets bot skill from your rank: the higher you climb, the faster, sharper and deadlier they get. Place high to earn RP, place low and you lose it. Leaving a ranked match early costs 20 RP. <b>Last Stand</b>: one life each, no respawns. Survive to the end; if you go down you can spectate.</div>
     <div class="note">Everyone carries the same pistol. Walk over the glowing bullets to grab ammo. A golden round sometimes appears: it kills anything in one hit.</div>
   </div>
   <div class="note" style="margin-bottom:30px">Needs a mouse and keyboard.</div>
@@ -230,6 +253,7 @@ table.sc .dot{display:inline-block;width:10px;height:10px;border-radius:50%;marg
   <h1 id="endTitle">VICTORY</h1>
   <div class="sub" id="endSub"></div>
   <div id="stats"></div>
+  <div id="rpBox" class="panel rpbox"></div>
   <div class="panel" style="max-width:600px"><table class="sc" id="endT"></table></div>
   <div style="margin-top:14px"><button class="big" id="againBtn">PLAY AGAIN</button><button id="menuBtn">MAIN MENU</button></div>
 </div>
@@ -268,7 +292,7 @@ function spring(o, kx, kv, dt, k, c, gain = 1) { let x = o[kx], v = o[kv]; const
 
 /* ---------------- settings ---------------- */
 const SKEY = 'pistolPanic.settings.v1';
-const settings = { sens: 1, fov: 80, vol: 0.8, music: true, quality: 'high', bots: 7, diff: 'normal', killLimit: 20, minutes: 6, invert: false };
+const settings = { sens: 1, fov: 80, vol: 0.8, music: true, quality: 'high', bots: 7, diff: 'normal', killLimit: 20, minutes: 6, invert: false, mode: 'dm', ranked: true };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) { }
 function saveSettings() { try { localStorage.setItem(SKEY, JSON.stringify(settings)); } catch (e) { } }
 
@@ -989,6 +1013,54 @@ const DIFF = {
   hard: { react: 0.3, err: 0.7, learn: 3.2, turn: 10, fire: [0.24, 0.45], head: 0.2, dmg: 0.95, strafe: 1.3, see: 46, lag: 0.1, jit: 0.16 },
   insane: { react: 0.16, err: 0.45, learn: 5, turn: 15, fire: [0.17, 0.32], head: 0.32, dmg: 1.1, strafe: 1.6, see: 60, lag: 0.05, jit: 0.1 }
 };
+/* ---------------- ranking ---------------- */
+const RKEY = 'pistolPanic.rank.v1';
+const RANK = { rp: 0, best: 0, games: 0, wins: 0, pending: false, note: '' };
+try { Object.assign(RANK, JSON.parse(localStorage.getItem(RKEY) || '{}')); } catch (e) { }
+function saveRank() { try { localStorage.setItem(RKEY, JSON.stringify(RANK)); } catch (e) { } }
+const TIERS = [['BRONZE', '#d08a55'], ['SILVER', '#cfd8e6'], ['GOLD', '#ffd23e'], ['PLATINUM', '#3ef2d0'], ['DIAMOND', '#5ab8ff'], ['MASTER', '#c46bff'], ['GRANDMASTER', '#ff3e6c'], ['LEGEND', '#ffffff']];
+const TIER_RP = 300, LEGEND_RP = TIER_RP * 7, ABANDON_RP = 20;
+function rankOf(rp) {
+  if (rp >= LEGEND_RP) return { i: 7, name: 'LEGEND', div: '', color: TIERS[7][1], prog: Math.min(1, (rp - LEGEND_RP) / 900), next: null, label: 'LEGEND' };
+  const i = Math.floor(rp / TIER_RP), w = rp - i * TIER_RP, d = Math.min(2, Math.floor(w / 100)), divs = ['III', 'II', 'I'];
+  return { i, name: TIERS[i][0], div: divs[d], color: TIERS[i][1], prog: (w - d * 100) / 100, next: i * TIER_RP + (d + 1) * 100, label: TIERS[i][0] + ' ' + divs[d] };
+}
+// 0 = easy at Bronze III ... 1 = insane at Legend; Legend keeps climbing past insane
+function skillOf(rp) { return rp <= LEGEND_RP ? rp / LEGEND_RP : 1 + Math.min(0.5, (rp - LEGEND_RP) / 1800); }
+function diffFor(sk) {
+  const ks = ['easy', 'normal', 'hard', 'insane'], x = Math.min(sk, 1) * 3, i = Math.min(2, Math.floor(x)), t = x - i, A = DIFF[ks[i]], Bd = DIFF[ks[i + 1]], o = {};
+  for (const k in A) o[k] = Array.isArray(A[k]) ? A[k].map((v, j) => lerp(v, Bd[k][j], t)) : lerp(A[k], Bd[k], t);
+  if (sk > 1) { const e = sk - 1; o.react = Math.max(0.09, o.react * (1 - e * 0.8)); o.err = Math.max(0.25, o.err * (1 - e * 0.8)); o.learn *= 1 + e; o.turn *= 1 + e * 0.6; o.fire = o.fire.map(v => v * (1 - e * 0.4)); o.head = Math.min(0.5, o.head + e * 0.3); o.dmg *= 1 + e * 0.3; o.strafe *= 1 + e * 0.5; o.lag *= 1 - e; o.jit *= 1 - e * 0.6; o.see += e * 20; }
+  return o;
+}
+function badgeHTML(r, size = 62) { return `<div class="badge" style="width:${size}px;height:${size * 1.13}px;font-size:${size * 0.36}px;background:linear-gradient(160deg,#fff 0%,${r.color} 45%,${r.color} 70%,rgba(0,0,0,.35) 140%);box-shadow:0 0 24px ${r.color}">${r.name[0]}${r.i === 7 ? '' : ''}</div>`; }
+function renderRankCard() {
+  const r = rankOf(RANK.rp), sk = Math.round(skillOf(RANK.rp) * 100);
+  $('rankCard').innerHTML = badgeHTML(r) + `<div class="rk"><div class="t" style="color:${r.color}">${r.label}</div>
+    <div class="s">${RANK.rp} RP${r.next ? ' · ' + (r.next - RANK.rp) + ' to next' : ''} · bot skill ${sk}% · ${RANK.wins}W / ${RANK.games} games</div>
+    <div class="bar"><i style="width:${r.prog * 100}%;background:${r.color};box-shadow:0 0 10px ${r.color}"></i></div>${RANK.note ? `<div class="n">${RANK.note}</div>` : ''}</div>`;
+}
+function rankResult(place, N, won) {
+  if (!match.ranked || match.resultApplied) return match.rpResult || null;
+  match.resultApplied = true; RANK.pending = false; RANK.note = '';
+  const before = RANK.rp, frac = N > 1 ? (place - 1) / (N - 1) : 0;
+  const scale = clamp(0.45 + 0.08 * (N - 1), 0.55, 1.25); // more bots = bigger rewards
+  const pRaw = Math.round(lerp(30, -24, frac)), placePart = pRaw > 0 ? Math.round(pRaw * scale) : pRaw;
+  const killPart = Math.min(20, P.kills * (match.mode === 'ls' ? 4 : 2)), winPart = won ? Math.round(12 * scale) : 0;
+  let gain = placePart + killPart + winPart; const parts = [[`Placed #${place} of ${N}`, placePart], [`${P.kills} kill${P.kills === 1 ? '' : 's'}`, killPart]];
+  if (won) parts.push(['Win bonus', winPart]);
+  if (gain < 0) { const adj = Math.round(gain * rankOf(before).i * 0.07); if (adj) { parts.push(['High-rank pressure', adj]); gain += adj; } }
+  RANK.rp = Math.max(0, before + gain); RANK.games++; if (won) RANK.wins++; RANK.best = Math.max(RANK.best, RANK.rp); saveRank();
+  match.rpResult = { before, after: RANK.rp, gain: RANK.rp - before, parts };
+  return match.rpResult;
+}
+function abandonIfNeeded() {
+  if (match.ranked && !match.resultApplied && ['countdown', 'play', 'paused', 'ending'].includes(match.state)) {
+    match.resultApplied = true; RANK.rp = Math.max(0, RANK.rp - ABANDON_RP); RANK.games++; RANK.pending = false; RANK.note = `Left a ranked match: -${ABANDON_RP} RP`; saveRank();
+  }
+}
+if (RANK.pending) { RANK.pending = false; RANK.rp = Math.max(0, RANK.rp - ABANDON_RP); RANK.games++; RANK.note = `Left a ranked match: -${ABANDON_RP} RP`; saveRank(); }
+
 const BOT_NAMES = ['Grumpy Gus', 'Sir Frowns', 'Mad Mabel', 'Pouty Pete', 'Rage Quinn', 'Sulky Sam', 'Big Nose Ned', 'Moody Judy', 'Cranky Hank', 'Huffy Hugo', 'Glare Bear'];
 const BOT_COLORS = ['#ff3e6c', '#3ef2ff', '#ffb3e6', '#8aff3e', '#b23eff', '#ff8a3e', '#3e8aff', '#ff3ef2', '#3effa8', '#f2f2f2', '#ff5e3e'];
 const LINES = {
@@ -1481,7 +1553,7 @@ function animateBot(b, dt) {
   b.mat.userData.u.uFlash.value = damp(b.mat.userData.u.uFlash.value, 0, 14, dt);
 }
 function updateBot(b, dt) {
-  const D = DIFF[settings.diff];
+  const D = match.D || DIFF.normal;
   b.voiceCd -= dt; b.emoT -= dt; b.celebT -= dt; b.sayT -= dt; b.emoShowT -= dt; b.meleeCd -= dt;
   if (b.sayT <= 0 && b.tagSay.style.display !== 'none') b.tagSay.style.display = 'none';
   if (b.emoShowT <= 0) { const ic = b.alive && b.face === 3 ? '😡' : ''; if (b.tagEmo.textContent !== ic) b.tagEmo.textContent = ic; }
@@ -1513,7 +1585,7 @@ function updateDeadBot(b, dt) {
     if (Math.random() < 0.6) burst(_tmp.copy(b.hb.b1).lerp(b.hb.b0, Math.random()), 2, b.colorHex, 1.5, 0.05, 0.6, { up: 1.5, grav: -1, hdr: 3 });
     if (k <= 0) { b.holder.visible = false; burst(b.hb.b1, 40, b.colorHex, 4, 0.06, 0.9, { up: 1, grav: 2, hdr: 4 }); }
   }
-  if (match.state === 'play' || match.state === 'menu') { b.respawnT -= dt; if (b.respawnT <= 0) spawnBot(b); }
+  if (match.state === 'menu' || (match.state === 'play' && match.mode !== 'ls')) { b.respawnT -= dt; if (b.respawnT <= 0) spawnBot(b); }
 }
 function spawnPoint(self) {
   let best = null, bs = -1;
@@ -1715,7 +1787,18 @@ function playerDied(killer) {
   $('dFace').textContent = k ? pick(['😎', '😂', '🤙', '😈']) : '🤦';
   $('dQuote').textContent = k ? '"' + pick(LINES.kill) + '"' : '';
   SFX.land(0.7);
+  if (match.mode === 'ls') {
+    const N = ENTS.length; P.place = ENTS.filter(e => e.alive).length + 1;
+    $('dResp').textContent = `PLACED #${P.place} OF ${N} · NO RESPAWNS`;
+    if (match.state === 'play') rankResult(P.place, N, false);
+  } else $('dResp').textContent = 'RESPAWNING';
 }
+function aliveSorted() { return ENTS.filter(e => e.alive).sort((a, b) => b.kills - a.kills || b.hp - a.hp); }
+function nextSpec(dir = 1) {
+  const L = BOTS.filter(b => b.active && b.alive); if (!L.length) { match.spec = null; return; }
+  const i = L.indexOf(match.spec); match.spec = L[((i < 0 ? -1 : i) + dir + L.length) % L.length];
+}
+function finishEarly() { if (match.state !== 'play') return; match.winner = null; showEnd(); }
 function playerKill(v, head, golden) {
   SFX.kill(); const now = time;
   P.multi = now - P.multiT < 4 ? P.multi + 1 : 1; P.multiT = now;
@@ -1864,13 +1947,25 @@ function updatePlayerCamera(dt) {
     camera.rotation.set(P.pitch + P.recoil * 0.55 + rand(-sh, sh), P.yaw + P.recoilYaw * 0.35 + rand(-sh, sh), P.roll);
     const base = settings.fov * (1 - 0.2 * P.ads) + P.sprint * 6 + (P.slideT > 0 ? 9 : 0);
     camera.fov = damp(camera.fov, base, 10, dt); camera.updateProjectionMatrix();
+  } else if (match.state !== 'menu' && match.mode === 'ls' && P.deadT > 2.6) {
+    // spectate the survivors
+    P.deadT += dt;
+    if (!match.spec || !match.spec.alive) nextSpec();
+    const sp = match.spec; $('death').classList.add('hidden');
+    const el = $('spec'); el.classList.toggle('hidden', !sp);
+    if (sp) {
+      const html = `SPECTATING<b style="color:${sp.color}">${sp.name}</b>${aliveSorted().length} ALIVE · SPACE / CLICK NEXT · ENTER RESULTS`; if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+      _tmp.set(sp.pos.x - Math.sin(sp.yaw) * 3.4, sp.pos.y + 2.3, sp.pos.z - Math.cos(sp.yaw) * 3.4);
+      camera.position.lerp(_tmp, 1 - Math.exp(-5 * dt)); camera.lookAt(sp.hb.head);
+      camera.fov = damp(camera.fov, 70, 4, dt); camera.updateProjectionMatrix();
+    }
   } else if (match.state !== 'menu') {
     // death cam: slump and look at the killer
     P.deadT += dt; const k = Math.min(1, P.deadT / 0.6);
     camera.position.y = damp(camera.position.y, feetY() + 0.45, 6, dt);
     if (P.killer && P.killer !== P && P.killer.alive) { _tmp.subVectors(P.killer.isPlayer ? P.pos : P.killer.hb.head, camera.position); const ty = Math.atan2(-_tmp.x, -_tmp.z), tp = Math.atan2(_tmp.y, Math.hypot(_tmp.x, _tmp.z)); P.yaw += angDiff(P.yaw, ty) * Math.min(1, dt * 4); P.pitch = damp(P.pitch, tp, 4, dt); }
     camera.rotation.set(P.pitch, P.yaw, 0.35 * k);
-    if (match.state === 'play') { P.respawnT -= dt; $('dResp').textContent = P.respawnT > 0 ? 'RESPAWNING IN ' + Math.ceil(P.respawnT) : 'RESPAWNING'; if (P.respawnT <= 0) spawnPlayer(); }
+    if (match.state === 'play' && match.mode !== 'ls') { P.respawnT -= dt; $('dResp').textContent = P.respawnT > 0 ? 'RESPAWNING IN ' + Math.ceil(P.respawnT) : 'RESPAWNING'; if (P.respawnT <= 0) spawnPlayer(); }
   }
 }
 
@@ -1957,7 +2052,8 @@ function updateHUD(dt) {
   const tl = Math.max(0, match.timeLeft); setText('time', hud.timer, `${Math.floor(tl / 60)}:${String(Math.floor(tl % 60)).padStart(2, '0')}`);
   setText('my', hud.my, '' + P.kills);
   let lead = null; for (const e of ENTS) if (e !== P && (!lead || e.kills > lead.kills)) lead = e;
-  setText('lead', hud.lead, lead ? `<span style="color:${lead.color}">${lead.name.split(' ').pop().toUpperCase()}</span> <b>${lead.kills}</b> <span style="color:var(--dim)">/ ${match.limit}</span>` : '');
+  if (match.mode === 'ls') setText('lead', hud.lead, `ALIVE <b>${ENTS.filter(e => e.alive).length}</b> <span style="color:var(--dim)">/ ${ENTS.length}</span>`);
+  else setText('lead', hud.lead, lead ? `<span style="color:${lead.color}">${lead.name.split(' ').pop().toUpperCase()}</span> <b>${lead.kills}</b> <span style="color:var(--dim)">/ ${match.limit}</span>` : '');
   if (hud.hmT > 0) { hud.hmT -= dt; hud.hm.style.opacity = Math.min(1, hud.hmT * 6); hud.hm.style.transform = `scale(${1 + hud.hmT})`; } else hud.hm.style.opacity = 0;
   if (hud.hintT > 0) { hud.hintT -= dt; hud.hint.style.opacity = Math.min(1, hud.hintT * 3); } else hud.hint.style.opacity = 0;
   if (P.alive && P.mag + P.reserve === 0 && hud.hintT <= 0) showHint('OUT OF AMMO · FIND THE GLOWING BULLETS', true, 1.5);
@@ -1979,7 +2075,7 @@ function renderBoard(tbl) {
 /* =====================================================================
    MATCH FLOW
    ===================================================================== */
-const match = { state: 'loading', limit: 20, timeLeft: 360, countT: 0, prev: null, endT: 0, winner: null };
+const match = { state: 'loading', limit: 20, timeLeft: 360, countT: 0, prev: null, endT: 0, winner: null, mode: 'dm', ranked: false, D: null, resultApplied: false, rpResult: null, spec: null };
 let time = 0, timeScale = 1, slowT = 0;
 function activateBots(n) {
   while (BOTS.length < n) BOTS.push(makeBot(BOTS.length));
@@ -1988,14 +2084,18 @@ function activateBots(n) {
 }
 function resetScores() { for (const e of [P, ...BOTS]) { e.kills = 0; e.deaths = 0; e.headshots = 0; e.streak = 0; e.grudge = null; } P.shots = 0; P.hits = 0; }
 function startAttract() {
-  match.state = 'menu'; P.alive = false; activateBots(Math.max(4, settings.bots)); resetScores();
+  match.state = 'menu'; match.mode = 'dm'; match.ranked = false; match.D = DIFF.normal; P.alive = false; activateBots(Math.max(4, settings.bots)); resetScores(); $('spec').classList.add('hidden');
   for (const b of BOTS) if (b.active) spawnBot(b);
   $('hud').classList.add('hidden'); vmPass.enabled = false; GOLD.t = 20;
 }
 function startMatch() {
+  abandonIfNeeded();
   SFX.init(); SFX.setVol(settings.vol); SFX.setMusic(settings.music);
   activateBots(settings.bots); resetScores();
-  match.limit = settings.killLimit; match.timeLeft = settings.minutes * 60; match.winner = null;
+  match.mode = settings.mode; match.ranked = settings.ranked; match.resultApplied = false; match.rpResult = null; match.spec = null; P.place = 0;
+  match.D = match.ranked ? diffFor(skillOf(RANK.rp)) : DIFF[settings.diff];
+  if (match.ranked) { RANK.pending = true; RANK.note = ''; saveRank(); }
+  match.limit = match.mode === 'ls' ? 999 : settings.killLimit; match.timeLeft = settings.minutes * 60; match.winner = null;
   for (const k of PICKUPS) { k.active = true; k.spin.visible = true; k.beam.visible = true; k.disc.material.opacity = 1; }
   GOLD.active = false; GOLD.g.visible = false; GOLD.t = 35;
   for (const b of BOTS) if (b.active) { b.alive = false; spawnBot(b); }
@@ -2004,33 +2104,59 @@ function startMatch() {
   ['menu', 'end', 'pause', 'death'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.remove('hidden'); vmPass.enabled = true;
   match.state = 'countdown'; match.countT = 3.999; match.lastCount = 4; timeScale = 1;
-  camera.fov = settings.fov; lock();
+  camera.fov = settings.fov; lock(); $('spec').classList.add('hidden');
+  const r = rankOf(RANK.rp);
+  announce(match.mode === 'ls' ? 'LAST STAND' : 'DEATHMATCH', (match.ranked ? `RANKED · ${r.label} · BOT SKILL ${Math.round(skillOf(RANK.rp) * 100)}%` : 'CASUAL') + (match.mode === 'ls' ? ' · ONE LIFE' : ''));
 }
 function checkWin(killer) {
+  if (match.mode === 'ls') {
+    const alive = ENTS.filter(e => e.alive);
+    if (alive.length <= 1) endMatch(alive[0] || killer);
+    else if (P.alive) showHint(alive.length - 1 + (alive.length === 2 ? ' ENEMY LEFT' : ' ENEMIES LEFT'), false, 1.6);
+    return;
+  }
   if (killer && killer.kills >= match.limit) endMatch(killer);
 }
 function endMatch(winner) {
   if (match.state !== 'play') return;
-  if (!winner) { winner = [...ENTS].sort((a, b) => b.kills - a.kills)[0]; }
+  if (!winner) { winner = match.mode === 'ls' ? (aliveSorted()[0] || P) : [...ENTS].sort((a, b) => b.kills - a.kills)[0]; }
   match.winner = winner; match.state = 'ending'; match.endT = 2.2; timeScale = 0.3;
-  announce(winner.isPlayer ? 'FINAL KILL' : 'MATCH OVER', winner.isPlayer ? '' : winner.name + ' WINS');
+  if (match.mode === 'ls') announce(winner.isPlayer ? 'LAST ONE STANDING' : 'MATCH OVER', winner.isPlayer ? 'NOBODY ELSE IS LEFT' : winner.name + ' SURVIVED');
+  else announce(winner.isPlayer ? 'FINAL KILL' : 'MATCH OVER', winner.isPlayer ? '' : winner.name + ' WINS');
   SFX.announce(winner.isPlayer ? 523 : 220);
   for (const b of BOTS) if (b.active && b.alive) { if (b === winner) { b.celebT = 6; emote(b, 'shocked', 5, '🏆', 'I AM THE BEST'); } else if (winner.isPlayer) emote(b, 'furious', 4, '😤', null, false); }
 }
 function showEnd() {
   match.state = 'over'; unlock(); timeScale = 1;
-  const w = match.winner; const youWon = w && w.isPlayer;
-  $('endTitle').textContent = youWon ? 'VICTORY' : 'DEFEAT'; $('endTitle').style.color = youWon ? 'var(--gold)' : 'var(--red)';
-  const rank = [...ENTS].sort((a, b) => b.kills - a.kills).indexOf(P) + 1;
-  $('endSub').innerHTML = youWon ? 'You out-gunned every bot in the arena.' : `<span style="color:${w.color}">${w.name}</span> won the match. You placed #${rank}.`;
+  const w = match.winner; const youWon = !!(w && w.isPlayer), N = ENTS.length;
+  let place;
+  if (match.mode === 'ls') place = P.alive ? (youWon ? 1 : aliveSorted().indexOf(P) + 1) : P.place;
+  else place = [...ENTS].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths).indexOf(P) + 1;
+  $('endTitle').textContent = youWon ? 'VICTORY' : match.mode === 'ls' && !P.alive ? 'ELIMINATED' : 'DEFEAT'; $('endTitle').style.color = youWon ? 'var(--gold)' : 'var(--red)';
+  $('endSub').innerHTML = youWon ? (match.mode === 'ls' ? 'Last one standing. Nobody else made it.' : 'You out-gunned every bot in the arena.')
+    : (w ? `<span style="color:${w.color}">${w.name}</span> ${match.mode === 'ls' ? 'survived' : 'won the match'}. ` : '') + `You placed #${place} of ${N}.`;
+  const res = rankResult(place, N, youWon);
+  const box = $('rpBox');
+  if (match.ranked && res) {
+    const rb = rankOf(res.before), ra = rankOf(res.after), up = ra.i > rb.i || (ra.i === rb.i && ra.div !== rb.div && res.gain > 0), down = res.after < res.before && ra.label !== rb.label;
+    const col = res.gain >= 0 ? 'var(--cyan)' : 'var(--red)';
+    box.innerHTML = `<div style="display:flex;align-items:center;gap:16px">${badgeHTML(ra, 54)}<div class="rk"><div class="t" style="color:${ra.color}">${ra.label}</div>
+      <div class="s">${res.before} &rarr; ${res.after} RP</div><div class="bar"><i id="rpBar" style="width:${rb.label === ra.label ? rb.prog * 100 : 0}%;background:${ra.color}"></i></div></div>
+      <div class="gain" style="color:${col}">${res.gain >= 0 ? '+' : ''}${res.gain} RP</div></div>
+      <div class="parts">${res.parts.map(([k, v]) => `<span>${k}</span><span style="color:${v >= 0 ? 'var(--ink)' : 'var(--red)'}">${v >= 0 ? '+' : ''}${v}</span>`).join('')}</div>
+      ${up ? `<div class="up" style="color:${ra.color}">▲ PROMOTED TO ${ra.label} · BOTS GET TOUGHER</div>` : down ? `<div class="up" style="color:var(--red)">▼ DEMOTED TO ${ra.label}</div>` : ''}`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { const b = $('rpBar'); if (b) b.style.width = ra.prog * 100 + '%'; }));
+    if (up) SFX.announce(523);
+  } else box.innerHTML = `<div class="s" style="text-align:center;color:var(--dim);letter-spacing:3px;font-family:Orbitron;font-size:12px">CASUAL MATCH · NO RP CHANGE</div>`;
+  $('spec').classList.add('hidden');
   const acc = P.shots ? Math.round(100 * P.hits / P.shots) : 0;
-  $('stats').innerHTML = `<div><b>${P.kills}</b>KILLS</div><div><b>${P.deaths}</b>DEATHS</div><div><b>${P.headshots}</b>HEADSHOTS</div><div><b>${acc}%</b>ACCURACY</div><div><b>${(P.kills / Math.max(1, P.deaths)).toFixed(2)}</b>K/D</div>`;
+  $('stats').innerHTML = `<div><b>#${place}</b>PLACE</div><div><b>${P.kills}</b>KILLS</div><div><b>${P.deaths}</b>DEATHS</div><div><b>${P.headshots}</b>HEADSHOTS</div><div><b>${acc}%</b>ACCURACY</div><div><b>${(P.kills / Math.max(1, P.deaths)).toFixed(2)}</b>K/D</div>`;
   renderBoard($('endT'));
   $('end').classList.remove('hidden'); $('hud').classList.add('hidden'); $('death').classList.add('hidden'); vmPass.enabled = false;
 }
 function pause() { if (match.state !== 'play' && match.state !== 'countdown') return; match.prev = match.state; match.state = 'paused'; $('pause').classList.remove('hidden'); syncSettingsUI(); }
 function resume() { if (match.state !== 'paused') return; match.state = match.prev; $('pause').classList.add('hidden'); lock(); }
-function toMenu() { ['pause', 'end', 'death'].forEach(id => $(id).classList.add('hidden')); $('menu').classList.remove('hidden'); unlock(); startAttract(); syncSettingsUI(); }
+function toMenu() { abandonIfNeeded(); ['pause', 'end', 'death'].forEach(id => $(id).classList.add('hidden')); $('menu').classList.remove('hidden'); unlock(); startAttract(); syncSettingsUI(); }
 function lock() { if (TEST) { locked = true; return; } try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } }
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
@@ -2045,6 +2171,7 @@ addEventListener('keydown', e => {
   if (e.repeat) { keys[e.code] = true; return; }
   keys[e.code] = true;
   if (match.state !== 'play' && match.state !== 'countdown') { if (e.code === 'Escape' && match.state === 'paused') resume(); return; }
+  if (!P.alive && match.mode === 'ls' && match.state === 'play') { if (e.code === 'Space') nextSpec(1); if (e.code === 'Enter' || e.code === 'NumpadEnter') finishEarly(); return; }
   if (e.code === 'Space') P.jumpBuf = 0.15;
   if (e.code === 'KeyR') startReload();
   if (e.code === 'KeyV') melee();
@@ -2056,6 +2183,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseDown = rmb = false; });
 canvas.addEventListener('mousedown', e => {
   if (!locked && (match.state === 'play' || match.state === 'countdown')) { lock(); return; }
+  if (!P.alive && match.mode === 'ls' && match.state === 'play') { nextSpec(e.button === 2 ? -1 : 1); return; }
   if (e.button === 0) { mouseDown = true; tryFire(); } if (e.button === 2) rmb = true;
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) rmb = false; });
@@ -2072,12 +2200,14 @@ $('clickToPlay').addEventListener('click', () => lock());
 function seg(id, key, conv = v => v) {
   const el = $(id); el.addEventListener('click', e => { const s = e.target.closest('span'); if (!s) return; settings[key] = conv(s.dataset.v); saveSettings(); syncSettingsUI(); if (key === 'quality') applyQuality(); if (key === 'music') SFX.setMusic(settings.music && match.state !== 'menu'); });
 }
-seg('sDiff', 'diff'); seg('sKills', 'killLimit', Number); seg('sTime', 'minutes', Number); seg('sQual', 'quality'); seg('sMusic', 'music', v => v === '1'); seg('sInv', 'invert', v => v === '1');
+seg('sMode', 'mode'); seg('sQueue', 'ranked', v => v === '1'); seg('sDiff', 'diff'); seg('sKills', 'killLimit', Number); seg('sTime', 'minutes', Number); seg('sQual', 'quality'); seg('sMusic', 'music', v => v === '1'); seg('sInv', 'invert', v => v === '1');
 function slider(id, out, key, fmt, after) { const el = $(id); el.addEventListener('input', () => { settings[key] = Number(el.value); $(out).textContent = fmt(settings[key]); saveSettings(); after && after(); }); }
 slider('sBots', 'oBots', 'bots', v => v); slider('sSens', 'oSens', 'sens', v => v.toFixed(2)); slider('sFov', 'oFov', 'fov', v => v, () => { camera.fov = settings.fov; camera.updateProjectionMatrix(); }); slider('sVol', 'oVol', 'vol', v => Math.round(v * 100), () => SFX.setVol(settings.vol));
 slider('pSens', 'opSens', 'sens', v => v.toFixed(2)); slider('pVol', 'opVol', 'vol', v => Math.round(v * 100), () => SFX.setVol(settings.vol));
 function syncSettingsUI() {
   const segOn = (id, v) => [...$(id).children].forEach(s => s.classList.toggle('on', s.dataset.v === String(v)));
+  segOn('sMode', settings.mode); segOn('sQueue', settings.ranked ? 1 : 0); $('rowDiff').classList.toggle('off', settings.ranked); $('rowKills').classList.toggle('off', settings.mode === 'ls'); renderRankCard();
+  $('playBtn').textContent = (settings.ranked ? 'RANKED ' : '') + (settings.mode === 'ls' ? 'LAST STAND' : 'DEATHMATCH');
   segOn('sDiff', settings.diff); segOn('sKills', settings.killLimit); segOn('sTime', settings.minutes); segOn('sQual', settings.quality); segOn('sMusic', settings.music ? 1 : 0); segOn('sInv', settings.invert ? 1 : 0);
   const sl = (id, out, v, f) => { $(id).value = v; $(out).textContent = f(v); };
   sl('sBots', 'oBots', settings.bots, v => v); sl('sSens', 'oSens', settings.sens, v => (+v).toFixed(2)); sl('sFov', 'oFov', settings.fov, v => v); sl('sVol', 'oVol', settings.vol, v => Math.round(v * 100));
@@ -2130,7 +2260,7 @@ function step(rdt) {
   FX.damage = Math.max(0, FX.damage - rdt * 1.4);
   fxPass.uniforms.uDamage.value = FX.damage;
   fxPass.uniforms.uLow.value = P.alive && match.state !== 'menu' && P.hp < 35 ? 1 - P.hp / 35 : 0;
-  fxPass.uniforms.uDead.value = damp(fxPass.uniforms.uDead.value, !P.alive && match.state !== 'menu' && match.state !== 'over' ? 1 : 0, 4, rdt);
+  fxPass.uniforms.uDead.value = damp(fxPass.uniforms.uDead.value, !P.alive && match.state !== 'menu' && match.state !== 'over' && !(match.mode === 'ls' && P.deadT > 2.6) ? 1 : 0, 4, rdt);
   fxPass.uniforms.uGold.value = P.golden ? 1 : 0;
   fxPass.uniforms.uSpeed.value = damp(fxPass.uniforms.uSpeed.value, P.slideT > 0 ? 1 : P.sprint * 0.35, 8, rdt);
   sparks.mat.uniforms.uScale.value = smoke.mat.uniforms.uScale.value = innerHeight * 0.5 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -2158,7 +2288,7 @@ async function boot() {
     // warm up shaders
     startAttract(); renderer.compile(scene, camera); renderer.compile(vmScene, vmCamera);
     $('loading').classList.add('hidden'); $('menu').classList.remove('hidden'); syncSettingsUI();
-    if (TEST) window.PP = { P, BOTS, match, startMatch, keys, camera, vm, NAV, settings, setView(y, p) { P.yaw = y; P.pitch = p; }, fire: tryFire, get time() { return time; }, renderer, vmPlay, FLOOR_Y: () => FLOOR_Y, ADS_E, HIP_E, setAds(v) { rmb = v; }, sim(n, dt = 1 / 30) { for (let i = 0; i < n; i++) step(dt); }, PICKUPS, GOLD, kill, endMatch, placePlayer, walkableAt };
+    if (TEST) window.PP = { P, BOTS, match, startMatch, keys, camera, vm, NAV, settings, setView(y, p) { P.yaw = y; P.pitch = p; }, fire: tryFire, get time() { return time; }, renderer, vmPlay, FLOOR_Y: () => FLOOR_Y, ADS_E, HIP_E, setAds(v) { rmb = v; }, sim(n, dt = 1 / 30) { for (let i = 0; i < n; i++) step(dt); }, PICKUPS, GOLD, kill, endMatch, placePlayer, walkableAt, RANK, rankOf, skillOf, diffFor, finishEarly, toMenu, syncSettingsUI };
   } catch (err) {
     console.error(err);
     $('loaderr').textContent = 'Could not start: ' + err.message + '. Serve this folder over http (for example: python3 -m http.server) and open it in a WebGL2 browser.';
