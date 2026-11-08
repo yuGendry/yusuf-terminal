@@ -26,6 +26,25 @@ You were the night auditor at Hallow & Sons. You blinked, and woke up in a yello
 - **Every midnight** the fuses blow and the lights die. **Every dawn** the chests refill.
 - It gets a little faster every day. How long can you last?
 
+## Difficulty
+
+Pick it on the title screen, or change it in the pause menu.
+
+| | Easy | Normal | Hard | Nightmare |
+| --- | --- | --- | --- | --- |
+| One battery lasts | 15 min | 9 min | 5.5 min | 4 min |
+| Spare batteries at start | 3 | 1 | 0 | 0 |
+| Creature speed | slower | normal | faster | fastest |
+| Hold light on it to blind it | 0.9 s | 1.5 s | 2.3 s | doesn't work |
+| It forgets you | quickly | normal | slowly | very slowly |
+
+## How to get away
+
+- **Break line of sight.** It goes to where it last saw you, then searches. Turn corners, then turn your light off and crouch.
+- **Blind it.** Hold your flashlight steady on its face and it will be blinded for a few seconds. **Burst** (right click) stuns it instantly.
+- **Lure it.** Throw a spare battery **[T]** down another hall. It runs to the noise, even mid-chase if it can't see you.
+- **Safe rooms.** Your room and the stalls. On Monday at 03:00 only the stalls are safe.
+
 ## Controls
 
 | Key | Action |
@@ -35,11 +54,15 @@ You were the night auditor at Hallow & Sons. You blinked, and woke up in a yello
 | C / Ctrl | crouch (quiet) |
 | F | flashlight |
 | R | swap battery |
-| Right mouse / Q | light burst: stuns the creature, costs 20% battery |
+| Right mouse / Q | light burst: stuns the creature instantly (costs charge, has a cooldown) |
+| T | throw a spare battery as a lure (pick it up again afterwards) |
+| H | hint + waypoint to your current objective |
 | E | interact |
 | J | journal |
 | Esc | pause |
 | F2 | enter creator code |
+
+The pause menu has **Screen effects** (Smooth by default, or Intense with screen warping and shake), a **Head bob** slider, and a **Hints** toggle.
 
 ## Creator mode
 
