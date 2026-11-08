@@ -89,3 +89,52 @@ Open http://localhost:8000/fps/ with the same local server as above.
 | Esc | pause |
 
 `fps/assets/` holds the converted models: the arena (FBX to meshopt GLB, scaled to metres), the arms and Beretta, and the NPC, plus the textures packed into WebP (colour, normal and AO/roughness/metal).
+
+---
+
+# HOLLOW PINES (`forest/`)
+
+A survival horror in a huge forest, in one `forest/index.html` (three.js, no build step). Open http://localhost:8000/forest/ with the same local server as above.
+
+## The story
+
+Your car left the old logging road last night. You wake at dawn in Blackwood Forest. There is one trail through it, and the old loggers swore nothing that lives between the trees will ever set foot on it.
+
+1. Take your flashlight from the wrecked car.
+2. Follow the trail to the Ranger Cabin. Use the radio and take the flare gun.
+3. Survive 3 nights (2 on Easy).
+4. On the last dawn, reach the Lookout Tower at the end of the trail and fire the flare.
+
+- **Mornings (05:30 to 10:00) are safe everywhere.** Nothing hunts. Forage then.
+- **The Grin (the bear):** the trail is safe. Leave it and a threat meter fills (faster at night, faster when you run, slower when you crouch). You hear twigs snap, then breathing, then it comes crashing through the trees. Run back to the trail: it stops at the edge, paces and stares, then leaves.
+- **The Mimic (the chameleon):** comes at night, anywhere. It's camouflaged (refractive, see-through, shimmering), not invisible. Look straight at it and it shows itself and freezes; look away and it creeps closer. Hold your flashlight on it to make it scream and flee.
+- **Food only grows off the trail:** berries, mushrooms (never the purple glowing ones, they make you hallucinate) and the backpacks of lost hikers (canned food, batteries, bandages). Hunger drains all the time; food respawns every dawn.
+- **The last night brings a storm:** rain, thunder, and lightning that lights everything up, including whatever is standing next to you.
+- 8 journal pages from the missing ranger tell you what the creatures are. If you die, you can retry from the last dawn.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| WASD / mouse | move / look |
+| Shift | run |
+| C / Ctrl | crouch (quieter) |
+| E | interact / pick up / read |
+| F | flashlight |
+| R | swap batteries |
+| Q | eat canned food |
+| H | use bandage |
+| M (hold) | map |
+| J | re-read journal pages |
+| Esc | pause |
+
+## The world
+
+- **The supplied forest map copied 16 times (4 x 4) into a 400 x 400 m forest**, with an outer ring of copies for the horizon. Each copy is rotated, and every tree gets its own random scale and rotation so the copies don't look repeated. The trees stand on a new rolling terrain.
+- **One winding trail** runs through the whole forest, from the crash site to the lookout tower, with a side trail to an old campsite. Trees are cleared off it, it's dirt with wheel ruts, and reflective posts mark it. You can walk anywhere there isn't a tree.
+- Opening cutscene (aerial flyover, the trail, the Grin in the trees, the Mimic at night, the crash) with a skippable letterbox, an animated 3D title screen, and an ending sequence.
+- **Visuals:** a full day/night cycle (sunrise, golden hour, moonlit nights) with sky, clouds, stars, moon, fog and shadows that follow the player. Wind sways the trees and a GPU grass field. Fireflies, mist, pollen, rain, lightning, a volumetric flashlight beam, bloom, film grain, chromatic aberration, fear and damage effects, hallucinations.
+- **Audio:** all generated live with Web Audio: wind, birds, crickets, owls, footsteps (different on the trail and in the leaves), heartbeat, 3D creature growls, roars, clicks and shrieks, thunder, rain, and dynamic music that turns into chase music.
+- **Settings:** graphics quality (low / medium / high), difficulty (Easy / Normal / Nightmare), mouse sensitivity, volume, invert Y.
+
+`forest/assets/` holds the converted models. The forest is converted from OBJ to meshopt GLB. The bear GLB keeps its 8 animations, with textures shrunk to WebP. The chameleon was a 600k-vertex FBX with no rig: it's converted to GLB, simplified to about 80k vertices and animated in a shader (crawl, tail and tongue).
