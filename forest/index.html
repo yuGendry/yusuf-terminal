@@ -241,6 +241,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /* =====================================================================
    HOLLOW PINES — a survival horror in the woods
@@ -262,8 +263,8 @@ const SETTINGS = Object.assign({ quality: 'medium', sens: 1, volume: 0.8, diffic
 const saveSettings = () => { try { localStorage.setItem('hp_settings', JSON.stringify(SETTINGS)); } catch (e) { } };
 const QUALITY = {
   low: { pr: 0.7, shadow: 1024, grass: 0, bloom: false, msaa: 0, flashShadow: false, shadowEvery: 3 },
-  medium: { pr: 1, shadow: 2048, grass: 42000, bloom: true, msaa: 0, flashShadow: false, shadowEvery: 2 },
-  high: { pr: 1.5, shadow: 2048, grass: 90000, bloom: true, msaa: 4, flashShadow: true, shadowEvery: 1 },
+  medium: { pr: 1, shadow: 2048, grass: 42000, bloom: true, msaa: 0, flashShadow: true, flashShadowSize: 512, shadowEvery: 2 },
+  high: { pr: 1.5, shadow: 2048, grass: 90000, bloom: true, msaa: 4, flashShadow: true, flashShadowSize: 1024, shadowEvery: 1 },
 };
 const DIFF = {
   easy: { nights: 2, bearFill: 0.6, bearSpeed: 5.0, cham: 0.8, hunger: 0.75, chamDmg: 40, bearDmg: 28, burn: 1.0 },
@@ -293,6 +294,34 @@ const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.Ha
 const composer = new EffectComposer(renderer, rt);
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
+// screen-space light shafts: the sky writes alpha 0, everything solid writes alpha 1,
+// so marching toward the sun through the colour buffer gives rays that the trees occlude
+const godRays = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) }, uInt: { value: 0 }, uCol: { value: new THREE.Color() }, uAspect: { value: 1 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 uSun; uniform float uInt,uAspect; uniform vec3 uCol; varying vec2 vUv;
+    void main(){
+      vec4 base=texture2D(tDiffuse,vUv);
+      if(uInt<0.001){ gl_FragColor=base; return; }
+      vec2 delta=vUv-uSun; float L=length(delta*vec2(uAspect,1.0));
+      delta*=0.95/56.0;
+      float dither=fract(sin(dot(vUv,vec2(12.9898,78.233)))*43758.5453);
+      vec2 uv=vUv-delta*dither; float w=1.0; vec3 acc=vec3(0.0);
+      for(int i=0;i<56;i++){
+        uv-=delta;
+        vec4 s=texture2D(tDiffuse,clamp(uv,0.001,0.999));
+        float m=1.0-clamp(s.a,0.0,1.0);
+        float l=dot(s.rgb,vec3(0.3,0.5,0.2));
+        acc+=s.rgb*m*w*smoothstep(0.05,0.9,l);
+        w*=0.962;
+      }
+      acc/=56.0;
+      float fall=exp(-L*1.6);
+      gl_FragColor=vec4(base.rgb+acc*uCol*uInt*fall,base.a);
+    }`
+});
+composer.addPass(godRays);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.45, 0.55, 0.82);
 bloom.enabled = Q.bloom;
 composer.addPass(bloom);
@@ -493,7 +522,7 @@ logTex.wrapS = logTex.wrapT = THREE.RepeatWrapping;
 /* =====================================================================
    SHARED UNIFORMS, SKY, LIGHTS
    ===================================================================== */
-const U = { time: { value: 0 }, wind: { value: 1 }, night: { value: 0 } };
+const U = { time: { value: 0 }, wind: { value: 1 }, night: { value: 0 }, sunView: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() } };
 const updaters = [];
 
 const skyU = {
@@ -537,7 +566,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(420, 48, 24), new THREE.Shad
       ccol=mix(ccol,vec3(0.02,0.025,0.035)+vec3(0.1,0.11,0.14)*pow(max(md,0.0),6.0),uNight);
       col=mix(col,ccol*(1.0-0.3*cl),cover*0.9);
       col+=uFlash*vec3(0.7,0.75,0.9)*(0.6+0.8*cl);
-      gl_FragColor=vec4(col,1.0);
+      gl_FragColor=vec4(col,cover*0.6);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`
@@ -553,31 +582,55 @@ Object.assign(sun.shadow.camera, { left: -64, right: 64, top: 64, bottom: -64, n
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.06;
 scene.add(sun, sun.target);
 
-const flash = new THREE.SpotLight(0xfff0d6, 0, 58, 0.47, 0.55, 1.35);
-flash.position.set(0.25, -0.22, -0.7); flash.target.position.set(0.06, -0.12, -8);
-flash.castShadow = Q.flashShadow; flash.shadow.mapSize.set(1024, 1024); flash.shadow.bias = -0.0006; flash.shadow.camera.near = 0.3; flash.shadow.camera.far = 50;
+const flash = new THREE.SpotLight(0xfff0d6, 0, 58, 0.5, 0.35, 1.35);
+flash.position.set(0.2, -0.2, -0.6); flash.target.position.set(0.04, -0.1, -8);
+flash.castShadow = Q.flashShadow; flash.shadow.mapSize.set(Q.flashShadowSize || 1024, Q.flashShadowSize || 1024); flash.shadow.bias = -0.0008; flash.shadow.normalBias = 0.02; flash.shadow.camera.near = 0.25; flash.shadow.camera.far = 50;
+// light cookie: a real flashlight's hot centre, reflector ring and soft halo
+const flashCookie = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256);
+  const ring = (r0, r1, stops) => { const gr = g.createRadialGradient(128, 128, r0, 128, 128, r1); stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.globalCompositeOperation = 'lighter'; g.fillRect(0, 0, 256, 256); };
+  ring(0, 128, [[0, 'rgba(120,112,100,1)'], [0.7, 'rgba(70,64,56,1)'], [0.93, 'rgba(40,36,30,1)'], [1, 'rgba(0,0,0,1)']]);
+  ring(0, 60, [[0, 'rgba(150,145,135,1)'], [0.6, 'rgba(90,86,80,1)'], [1, 'rgba(0,0,0,1)']]);
+  ring(52, 74, [[0, 'rgba(0,0,0,1)'], [0.5, 'rgba(60,58,52,1)'], [1, 'rgba(0,0,0,1)']]);
+  ring(84, 100, [[0, 'rgba(0,0,0,1)'], [0.5, 'rgba(26,24,20,1)'], [1, 'rgba(0,0,0,1)']]);
+  g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`; g.beginPath(); g.arc(128 + (Math.random() - 0.5) * 160, 128 + (Math.random() - 0.5) * 160, 6 + Math.random() * 18, 0, Math.PI * 2); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+flash.map = Q.flashShadow ? flashCookie : null;
 camera.add(flash, flash.target);
-const flashFill = new THREE.PointLight(0xffe8cc, 0, 7, 2); flashFill.position.set(0, 0.3, -3.2); camera.add(flashFill);
+const flashFill = new THREE.PointLight(0xffe8cc, 0, 7, 2); flashFill.position.set(0, 0.2, 0.15); camera.add(flashFill);
 
-// flashlight model (held)
+// flashlight model (held) — the supplied tactical flashlight is loaded into this group at boot
 const flashModel = new THREE.Group();
-{
-  const metal = new THREE.MeshStandardMaterial({ color: 0x1a1b1d, roughness: 0.45, metalness: 0.8 });
-  const grip = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.9 });
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.17, 20), grip); body.rotation.x = Math.PI / 2;
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.021, 0.07, 24), metal); head.rotation.x = Math.PI / 2; head.position.z = -0.11;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.029, 0.004, 8, 24), metal); ring.position.z = -0.146;
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.027, 24), lensMat); lens.position.z = -0.147; lens.rotation.y = Math.PI;
-  const btn = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.02), metal); btn.position.set(0, 0.02, -0.02);
-  flashModel.add(body, head, ring, lens, btn);
-  flashModel.userData.lens = lensMat;
-  flashModel.position.set(0.24, -0.25, -0.5);
-  flashModel.rotation.set(0.05, 0.1, 0);
-  flashModel.visible = false;
-  flashModel.traverse(o => { o.frustumCulled = false; });
-  camera.add(flashModel);
+const flashEnv = (() => { const pm = new THREE.PMREMGenerator(renderer); const t = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose(); return t; })();
+const flashLensMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+const flashGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, color: 0xfff2dd, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+flashModel.userData.lens = flashLensMat;
+flashModel.position.set(0.2, -0.205, -0.3);
+flashModel.rotation.set(0.07, 0.07, 0);
+flashModel.visible = false;
+camera.add(flashModel);
+const flashMats = [];
+function setupFlashlight(gltf) {
+  const m = gltf.scene;
+  m.traverse(o => {
+    if (!o.isMesh) return;
+    o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false;
+    if (/glass/i.test(o.material.name) || /glass/i.test(o.name)) o.material = flashLensMat;
+    else { o.material.envMap = flashEnv; o.material.envMapIntensity = 0.6; flashMats.push(o.material); }
+  });
+  m.rotation.x = -Math.PI / 2; // the model points up +Y; the lens must face forward (-Z)
+  const holder = new THREE.Group(); holder.add(m);
+  flashModel.add(holder);
+  flashGlow.position.set(0, 0, -0.256); flashGlow.scale.setScalar(0.055); flashModel.add(flashGlow);
+  const mx = new THREE.AnimationMixer(m);
+  const clip = gltf.animations.find(a => /button/i.test(a.name));
+  flashModel.userData.mixer = mx;
+  if (clip) { const a = mx.clipAction(clip); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = false; flashModel.userData.press = a; }
 }
+function pressFlashButton() { const a = flashModel.userData.press; if (a) { a.reset(); a.timeScale = 2.2; a.play(); } }
 // volumetric beam cone
 const beamMat = new THREE.ShaderMaterial({
   uniforms: { uI: { value: 0 }, uTime: U.time },
@@ -594,7 +647,7 @@ const beamMat = new THREE.ShaderMaterial({
 const beamGeo = new THREE.ConeGeometry(Math.tan(0.4) * 26, 26, 40, 1, true);
 beamGeo.rotateX(Math.PI / 2); beamGeo.translate(0, 0, -13);
 const beam = new THREE.Mesh(beamGeo, beamMat);
-beam.position.copy(flash.position); beam.lookAt(new THREE.Vector3().copy(flash.target.position)); beam.position.set(0.25, -0.22, -0.68);
+beam.position.set(0.2, -0.2, -0.58);
 beam.rotation.set(0.012, 0.006, 0);
 beam.frustumCulled = false; beam.renderOrder = 5; beam.visible = false;
 camera.add(beam);
@@ -651,9 +704,14 @@ function freeSpot(x, z, r) { let ok = true; forNear(x, z, c => { if ((x - c.x) *
 /* =====================================================================
    WIND-ENABLED MATERIALS
    ===================================================================== */
-function windify(mat, amp, key) {
+function windify(mat, amp, key, trans = 0) {
   mat.onBeforeCompile = sh => {
     sh.uniforms.uTime = U.time; sh.uniforms.uWind = U.wind;
+    if (trans > 0) {
+      sh.uniforms.uSunV = U.sunView; sh.uniforms.uSunC = U.sunCol;
+      sh.fragmentShader = 'uniform vec3 uSunV; uniform vec3 uSunC;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{ float tl=pow(max(dot(normalize(-vViewPosition),uSunV),0.0),5.0); outgoingLight+=diffuseColor.rgb*uSunC*tl*${trans.toFixed(2)}; }
+      #include <opaque_fragment>`);
+    }
     sh.vertexShader = 'attribute float aSway;\nuniform float uTime;\nuniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       { float s=aSway*aSway; float ph=position.x*0.045+position.z*0.037;
         float w=sin(uTime*1.05+ph)*0.6+sin(uTime*2.3+ph*2.7)*0.28+sin(uTime*6.1+ph*5.0+position.y*0.7)*0.08*aSway;
@@ -740,7 +798,7 @@ const forestMats = {};
 const treeSpots = [];
 function makeForestMats(T) {
   const fol = (map, color, amp, key, rough = 0.82) => {
-    const m = windify(new THREE.MeshStandardMaterial({ map, color, alphaTest: 0.42, side: THREE.DoubleSide, roughness: rough, metalness: 0, alphaToCoverage: Q.msaa > 0 }), amp, key);
+    const m = windify(new THREE.MeshStandardMaterial({ map, color, alphaTest: 0.42, side: THREE.DoubleSide, roughness: rough, metalness: 0, alphaToCoverage: Q.msaa > 0 }), amp, key, 1.6);
     const dm = windify(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map, alphaTest: 0.42, side: THREE.DoubleSide }), amp, key + 'd');
     m.userData.depth = dm; return m;
   };
@@ -1673,6 +1731,7 @@ function setupBear(gltf) {
   model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (o.material) { o.material.envMapIntensity = 0.6; o.material.transparent = false; } } });
   holder.visible = false; scene.add(holder);
   bear.root = holder; bear.model = model;
+  bear.head = model.getObjectByName('head_011'); bear.camBone = model.getObjectByName('camera_024');
 }
 function bearPlay(name, fade = 0.25, once = false, ts = 1) {
   const a = bear.actions[name]; if (!a) return null;
@@ -1726,7 +1785,7 @@ function updateBear(dt) {
   let move = 0, dirx = 0, dirz = 0;
   if (bear.state === 'hunt') {
     if (safe || player.dead) { bear.state = 'edge'; bear.timer = rand(5, 8); bearPlay('idle', 0.4); AU.growl(bear.panner, 2.0, 1.0); }
-    else if (dist < 2.5) { bear.state = 'attack'; bear.hitDone = false; const which = ['attack1', 'attack2', 'attack3'][Math.floor(Math.random() * 3)]; bear.atk = bearPlay(which, 0.12, true, 1.25); bear.timer = 0; AU.growl(bear.panner, 0.9, 1.3, 1.3); }
+    else if (dist < 2.6 && !Game.godMode) { Game.kill('bear'); return; }
     else { move = speed; dirx = dx / dist; dirz = dz / dist; bearPlay('walkfast', 0.25, false, speed / 5.2); }
     if (Game.now > bear.nextGrowl) { AU.growl(bear.panner, rand(1, 1.8), 1.1, rand(0.85, 1.1)); bear.nextGrowl = Game.now + rand(2, 4); }
   } else if (bear.state === 'attack') {
@@ -1782,8 +1841,8 @@ function setupChameleon(gltf) {
   geo.setIndex(g0.index); geo.computeBoundingSphere(); geo.boundingSphere.radius *= 1.6;
   const sm = src.material;
   const mat = new THREE.MeshPhysicalMaterial({
-    map: sm.map, normalMap: sm.normalMap, roughnessMap: sm.metalnessMap || sm.roughnessMap, roughness: 0.55, metalness: 0.05,
-    transmission: 1, thickness: 0.9, ior: 1.32, attenuationColor: new THREE.Color(0xd0dcc8), attenuationDistance: 5, specularIntensity: 0.6,
+    map: sm.map, normalMap: sm.normalMap, roughness: 0.95, metalness: 0,
+    transmission: 1, thickness: 0.9, ior: 1.32, attenuationColor: new THREE.Color(0xd0dcc8), attenuationDistance: 5, specularIntensity: 0.06, specularColor: new THREE.Color(0x667766),
   });
   if (mat.normalMap) mat.normalScale.set(1.2, 1.2);
   const u = cham.u = { uReveal: { value: 0 }, uWalk: { value: 0 }, uMove: { value: 0 }, uTongue: { value: 0 }, uEye: { value: 0 }, uTime: U.time, uShimmer: { value: 1 }, uRim: { value: 0 } };
@@ -1810,7 +1869,7 @@ function setupChameleon(gltf) {
     sh.fragmentShader = 'uniform float uReveal,uEye,uTime,uShimmer,uRim; varying vec3 vObj;\n' + sh.fragmentShader
       .replace('#include <map_fragment>', `#include <map_fragment>
         float fr=pow(1.0-abs(dot(normalize(vNormal),normalize(vViewPosition))),2.5);
-        diffuseColor.rgb=mix(vec3(0.82,0.9,0.84)*(1.0-fr*0.75),diffuseColor.rgb*1.15,uReveal);`)
+        diffuseColor.rgb=mix(vec3(0.8,0.88,0.82)*(1.0-fr*0.8),diffuseColor.rgb*0.4,smoothstep(0.0,0.35,uReveal));`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         normal=normalize(normal+(1.0-uReveal)*uShimmer*0.35*vec3(sin(vObj.y*70.0+uTime*3.1),sin(vObj.x*55.0+uTime*2.3),sin(vObj.z*60.0-uTime*2.7)));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
@@ -1864,7 +1923,7 @@ function updateCham(dt) {
   const P = player.pos; const info = chamViewInfo();
   const dx = P.x - cham.pos.x, dz = P.z - cham.pos.z, dist = Math.hypot(dx, dz);
   // camouflage
-  let target = info.looking ? 1 : info.lit ? 0.4 : 0;
+  let target = info.looking ? 1 : info.lit ? 0.7 : 0;
   if (Game.lightning > 0.3) target = 1;
   cham.reveal += (target - cham.reveal) * Math.min(1, dt * (target > cham.reveal ? 3.2 : 1.6));
   const seen = info.looking && cham.reveal > 0.5;
@@ -1928,8 +1987,8 @@ function applyChamVisual(dt, d = 10) {
   u.uReveal.value = cham.reveal * cham.fade + (1 - cham.fade) * 0;
   u.uWalk.value = cham.walk; u.uMove.value = cham.move;
   u.uTongue.value = Math.max(0, Math.sin(U.time.value * 1.7) * Math.sin(U.time.value * 0.37)) ** 4 + (cham.state === 'lunge' ? 1 : 0);
-  u.uEye.value = (Game.flashOn ? 2.2 : 0.6) * (0.3 + cham.reveal) * cham.fade;
-  u.uRim.value = 0.25 + U.night.value * 1.1;
+  u.uEye.value = 0.35 * (0.3 + cham.reveal) * cham.fade;
+  u.uRim.value = (0.12 + U.night.value * 0.6) * (Game.flashOn ? 0.15 : 1);
   cham.mat.transmission = Math.max(0.02, 1 - u.uReveal.value);
   cham.mat.opacity = 1;
   cham.shadow.material.opacity = 0.35 * cham.fade;
@@ -1973,6 +2032,7 @@ function updateEnv(hour, dt) {
   scene.fog.density = ENV.fogD * (1 + st * 0.5) * (Game.mode === 'title' ? 0.85 : 1);
   const useSun = sunDir.y > 0.02;
   const ld = useSun ? sunDir : moonDir;
+  ENV.ld = ld; ENV.useSun = useSun;
   sun.color.copy(ENV.sun); sun.intensity = ENV.sunI * (1 - st * 0.75) + L * 2.5;
   hemi.color.copy(ENV.hs); hemi.groundColor.copy(ENV.hg); hemi.intensity = ENV.hi * 2.8 * (1 - st * 0.35) + L * 8;
   renderer.toneMappingExposure = ENV.exp;
@@ -2076,7 +2136,9 @@ function updatePlayer(dt) {
   camera.rotation.x = P.pitch + (Math.random() - 0.5) * 0.05 * sh + Math.cos(P.bob) * 0.004 * bobA;
   camera.rotation.z = Math.sin(P.bob) * 0.006 * bobA + (P.hallu > 0 ? Math.sin(Game.now * 0.7) * 0.05 * P.hallu : 0);
   // flashlight sway
-  flashModel.position.set(0.24 + Math.sin(P.bob) * 0.008 * bobA, -0.25 + Math.abs(Math.cos(P.bob)) * 0.01 * bobA - P.crouch * 0.01, -0.5);
+  const lookSway = clamp(P.pitch, -1, 1);
+  flashModel.position.set(0.2 + Math.sin(P.bob) * 0.007 * bobA, -0.205 + Math.abs(Math.cos(P.bob)) * 0.008 * bobA - P.crouch * 0.01 + lookSway * 0.012, -0.3);
+  flashModel.rotation.set(0.07 + Math.sin(P.bob * 2) * 0.01 * bobA, 0.07 + Math.sin(P.bob) * 0.012 * bobA, 0);
 }
 
 /* =====================================================================
@@ -2121,7 +2183,7 @@ const Game = {
   },
   setFlash(on) {
     if (on && (!player.hasLight || player.battery <= 0)) return;
-    this.flashOn = on; AU.flashToggle(on);
+    this.flashOn = on; AU.flashToggle(on); pressFlashButton();
   },
   onKey(code, e) {
     if (this.mode === 'cine') { if (code === 'Enter' || code === 'Escape') endCine(); return; }
@@ -2454,13 +2516,18 @@ const jsc = { cause: '', t: 0 };
 function startJumpscare(cause) {
   jsc.cause = cause; jsc.t = 0; Game.flashOn = player.hasLight && player.battery > 0;
   const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  jsc.eye = new THREE.Vector3(player.pos.x, player.y, player.pos.z); jsc.hit = false; jsc.cut = false;
   if (cause === 'bear') {
+    // it is suddenly right there: it rears up over you, knocks you down and puts its face in yours
+    const s = bear.model.scale.x;
     bear.root.visible = true; bear.fade = 1; bear.root.scale.setScalar(1);
-    bear.pos.set(player.pos.x + fwd.x * 2.0, 0, player.pos.z + fwd.z * 2.0); bear.pos.y = heightAt(bear.pos.x, bear.pos.z);
+    bear.pos.set(player.pos.x + fwd.x * 2.65 * s, 0, player.pos.z + fwd.z * 2.65 * s); bear.pos.y = heightAt(bear.pos.x, bear.pos.z);
     bear.yaw = Math.atan2(-fwd.x, -fwd.z); bear.state = 'cine';
     bear.root.position.copy(bear.pos); bear.root.rotation.y = bear.yaw;
-    bearPlay('jumpscare', 0.05, true);
-    if (bear.panner) AU.roar(bear.panner, 1.4);
+    const a = bearPlay('jumpscare', 0.02, true, 1.6); if (a) a.time = 0.35;
+    bear.mixer.update(0); bear.model.updateMatrixWorld(true);
+    if (bear.panner) { AU.setPos(bear.panner, bear.pos.x, bear.pos.y + 1.5, bear.pos.z); AU.roar(bear.panner, 1.6); }
+    FX.uFlash.value = 0.5;
   } else {
     cham.state = 'cine'; cham.fade = 1; cham.reveal = 1; cham.root.visible = true;
     cham.pos.set(player.pos.x + fwd.x * 2.4, 0, player.pos.z + fwd.z * 2.4); cham.pos.y = heightAt(cham.pos.x, cham.pos.z);
@@ -2470,14 +2537,29 @@ function startJumpscare(cause) {
   AU.sting(1.1); player.shake = 1.4;
 }
 function updateJumpscare(dt) {
-  jsc.t += dt;
+  jsc.t += dt; if (TEST) window.__jst = jsc.t;
   const P = player, t = jsc.t;
   if (jsc.cause === 'bear') {
-    const head = bear.pos.clone(); head.y += 2.9;
-    const look = new THREE.Vector3(); camera.getWorldPosition(look);
-    const dir = head.sub(look).normalize();
-    const tp = Math.asin(dir.y); P.pitch += (tp - P.pitch) * Math.min(1, dt * 6);
-    bear.mixer.update(0);
+    const head = bear.head ? bear.head.getWorldPosition(new THREE.Vector3()) : bear.pos.clone().setY(bear.pos.y + 2.9);
+    const cb = bear.camBone ? bear.camBone.getWorldPosition(new THREE.Vector3()) : jsc.eye.clone();
+    const bf = new THREE.Vector3(Math.sin(bear.yaw), 0, Math.cos(bear.yaw));
+    const target = head.clone().addScaledVector(bf, 0.8); target.y -= 0.28;
+    const fall = smooth(0, 0.45, t);
+    const cp = jsc.eye.clone().lerp(target, fall);
+    const sh = Math.max(0.15, 1.3 - t * 0.5) * (t > 0.7 && t < 1.1 ? 2.2 : 1);
+    cp.x += (Math.random() - 0.5) * 0.05 * sh; cp.y += (Math.random() - 0.5) * 0.05 * sh; cp.z += (Math.random() - 0.5) * 0.05 * sh;
+    camera.position.copy(cp);
+    head.y += 0.08 * bear.model.scale.x * 9;
+    camera.lookAt(head);
+    camera.rotateZ(0.32 * fall + Math.sin(t * 31) * 0.02 * sh);
+    camera.fov = 72 - 18 * smooth(0.55, 0.85, t); camera.updateProjectionMatrix();
+    if (!jsc.hit && t > 0.72) { jsc.hit = true; AU.sting(1.3); AU.hit(); if (bear.panner) AU.roar(bear.panner, 1.8); FX.uFlash.value = 0.9; }
+    FX.uFlash.value = Math.max(0, FX.uFlash.value - dt * 4);
+    FX.uRed.value = t > 0.72 ? 0.25 + Math.max(0, Math.sin(t * 26)) * 0.25 : 0.08;
+    FX.uFear.value = 1;
+    if (t > 1.95 && !jsc.cut) { jsc.cut = true; FX.uFade.value = 1; FX.uRed.value = 0; }
+    if (t > 2.6) { camera.fov = 72; camera.updateProjectionMatrix(); Game.showDeath(); }
+    return;
   } else {
     const k = smooth(0, 0.35, t);
     const fwd = new THREE.Vector3(-Math.sin(P.yaw), 0, -Math.cos(P.yaw));
@@ -2492,7 +2574,8 @@ function updateJumpscare(dt) {
   camera.rotation.set(P.pitch + (Math.random() - 0.5) * 0.06 * P.shake, P.yaw + (Math.random() - 0.5) * 0.06 * P.shake, 0, 'YXZ');
   FX.uRed.value = 0.15 + Math.max(0, Math.sin(t * 20)) * 0.15;
   if (t > 2.1) { FX.uFade.value = smooth(2.1, 2.6, t); }
-  if (t > 2.7) { FX.uRed.value = 0; cham.mesh.scale.setScalar(2.8); Game.showDeath(); }
+  camera.fov = 72 - 14 * smooth(0.1, 0.35, t); camera.updateProjectionMatrix();
+  if (t > 2.7) { FX.uRed.value = 0; cham.mesh.scale.setScalar(2.8); camera.fov = 72; camera.updateProjectionMatrix(); Game.showDeath(); }
 }
 const ending = { t: 0, flare: null, light: null, heliLight: null, trail: [] };
 function startEnding() {
@@ -2579,12 +2662,12 @@ function updateTitle(dt) {
 const SHOTS = [
   {
     dur: 9.5, hour: 6.15, place: 'BLACKWOOD FOREST · OREGON',
-    sub: ['Blackwood Forest. Sixteen hundred thousand square metres of old pine.', 'Three hikers went missing here this year.'],
+    sub: ['Blackwood Forest. Four hundred acres of ancient pine… and very little else one would care to meet.', 'This year alone, three hikers have wandered in. None, so far, have wandered out.'],
     cam(t, c) { c.position.set(lerp(-260, -175, t), lerp(110, 70, t), lerp(250, 170, t)); c.lookAt(lerp(-40, -80, t), 0, lerp(40, 80, t)); },
   },
   {
     dur: 9.5, hour: 8.2,
-    sub: ['There is only one trail through it.', 'The loggers who cut it left in a hurry. They never came back for their trucks.'],
+    sub: ['There is but one trail through this wilderness, cut long ago by the loggers…', '…who, curiously, left in rather a hurry. They never did come back for their trucks.'],
     cam(t, c) {
       const cu = trailCurves.main, u = lerp(0.18, 0.36, t);
       const p = cu.getPointAt(u), a = cu.getPointAt(Math.min(1, u + 0.04));
@@ -2593,7 +2676,7 @@ const SHOTS = [
   },
   {
     dur: 9, hour: 17.6,
-    sub: ['Step off the trail…', '…and something that smiles will follow you.'],
+    sub: ['Here we find the forest\'s most patient resident. It will not set foot upon the trail.', 'But stray from it, and it will follow you. Quietly. Smiling. Always smiling.'],
     setup() {
       const cu = trailCurves.main, p = cu.getPointAt(0.47), tg = cu.getTangentAt(0.47);
       this.base = p; this.side = new THREE.Vector3(-tg.z, 0, tg.x);
@@ -2615,7 +2698,7 @@ const SHOTS = [
   },
   {
     dur: 9.5, hour: 23.2,
-    sub: ['After dark, the trees themselves begin to move.', 'You can only see it if you look right at it.'],
+    sub: ['After dark, a far stranger creature emerges. A master of disguise, wearing the forest itself.', 'It reveals itself only to those who look directly at it. Most, sadly, never do.'],
     setup() {
       const cu = trailCurves.main, p = cu.getPointAt(0.62), tg = cu.getTangentAt(0.62);
       const side = new THREE.Vector3(-tg.z, 0, tg.x);
@@ -2641,13 +2724,13 @@ const SHOTS = [
       if (t > 0.6 && this.clicks < 2) { this.clicks = 2; AU.hiss(cham.panner, 1, 1.6); }
       AU.setPos(cham.panner, cham.pos.x, cham.pos.y + 1, cham.pos.z);
       applyChamVisual(0.016);
-      cham.u.uEye.value = smooth(0.55, 0.8, t) * 2;
+      cham.u.uEye.value = smooth(0.55, 0.8, t) * 0.5;
       if (t > 0.98) { chamHide(30); Game.flashOn = false; }
     },
   },
   {
     dur: 10, hour: 6.25,
-    sub: ['Last night, your car left the logging road.', 'Survive until they come for you.'],
+    sub: ['And here… our newest arrival. Disoriented. Alone. Its car, rather less fortunate.', 'Its chances of surviving until rescue are, at best… modest.'],
     setup() { this.car = car.group.position.clone(); },
     cam(t, c) {
       const k = smooth(0, 1, t);
@@ -2657,6 +2740,50 @@ const SHOTS = [
     },
   },
 ];
+/* ---------- narrator: the browser's own speech voice, slow, low and British ---------- */
+const Narrator = {
+  ok: typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined', voice: null,
+  pick() {
+    if (!this.ok) return;
+    const score = v => {
+      const n = v.name.toLowerCase(); let sc = 0;
+      if (/en[-_]gb/i.test(v.lang)) sc += 6; else if (/^en/i.test(v.lang)) sc += 1; else sc -= 30;
+      if (/google uk english male/.test(n)) sc += 8;
+      if (/daniel|george|arthur|oliver|ryan|thomas|harry|brian|alfie|male/.test(n)) sc += 5;
+      if (/female|hazel|susan|libby|sonia|kate|serena|martha|fiona|moira|samantha|zira|karen|tessa|victoria|maisie/.test(n)) sc -= 6;
+      if (/natural|neural|online|premium|enhanced/.test(n)) sc += 3;
+      return sc;
+    };
+    const vs = speechSynthesis.getVoices(); this.voice = vs.slice().sort((a, b) => score(b) - score(a))[0] || null;
+  },
+  say(text, onend) {
+    const clean = text.replace(/…/g, '...');
+    const t0 = performance.now(), minMs = 600 + clean.split(/\s+/).length * 330;
+    let done = false; const fin = () => { if (done) return; done = true; const left = minMs - (performance.now() - t0); left > 0 ? setTimeout(() => onend && onend(), left) : onend && onend(); };
+    if (!this.ok || SETTINGS.volume <= 0.01) { setTimeout(fin, 900 + clean.split(/\s+/).length * 400); return; }
+    try {
+      speechSynthesis.cancel();
+      if (!this.voice) this.pick();
+      const u = new SpeechSynthesisUtterance(clean);
+      if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; } else u.lang = 'en-GB';
+      u.rate = 0.82; u.pitch = 0.72; u.volume = Math.min(1, SETTINGS.volume * 1.25);
+      u.onend = fin; u.onerror = fin;
+      setTimeout(fin, 3000 + clean.length * 120);
+      speechSynthesis.speak(u);
+    } catch (e) { setTimeout(fin, 900 + clean.split(/\s+/).length * 400); }
+  },
+  stop() { try { if (this.ok) speechSynthesis.cancel(); } catch (e) { } },
+  get speaking() { try { return this.ok && speechSynthesis.speaking; } catch (e) { return false; } },
+};
+if (Narrator.ok) { Narrator.pick(); speechSynthesis.onvoiceschanged = () => Narrator.pick(); }
+function narrateShot(s) {
+  const go = i => {
+    if (Game.mode !== 'cine' || SHOTS[cine.i] !== s) return;
+    s.li = i;
+    Narrator.say(s.sub[i], () => { if (i + 1 < s.sub.length) setTimeout(() => go(i + 1), 380); else s.narrDone = true; });
+  };
+  go(0);
+}
 const cine = { i: 0, t: 0, skipHold: 0 };
 function startCine() {
   Game.mode = 'cine'; cine.i = -1; cine.t = 0; cine.skipHold = 0;
@@ -2669,24 +2796,31 @@ function nextShot() {
   if (cine.i >= SHOTS.length) { endCine(); return; }
   const s = SHOTS[cine.i];
   Game.hour = s.hour; s.growled = 0;
+  s.li = -1; s.narrDone = false; s.outAt = null;
+  const words = s.sub.join(' ').split(/\s+/).length;
+  s.durEff = Math.max(s.dur, words / 2.05 + 2.6);
   if (s.setup) s.setup();
   $('cplace').textContent = s.place || ''; $('cplace').style.opacity = s.place ? 1 : 0;
   $('csub').textContent = '';
+  setTimeout(() => narrateShot(s), 750);
 }
 function updateCine(dt) {
   const s = SHOTS[cine.i]; if (!s) return;
-  cine.t += dt; const t = cine.t / s.dur;
+  cine.t += dt; const t = cine.t / s.durEff;
   s.cam(Math.min(1, t), camera);
   FX.uBars.value = Math.min(1, FX.uBars.value + dt * 1.5);
-  FX.uFade.value = Math.max(1 - cine.t / 0.9, (cine.t - (s.dur - 0.8)) / 0.8, 0);
-  if (cine.i === SHOTS.length - 1) FX.uFade.value = Math.max(1 - cine.t / 0.9, 0);
-  const subI = t < 0.5 ? 0 : 1; const txt = s.sub[subI];
+  // each shot lasts as long as the narration needs
+  if (s.outAt === null && cine.t >= s.durEff - 0.8 && (s.narrDone || cine.t > s.durEff + 10)) s.outAt = cine.t;
+  const out = s.outAt === null ? 0 : (cine.t - s.outAt) / 0.8;
+  FX.uFade.value = Math.max(1 - cine.t / 0.9, cine.i === SHOTS.length - 1 ? 0 : out, 0);
+  const txt = s.li >= 0 ? s.sub[s.li] : '';
   if ($('csub').textContent !== txt) $('csub').textContent = txt;
   if (keys.Space) { cine.skipHold += dt; if (cine.skipHold > 0.6) { endCine(); return; } } else cine.skipHold = 0;
-  if (cine.t >= s.dur) nextShot();
+  if (out >= 1) nextShot();
 }
 function endCine() {
   if (Game.mode !== 'cine') return;
+  Narrator.stop();
   cham.state = 'dormant'; cham.root.visible = false; bear.root.visible = false; bear.state = 'away';
   $('cine').classList.remove('on'); $('ccard').style.opacity = 0;
   newGame();
@@ -2744,7 +2878,8 @@ function applyQuality() {
   if (grass) grass.geometry.instanceCount = Q.grass;
   grass && (grass.visible = Q.grass > 0);
   sun.shadow.mapSize.set(Q.shadow, Q.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
-  flash.castShadow = Q.flashShadow;
+  flash.castShadow = Q.flashShadow; flash.map = Q.flashShadow ? flashCookie : null;
+  flash.shadow.mapSize.set(Q.flashShadowSize || 1024, Q.flashShadowSize || 1024); if (flash.shadow.map) { flash.shadow.map.dispose(); flash.shadow.map = null; }
   for (const r of [composer.renderTarget1, composer.renderTarget2]) { r.samples = Q.msaa; r.dispose(); }
   for (const k in forestMats) { forestMats[k].alphaToCoverage = Q.msaa > 0; forestMats[k].needsUpdate = true; }
   scene.traverse(o => { if (o.material && o.isMesh) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.needsUpdate = true); } });
@@ -2784,7 +2919,7 @@ async function boot() {
   const gl = new GLTFLoader(); gl.setMeshoptDecoder(MeshoptDecoder);
   const loadGLB = url => new Promise((res, rej) => gl.load(url, res, undefined, rej));
   step(0.05, loadMsgs[0]);
-  const [T, forestG, bearG, chamG] = await Promise.all([
+  const [T, forestG, bearG, chamG, flashG] = await Promise.all([
     (async () => {
       const [bark, spruce, bush1, bush2, fern, groundT] = await Promise.all([loadTex('assets/bark.jpg', true, true), loadTex('assets/spruce.png'), loadTex('assets/bush1.png'), loadTex('assets/bush2.png'), loadTex('assets/fern.png'), loadTex('assets/ground.jpg', true, true)]);
       step(prog + 0.1); return { bark, spruce, bush1, bush2, fern, ground: groundT };
@@ -2792,6 +2927,7 @@ async function boot() {
     loadGLB('assets/forest.glb').then(g => { step(prog + 0.15, loadMsgs[1]); return g; }),
     loadGLB('assets/bear.glb').then(g => { step(prog + 0.15, loadMsgs[2]); return g; }),
     loadGLB('assets/chameleon.glb').then(g => { step(prog + 0.15); return g; }),
+    loadGLB('assets/flashlight.glb').catch(() => null),
   ]);
   await new Promise(r => setTimeout(r, 30));
   step(0.62, loadMsgs[3]);
@@ -2806,7 +2942,7 @@ async function boot() {
   buildGrass(); grass.visible = Q.grass > 0;
   buildCar(); buildCabin(); buildTower(); buildCamp(); buildMarkers();
   buildParticles(); buildLootAssets(T);
-  setupBear(bearG); setupChameleon(chamG);
+  setupBear(bearG); setupChameleon(chamG); if (flashG) setupFlashlight(flashG); flashGlow.material.map = softDot;
   buildHUD(); buildMapBase();
   step(0.92, 'Compiling shaders…');
   Game.hour = 22.4; updateEnv(Game.hour, 0);
@@ -2840,6 +2976,7 @@ async function boot() {
       if (tq === 'cham') { Game.story.step = 3; if (!QS.has('hour')) Game.hour = 22; chamSpawn(); const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)); const d = +(QS.get('d') || 8); cham.pos.set(player.pos.x + fwd.x * d, 0, player.pos.z + fwd.z * d); cham.pos.y = heightAt(cham.pos.x, cham.pos.z); cham.timer = 99; cham.fade = 1; }
       if (tq === 'bear') { Game.story.step = 3; Game.hour = 14; bear.threat = 100; const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)); bearSpawn(); const d = +(QS.get('d') || 9); bear.pos.set(player.pos.x + fwd.x * d, 0, player.pos.z + fwd.z * d); bear.pos.y = heightAt(bear.pos.x, bear.pos.z); }
       if (QS.has('storm')) ENV.storm = 1;
+      if (QS.has('js')) setTimeout(() => Game.kill(QS.get('js')), +(QS.get('jsd') || 500));
       if (QS.has('nohud')) $('hud').style.display = 'none';
       if (QS.has('banim')) { bear.state = 'cine'; bear.yaw = Math.atan2(player.pos.x - bear.pos.x, player.pos.z - bear.pos.z) + +(QS.get('byaw') || 0); bear.root.position.copy(bear.pos); bear.root.rotation.y = bear.yaw; bearPlay(QS.get('banim'), 0.1); }
       if (QS.has('cyaw')) { cham.state = 'cine'; cham.yaw = player.yaw + +QS.get('cyaw'); cham.reveal = +(QS.get('rev') || 1); cham.fade = 1; cham.root.visible = true; }
@@ -2902,21 +3039,42 @@ function frame() {
   flashFill.intensity = fOn ? 0.35 * battFlicker : 0;
   beam.visible = flash.intensity > 1 && Q.bloom !== undefined;
   beamMat.uniforms.uI.value = (0.025 + ENV.night * 0.07 + ENV.storm * 0.04) * (flash.intensity / 240);
-  flashModel.userData.lens.color.setRGB(fOn ? 1 : 0.1, fOn ? 0.95 : 0.1, fOn ? 0.85 : 0.1);
-  flashModel.visible = player.hasLight && (mode === 'play' || mode === 'note' || mode === 'paused' || mode === 'jumpscare');
+  const lk = flash.intensity / 240;
+  flashLensMat.color.setRGB(0.02 + lk * 5, 0.02 + lk * 4.7, 0.02 + lk * 4.2);
+  flashGlow.material.opacity = lk * 0.45;
+  for (const m of flashMats) m.envMapIntensity = 0.12 + (1 - ENV.night) * 0.55;
+  if (flashModel.userData.mixer) flashModel.userData.mixer.update(dt);
+  flashModel.visible = player.hasLight && (mode === 'play' || mode === 'note' || mode === 'paused' || (mode === 'jumpscare' && jsc.cause !== 'bear'));
+  if (mode === 'jumpscare') flashFill.intensity = 3;
+  // sun / moon shafts and back-lit leaves
+  {
+    const ld = ENV.ld || UP, cp = camera.getWorldPosition(new THREE.Vector3());
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const facing = fwd.dot(ld);
+    const sp = cp.clone().addScaledVector(ld, 300).project(camera);
+    godRays.uniforms.uSun.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5);
+    godRays.uniforms.uAspect.value = camera.aspect;
+    const low = 1 - smooth(0.25, 0.75, ld.y);
+    const strength = ENV.useSun ? (1 - ENV.night) * (0.45 + 0.9 * low) : ENV.night * 0.55;
+    godRays.uniforms.uInt.value = Q.bloom ? strength * smooth(0.0, 0.45, facing) * (1 - ENV.storm) * 2.2 : 0;
+    godRays.uniforms.uCol.value.copy(ENV.useSun ? ENV.sun : _ca.setRGB(0.6, 0.7, 1.0));
+    godRays.enabled = godRays.uniforms.uInt.value > 0.001;
+    U.sunView.value.copy(ld).transformDirection(camera.matrixWorldInverse);
+    U.sunCol.value.copy(sun.color).multiplyScalar(ENV.useSun ? sun.intensity * 0.09 : sun.intensity * 0.05);
+  }
   // post fx
   FX.uDamage.value = player.hurt * (mode === 'play' ? 1 : 0.5);
   FX.uFear.value = Game.fear * 0.8;
   FX.uHallu.value = player.hallu;
   FX.uGrain.value = 0.045 + ENV.night * 0.03 + Game.fear * 0.04;
   FX.uVig.value = 0.3 + ENV.night * 0.3;
-  FX.uFlash.value = mode === 'ending' ? FX.uFlash.value : Game.lightning * 0.22;
+  FX.uFlash.value = mode === 'ending' || mode === 'jumpscare' ? FX.uFlash.value : Game.lightning * 0.22;
   FX.uSat.value = 1.0 - ENV.night * 0.25;
   if (mode !== 'cine') FX.uBars.value = Math.max(0, FX.uBars.value - dt * 2);
   // music
   const m = ENV.music;
   if (mode === 'title') Object.assign(m, { vol: 0.85, drone: 0.55, pad: 0.55, chase: 0, bells: true });
-  else if (mode === 'cine') Object.assign(m, { vol: 0.85, drone: 0.6, pad: 0.4, chase: 0, bells: true });
+  else if (mode === 'cine') Object.assign(m, { vol: Narrator.speaking ? 0.42 : 0.8, drone: 0.6, pad: 0.4, chase: 0, bells: !Narrator.speaking });
   else if (mode === 'play' || mode === 'note' || mode === 'paused') Object.assign(m, { vol: 0.45 + ENV.night * 0.25, drone: 0.15 + ENV.night * 0.3 + Game.fear * 0.4, pad: 0.12 * (1 - ENV.night), chase: bear.state === 'hunt' || bear.state === 'attack' ? 0.8 : 0, bells: false });
   else if (mode === 'won' || mode === 'ending') Object.assign(m, { vol: 0.7, drone: 0.05, pad: 0.6, chase: 0, bells: true });
   else Object.assign(m, { vol: 0.5, drone: 0.6, pad: 0, chase: 0, bells: false });
