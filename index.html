@@ -97,6 +97,18 @@ select{font-family:'VT323',monospace;font-size:18px;background:#120f08;color:var
 #creator input[type=color]{width:40px;height:22px;border:0;background:none}
 #creator .sel{color:#fff;background:rgba(127,199,255,.08);padding:6px;border:1px solid rgba(127,199,255,.2);margin-top:4px;min-height:30px}
 #creator.collapsed{transform:translateX(100%)}
+#diffRow{display:flex;gap:6px;margin:2px 0 4px;flex-wrap:wrap;justify-content:center}
+#diffRow button{min-width:0;font-size:18px;padding:4px 14px;letter-spacing:2px}
+#diffRow button.on{background:rgba(232,220,176,.16);border-color:var(--ink);color:#fff}
+#diffRow button.on.nm{border-color:#c3261c;color:#ff6a5c}
+#diffDesc{font-size:17px;color:#9c916d;height:22px;margin-bottom:16px;letter-spacing:1px;text-align:center;padding:0 16px}
+#titleTip,#overTip{font-family:'Special Elite',serif;font-size:17px;color:#b3a77f;max-width:min(620px,90vw);text-align:center;margin-top:14px;line-height:1.4;padding:0 16px}
+#overTip{margin:0 0 16px;color:#d8cb9e}
+#hint{position:absolute;left:22px;top:38%;max-width:min(330px,70vw);background:rgba(10,8,4,.62);border-left:2px solid #e0b04f;padding:8px 12px;font-size:19px;line-height:1.3;opacity:0;transition:opacity .5s;color:#efe3bb}
+#hint .h{font-size:13px;letter-spacing:4px;color:#e0b04f;margin-bottom:2px}
+#marker{position:absolute;transform:translate(-50%,-50%);font-size:18px;color:#ffd77a;text-align:center;opacity:0;transition:opacity .4s;white-space:nowrap}
+#marker .d{width:12px;height:12px;border:2px solid #ffd77a;transform:rotate(45deg);margin:0 auto 4px;box-shadow:0 0 8px #ffb347}
+#batTime{color:var(--dim);font-size:17px}
 body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
 </style>
 </head>
@@ -108,10 +120,13 @@ body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
 <div id="title" class="screen hidden">
   <h1>LEVEL 0</h1>
   <h2>THE HUM</h2>
+  <div id="diffRow"></div>
+  <div id="diffDesc"></div>
   <button id="bNew">Wake up</button>
   <button id="bCreator">Creator mode</button>
   <button id="bControls">Controls</button>
   <div class="best" id="bestTxt"></div>
+  <div id="titleTip"></div>
   <div class="foot">headphones recommended · it cannot enter your room · except on monday at 3 am</div>
 </div>
 
@@ -120,9 +135,10 @@ body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
   <div><b>WASD</b> move</div><div><b>MOUSE</b> look</div><div><b>SHIFT</b> sprint</div><div><b>C / CTRL</b> crouch</div>
   <div><b>F</b> flashlight</div><div><b>R</b> swap battery</div><div><b>RMB / Q</b> light burst</div><div><b>E</b> interact</div>
   <div><b>J</b> journal</div><div><b>ESC</b> pause</div><div><b>F2</b> creator code</div><div><b>TAB</b> cursor (creator)</div>
+  <div><b>T</b> throw battery (lure)</div><div><b>H</b> hint / waypoint</div>
   <div><b>V</b> fly (creator)</div><div><b>G</b> grab aimed (creator)</div>
   </div>
-  <p style="font-size:18px;color:#a89c76;line-height:1.4">The burst blinds the creature for a few seconds. It costs a fifth of a battery.<br>Sprinting is loud. Crouching in the dark is quiet. Chests refill at dawn.</p>
+  <p style="font-size:18px;color:#a89c76;line-height:1.4">Hold your beam on its face to blind it, or BURST (right click) to stun it instantly.<br>Throw a spare battery [T] to lure it away. Sprinting is loud. Crouching in the dark is quiet.<br>Break line of sight to lose it. Your room and the stalls are safe. Chests refill at dawn.</p>
   <button id="bCtlBack">Back</button></div></div>
 
 <div id="intro" class="screen hidden"><div id="introText"></div><div id="introSkip">[SPACE] skip</div></div>
@@ -136,9 +152,11 @@ body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
   <div id="prompt"></div>
   <div id="burstCd"></div>
   <div id="fuseInv"></div>
-  <div id="bat"><div id="batCell"><div id="batFill"></div></div><span id="batPct">--</span><span id="spares">+0</span></div>
+  <div id="bat"><div id="batCell"><div id="batFill"></div></div><span id="batPct">--</span><span id="spares">+0</span><span id="batTime"></span></div>
   <div id="stam"><div id="stamFill"></div></div>
   <div id="toast"></div>
+  <div id="hint"><div class="h">HINT</div><div id="hintTxt"></div></div>
+  <div id="marker"><div class="d"></div><span id="markerTxt"></span></div>
   <div id="subtitle"></div>
   <div id="creatorTag" class="hidden">CREATOR · INVISIBLE · TAB cursor · V fly · G grab</div>
 </div>
@@ -152,6 +170,10 @@ body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
   <div class="row">Brightness <input id="sBright" type="range" min="0.6" max="1.8" step="0.02" value="1"></div>
   <div class="row">Quality <select id="sQual"><option value="0">Low</option><option value="1">Medium</option><option value="2" selected>High</option></select></div>
   <div class="row">Invert Y <input id="sInv" type="checkbox"></div>
+  <div class="row">Screen effects <select id="sFx"><option value="0">Smooth (recommended)</option><option value="1">Intense</option></select></div>
+  <div class="row">Head bob <input id="sBob" type="range" min="0" max="1" step="0.05" value="0.6"></div>
+  <div class="row">Hints <input id="sHints" type="checkbox" checked></div>
+  <div class="row">Difficulty <select id="sDiff"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option><option value="nightmare">Nightmare</option></select></div>
   <div style="margin-top:14px"><button id="bResume">Resume</button><br><button id="bCode">Enter creator code</button><br><button id="bQuit">Quit to title</button></div></div></div>
 
 <div id="codeModal" class="screen hidden"><div class="panel"><h3>CREATOR ACCESS</h3>
@@ -159,7 +181,7 @@ body.creator #obj{right:352px}body.creator #creatorTag{left:calc(50% - 165px)}
   <div id="codeErr"></div>
   <button id="bCodeOk">Unlock</button><br><button id="bCodeCancel">Cancel</button></div></div>
 
-<div id="over" class="screen hidden"><div class="panel"><h3>FOUND</h3><div id="overStats"></div><button id="bRetry">Wake up again</button><br><button id="bOverTitle">Title</button></div></div>
+<div id="over" class="screen hidden"><div class="panel"><h3>FOUND</h3><div id="overStats"></div><div id="overTip"></div><button id="bRetry">Wake up again</button><br><button id="bOverTitle">Title</button></div></div>
 
 <div id="creator" class="hidden"></div>
 
@@ -193,6 +215,27 @@ const GRID = { x0: -75, z0: -6, w: 830, h: 230, c: 0.1 };
 const NAV = { c: 0.25 }; NAV.w = Math.ceil(GRID.w * GRID.c / NAV.c); NAV.h = Math.ceil(GRID.h * GRID.c / NAV.c);
 const MON_NAT_SPEED = 1.25;             // m/s the walk clip covers at timeScale 1
 
+/* Difficulty presets */
+const DIFFS = {
+  easy:      { name: 'EASY', desc: 'slower creature · long-lasting batteries · it loses you quickly', mSpeed: 0.85, sight: 0.75, hear: 0.7, aware: 0.7, forget: 0.6, drain: 1 / 900, burstCost: 0.1, burstCd: 4, stun: 6, blindTime: 0.9, blindCd: 5, spares: 3, chestBonus: 1, aggro: 0.015, killDist: 0.9, sprint: 9 },
+  normal:    { name: 'NORMAL', desc: 'the intended experience', mSpeed: 1, sight: 1, hear: 1, aware: 1, forget: 0.4, drain: 1 / 540, burstCost: 0.15, burstCd: 6, stun: 4.5, blindTime: 1.5, blindCd: 8, spares: 1, chestBonus: 0, aggro: 0.03, killDist: 1.0, sprint: 7 },
+  hard:      { name: 'HARD', desc: 'it hears more, sees further, and remembers', mSpeed: 1.1, sight: 1.2, hear: 1.25, aware: 1.35, forget: 0.27, drain: 1 / 330, burstCost: 0.2, burstCd: 8, stun: 3.5, blindTime: 2.3, blindCd: 12, spares: 0, chestBonus: 0, aggro: 0.045, killDist: 1.05, sprint: 6 },
+  nightmare: { name: 'NIGHTMARE', desc: 'holding the light on it no longer works · only the burst', mSpeed: 1.22, sight: 1.4, hear: 1.5, aware: 1.7, forget: 0.18, drain: 1 / 240, burstCost: 0.25, burstCd: 10, stun: 2.5, blindTime: Infinity, blindCd: 99, spares: 0, chestBonus: -1, aggro: 0.06, killDist: 1.1, sprint: 5 },
+};
+const TIPS = [
+  'Break line of sight. Turn corners. It goes to where it last saw you, then searches.',
+  'Hold your flashlight steady on its face and it will be blinded for a moment.',
+  'The BURST (right click) stuns it instantly, but costs charge and needs a cooldown.',
+  'Throw a spare battery [T] down another hallway. It will go to check the noise.',
+  'Sprinting is loud and runs out fast. Crouch [C] in the dark with your light off to stay hidden.',
+  'It sees your flashlight from far away. Turn it off when you hear it nearby.',
+  'Your room and the stalls are safe. It will wait at the door, but it gets bored.',
+  'On Monday at 03:00 your room is not safe. Be in the stalls before then.',
+  'The fuses blow every midnight. Powered rooms slow it down.',
+  'Chests refill at dawn. Sleeping in the armchair skips 4 hours.',
+  'Press [H] if you are lost. It marks where to go next.',
+  'A heartbeat means it is close. Listen for its footsteps.',
+];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -265,7 +308,9 @@ scene.add(camera);
 const hemi = new THREE.HemisphereLight(0x6b5b35, 0x0b0804, 0.25);
 scene.add(hemi);
 
-const settings = Object.assign({ sens: 1, vol: 0.8, bright: 1, quality: 2, invert: false }, LS.get('l0_settings', {}));
+const settings = Object.assign({ sens: 1, vol: 0.8, bright: 1, quality: 2, invert: false, fx: 0, bob: 0.6, hints: true, diff: 'normal' }, LS.get('l0_settings', {}));
+if (!DIFFS[settings.diff]) settings.diff = 'normal';
+let D = DIFFS[settings.diff];
 
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
@@ -287,10 +332,9 @@ const FinalShader = {
     void main(){
       vec2 uv=vUv;
       uv += vec2(sin(uv.y*22.+uTime*2.3), cos(uv.x*19.+uTime*1.9))*0.004*uDistort;
-      uv += (vec2(hash(vec2(uTime,1.)),hash(vec2(1.,uTime)))-.5)*0.012*uShake;
-      // horizontal tear on heavy distortion
-      float tear = step(0.985-uDistort*0.03, hash(vec2(floor(uv.y*60.),floor(uTime*12.))));
-      uv.x += tear*0.01*uDistort;
+      uv += vec2(sin(uTime*23.), cos(uTime*19.))*0.004*uShake;
+      float tear = step(0.985-uDistort*0.03, hash(vec2(floor(uv.y*60.),floor(uTime*12.)))) * step(0.5, uDistort);
+      uv.x += tear*0.008*uDistort;
       vec2 dir = uv-.5; float d = length(dir);
       float ca = uCA*(0.25+d*1.6)*0.012;
       vec3 col;
@@ -483,8 +527,8 @@ const fbxLoader = new FBXLoader(fbxManager); const texLoader = new THREE.Texture
 const ASSETS = { map: 'assets/backrooms.glb', monster: 'assets/monster.glb', flashlight: 'assets/flashlight.glb', chest: 'assets/chest.glb' };
 const prog = {}; const SIZES = { map: 1.6, monster: 1.8, flashlight: 1.3, chest: 0.6, arms: 0.5, tex: 0.6 };
 function setProg(k, f) { prog[k] = f; let tot = 0, done = 0; for (const s in SIZES) { tot += SIZES[s]; done += SIZES[s] * (prog[s] || 0); } $('loadfill').style.width = (done / tot * 100).toFixed(1) + '%'; }
-const LOAD_MSGS = ['the carpet is damp', 'the lights are humming', 'something is breathing', 'you are not alone', 'counting the doors'];
-let lmI = 0; const lmTimer = setInterval(() => $('loadmsg').textContent = LOAD_MSGS[lmI++ % LOAD_MSGS.length] + '…', 1400);
+let lmI = Math.floor(Math.random() * 12); const lmTimer = setInterval(() => $('loadmsg').textContent = 'TIP: ' + TIPS[lmI++ % TIPS.length], 3200);
+$('loadmsg').textContent = 'TIP: ' + TIPS[lmI % TIPS.length];
 function loadGLB(k) { return new Promise((res, rej) => gltfLoader.load(ASSETS[k], g => { setProg(k, 1); res(g); }, e => e.total && setProg(k, e.loaded / e.total), rej)); }
 function loadTex(u, srgb) { return new Promise((res, rej) => texLoader.load(u, t => { if (srgb) t.colorSpace = THREE.SRGBColorSpace; res(t); }, undefined, rej)); }
 
@@ -807,7 +851,7 @@ function pickupItem(it) {
   if (it.type === 'battery') { P.spares++; toast('+1 BATTERY'); Sound.pickup(); }
   else if (it.type === 'fuse') { P.fuses++; toast('+1 FUSE'); Sound.pickup(); }
   else if (it.type === 'note') { readNote(it.noteId); Sound.burstNoise(null, { f: 3000, q: 0.6, gain: 0.08, a: 0.05, d: 0.25 }); }
-  removeItem(it);
+  removeItem(it); G.lastProgressT = 0;
   updateObjective();
 }
 
@@ -832,7 +876,7 @@ function makeChest(spot, opts = {}) {
   collideExtras.push(root);
   rollLoot(ch); chests.push(ch); return ch;
 }
-function rollLoot(ch) { ch.loot = { batteries: ch.home ? 2 : (Math.random() < 0.75 ? 1 + (Math.random() < 0.3 ? 1 : 0) : 0), fuse: !ch.home && Math.random() < 0.18 }; }
+function rollLoot(ch) { const b = ch.home ? 2 : (Math.random() < 0.8 ? 1 + (Math.random() < 0.35 ? 1 : 0) : 0); ch.loot = { batteries: Math.max(ch.home ? 1 : 0, b + D.chestBonus), fuse: !ch.home && Math.random() < 0.2 }; }
 function openChest(ch) {
   if (ch.open) return; ch.open = true; P.reach = 1;
   ch.act.reset(); ch.act.paused = false; ch.act.timeScale = 1.6; ch.act.play();
@@ -948,11 +992,14 @@ function pickWander() {
   }
   const w = pick(pool); monsterGoto(w[0] + rand(-1, 1), w[1] + rand(-1, 1));
 }
-function emitNoise(x, z, radius) {
-  if (!monster.active || (creator.unlocked && creator.invisible)) return;
+function emitNoise(x, z, radius, lure = false) {
+  if (!monster.active || (creator.unlocked && creator.invisible && !lure)) return;
   const d = Math.hypot(x - monster.pos.x, z - monster.pos.z); const occl = !losGrid(x, z, monster.pos.x, monster.pos.z);
-  const r = radius * (occl ? 0.55 : 1) * (G.visitation ? 1.5 : 1);
-  if (d < r && (monster.state === 'wander' || monster.state === 'search' || monster.state === 'investigate')) {
+  const r = radius * (occl ? (lure ? 0.85 : 0.55) : 1) * (G.visitation ? 1.5 : 1) * (lure ? 1 : D.hear);
+  const st = monster.state;
+  const canDivert = st === 'wander' || st === 'search' || st === 'investigate' || st === 'hunt' || st === 'stalk' || (lure && st === 'chase' && !monster.sees);
+  if (d < r && canDivert) {
+    if (lure) monster.aware = Math.min(monster.aware, 0.2);
     monster.lastSeen.set(x, FLOOR_Y, z); monsterSetState('investigate'); monsterGoto(x, z);
   }
 }
@@ -969,7 +1016,7 @@ function monsterUpdate(dt) {
   if (!invisible && P.alive && G.mode === 'play' && M.state !== 'stunned') {
     const pz = Z[zoneAt(P.pos.x, P.pos.z).id];
     const lit = pz.cur > 0.45;
-    let range = (P.flashOn ? 22 : lit ? 12 : 6.5) * (P.crouch > 0.5 && !P.flashOn ? 0.65 : 1) * creator.monSightMul;
+    let range = (P.flashOn ? 22 : lit ? 12 : 6.5) * (P.crouch > 0.5 && !P.flashOn ? 0.65 : 1) * creator.monSightMul * D.sight;
     if (G.visitation) range *= 1.5;
     const fov = M.state === 'chase' ? Math.PI : 1.25;
     const ang = Math.abs(angDiff(M.yaw, Math.atan2(dx, dz)));
@@ -980,12 +1027,19 @@ function monsterUpdate(dt) {
       if (_v1.dot(_v2) > 0.9) M.sees = true;
     }
   }
-  if (M.sees) { M.aware = Math.min(1.5, M.aware + dt * (1.2 + 10 / Math.max(dist, 1)) * (G.visitation ? 2 : 1)); M.lastSeen.set(P.pos.x, FLOOR_Y, P.pos.z); }
-  else M.aware = Math.max(0, M.aware - dt * 0.25);
+  if (M.sees) { M.aware = Math.min(1.5, M.aware + dt * (1.2 + 10 / Math.max(dist, 1)) * (G.visitation ? 2 : 1) * D.aware); M.lastSeen.set(P.pos.x, FLOOR_Y, P.pos.z); }
+  else M.aware = Math.max(0, M.aware - dt * D.forget);
+  // ---------- holding the beam on its face slowly blinds it
+  M.blindCd = Math.max(0, (M.blindCd || 0) - dt);
+  if (P.flashOn && P.battery > 0 && M.state !== 'stunned' && M.state !== 'retreat' && M.blindCd <= 0 && dist < 12 && beamHits(12)) {
+    M.blind = (M.blind || 0) + dt / D.blindTime;
+    if (M.blind > 0.25 && Math.random() < dt * 4) { M.twitch = 0; }
+    if (M.blind >= 1) { M.blind = 0; M.blindCd = D.blindCd; monsterSetState('stunned'); M.stunT = D.stun * 0.6; Sound.screech(0.9); toast('YOU BLINDED IT · RUN'); hint('blinded', 'It is blinded for a few seconds. Get out of its sight now: turn corners, then turn your light off.'); }
+  } else M.blind = Math.max(0, (M.blind || 0) - dt * 0.6);
 
   // ---------- state machine
   let speed = 0; const day = Math.floor((G.minutes - START_MIN) / 1440);
-  const aggro = 1 + Math.min(0.3, day * 0.03);
+  const aggro = 1 + Math.min(0.3, day * D.aggro);
   if (frozen) { M.path = null; }
   else switch (M.state) {
     case 'wander':
@@ -1043,7 +1097,7 @@ function monsterUpdate(dt) {
   // lights slow it down
   const mz = Z[zoneAt(M.pos.x, M.pos.z).id];
   if (mz.cur > 0.5 && !G.visitation) speed *= 0.86;
-  speed *= aggro * creator.monSpeedMul * (G.visitation ? 1.12 : 1);
+  speed *= aggro * creator.monSpeedMul * D.mSpeed * (G.visitation ? 1.12 : 1);
 
   // ---------- locomotion
   M.speed = damp(M.speed, speed, M.state === 'chase' ? 3 : 5, dt);
@@ -1097,23 +1151,23 @@ function monsterUpdate(dt) {
     M.eyeHalo.position.copy(_v1).addScaledVector(fwd, 0.1).addScaledVector(up, 0.06); M.eyeHalo.material.opacity = M.state === 'chase' ? 0.35 : 0.12;
   }
   // ---------- kill
-  if (P.alive && !invisible && G.mode === 'play' && dist < 1.05 && !playerWard && M.state !== 'stunned' && M.state !== 'retreat' && !frozen) caught();
+  if (P.alive && !invisible && G.mode === 'play' && dist < D.killDist && !playerWard && M.state !== 'stunned' && M.state !== 'retreat' && !frozen) caught();
 }
-function beamHits(maxD = 30) {
+function beamHits(maxD = 30, cone = 0.9) {
   const M = monster; if (!P.flashOn) return false;
   _v1.set(M.pos.x, M.pos.y + 1.3, M.pos.z).sub(spot.position); const d = _v1.length(); if (d > maxD) return false; _v1.normalize();
   _v2.copy(spot.target.position).sub(spot.position).normalize();
-  return _v1.dot(_v2) > Math.cos(spot.angle * 0.9) && losGrid(P.pos.x, P.pos.z, M.pos.x, M.pos.z);
+  return _v1.dot(_v2) > Math.cos(Math.min(1.2, spot.angle * cone)) && losGrid(P.pos.x, P.pos.z, M.pos.x, M.pos.z);
 }
 function burst() {
   if (!P.hasFlash || G.burstCd > 0 || G.mode !== 'play') return;
-  const cost = 0.2;
+  const cost = D.burstCost;
   if (P.battery < cost && !(creator.unlocked && creator.infiniteBattery)) { toast('NOT ENOUGH CHARGE'); Sound.click(); return; }
   if (!(creator.unlocked && creator.infiniteBattery)) P.battery -= cost;
-  P.flashOn = true; G.burstT = 0.35; G.burstCd = 6; P.recoil = 1;
+  P.flashOn = true; G.burstT = 0.35; G.burstCd = D.burstCd; P.recoil = 1;
   Sound.burstNoise(null, { f: 6000, fEnd: 800, q: 0.7, gain: 0.25, a: 0.005, d: 0.4 }); Sound.tone(null, { f: 2200, fEnd: 300, type: 'sawtooth', gain: 0.05, d: 0.3 });
   const d = monster.pos.distanceTo(P.pos);
-  if (beamHits(11) && monster.state !== 'stunned') { monsterSetState('stunned'); monster.stunT = 4.2; Sound.screech(1.1); toast('IT RECOILS'); }
+  if (beamHits(13, 1.5) && monster.state !== 'stunned') { monsterSetState('stunned'); monster.stunT = D.stun; monster.blind = 0; Sound.screech(1.1); toast('IT RECOILS · RUN'); hint('stunned', 'Stunned! It will retreat after this. Use the time to get away or reach a safe room.'); }
   else if (d < 22) emitNoise(P.pos.x, P.pos.z, 12);
 }
 
@@ -1223,7 +1277,7 @@ function sleep() {
    STORY / OBJECTIVES
    ===================================================================== */
 function setStage(s) {
-  G.stage = s;
+  G.stage = s; G.lastProgressT = 0;
   if (s === 1) subtitleSeq(['There is an old chest in the corner.', 'Search it.']);
   if (s === 2) subtitleSeq(['The lights in the halls are dying.', 'Find the breaker panel in the Long Hall.']);
   if (s === 3) subtitleSeq(['Three fuse slots. All empty.', 'Find 3 fuses. They glow orange in the dark.']);
@@ -1250,6 +1304,63 @@ function updateObjective() {
 /* =====================================================================
    UI HELPERS
    ===================================================================== */
+let hintT = 0;
+function hint(id, text, force) {
+  if (!force && (!settings.hints || G.hintsShown?.has(id))) return;
+  G.hintsShown?.add(id); $('hintTxt').textContent = text; $('hint').style.opacity = 1; hintT = 4 + text.length * 0.05;
+}
+function objectiveTarget() {
+  const near = list => { let b = null, bd = 1e9; for (const o of list) { const d = Math.hypot(o.x - P.pos.x, o.z - P.pos.z); if (d < bd) { bd = d; b = o; } } return b; };
+  const chestsLeft = chests.filter(c => !c.open && c.root.visible).map(c => ({ x: c.root.position.x, z: c.root.position.z, n: 'chest' }));
+  if (G.visitation) return { x: -32.5, z: 8, n: 'the stalls (safe)' };
+  if (!P.hasFlash) return { x: floorFlash.position.x, z: floorFlash.position.z, n: 'flashlight' };
+  if (G.stage === 1) { const h = chests.find(c => c.home); return h ? { x: h.root.position.x, z: h.root.position.z, n: 'chest' } : null; }
+  if (G.stage === 2 || (!G.powerOn && (P.fuses > 0 || G.fusesInBox + P.fuses >= 3))) return { x: fuseBox.position.x, z: fuseBox.position.z + 0.8, n: 'breaker panel' };
+  if (!G.powerOn) { const f = near(items.filter(i => i.type === 'fuse').map(i => ({ x: i.mesh.position.x, z: i.mesh.position.z, n: 'fuse' }))); return f || near(chestsLeft); }
+  const n = near(items.filter(i => i.type === 'note').map(i => ({ x: i.mesh.position.x, z: i.mesh.position.z, n: 'note' })));
+  if (n) return n;
+  if (P.spares < 2) return near(chestsLeft);
+  return { x: 0, z: 0.5, n: 'your room' };
+}
+const OBJ_HINTS = {
+  0: 'The flashlight is lying on the floor of your room, still switched on. Look down.',
+  1: 'The old chest is in the corner of your room. Walk up to it and press [E].',
+  2: 'Leave your room, then go left into the Long Hall. The breaker panel is on the north wall, about 8 m down.',
+  3: 'Fuses glow orange. Search the rooms to the west, and open chests. Bring 3 to the breaker.',
+};
+function showWaypoint(manual) {
+  const t = objectiveTarget(); if (!t) return;
+  G.marker = t; G.markerT = 7;
+  if (manual) hint('obj' + G.stage + (G.powerOn ? 'p' : ''), G.visitation ? 'Get to THE STALLS in the Stall Hall (west, past the Long Hall). It cannot enter them, even tonight.' : (OBJ_HINTS[G.stage] || (!G.powerOn ? 'The fuses blew. Find 3 glowing fuses and bring them to the breaker in the Long Hall.' : 'Explore and read the notes. Keep batteries stocked. Be in the stalls on Monday at 03:00.')), true);
+}
+function updateMarker(dt) {
+  G.markerT = Math.max(0, (G.markerT || 0) - dt);
+  const el = $('marker');
+  if (G.markerT <= 0 || !G.marker || G.mode !== 'play') { el.style.opacity = 0; return; }
+  const v = _mv.set(G.marker.x, FLOOR_Y + 1.0, G.marker.z); const d = Math.hypot(v.x - P.pos.x, v.z - P.pos.z);
+  v.project(camera);
+  let x = v.x, y = v.y; const behind = v.z > 1;
+  if (behind) { x = -x; y = -1; }
+  x = clamp(x, -0.92, 0.92); y = clamp(y, -0.85, 0.85);
+  el.style.left = ((x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - y) / 2 * innerHeight) + 'px';
+  el.style.opacity = Math.min(1, G.markerT);
+  $('markerTxt').textContent = `${G.marker.n} · ${d.toFixed(0)} m`;
+}
+const _mv = new THREE.Vector3();
+function contextHints(dt) {
+  if (G.mode !== 'play' || G.intro < 4.5) return;
+  const M = monster, d = M.pos.distanceTo(P.pos), inv = creator.unlocked && creator.invisible;
+  if (!inv && M.state === 'chase') hint('chase', 'IT SEES YOU. Run and break line of sight, or hold your beam on its face to blind it. Right click to BURST it.');
+  if (!inv && M.state === 'stalk' && inWard(P.pos.x, P.pos.z)) hint('stalk', 'It cannot come in here. Wait it out. It loses interest after a while.');
+  if (!inv && d < 14 && M.state !== 'chase' && P.flashOn) hint('near', 'It is close. Turn your light off [F] and crouch [C]. It hears footsteps and sees light.');
+  if (P.exhausted) hint('stamina', 'Out of breath. Sprinting only lasts a few seconds. Plan your escape route.');
+  if (P.hasFlash && P.battery < 0.2) hint('lowbat', P.spares ? 'Low battery. Press [R] to swap in a spare.' : 'Low battery and no spares. Chests have batteries, and they refill at dawn.');
+  if (P.spares > 0 && G.stage >= 2) hint('spare', 'Spare batteries: [R] swaps one in. [T] throws one as a lure. It runs to the noise and you can pick it back up.');
+  if (G.sanity < 0.45) hint('sanity', 'The darkness is getting to you. Stand in a lit room or a safe room to calm down.');
+  const w = G.minutes % WEEK; if (w > 1440 + 120 && w < 1440 + 180) hint('visit' + Math.floor(G.minutes / WEEK), 'The visitation is coming (Monday 03:00). Go to THE STALLS in the Stall Hall. Press [H] for directions.');
+  G.lastProgressT = (G.lastProgressT || 0) + dt;
+  if (G.lastProgressT > 75 && G.stage < 4) { G.lastProgressT = 0; hint('stuck' + G.stage, 'Not sure where to go? Press [H] to mark your objective.', true); }
+}
 let toastT = 0; function toast(s) { $('toast').textContent = s; $('toast').style.opacity = 1; toastT = 2.6; }
 let subQ = [], subT = 0; function subtitleSeq(lines) { subQ = lines.slice(); subT = 0; nextSub(); }
 function nextSub() { if (!subQ.length) { $('subtitle').style.opacity = 0; return; } const l = subQ.shift(); $('subtitle').textContent = l; $('subtitle').style.opacity = 1; subT = 2.2 + l.length * 0.045; }
@@ -1278,6 +1389,8 @@ document.addEventListener('pointerlockchange', () => {
 });
 addEventListener('mousemove', e => {
   if (document.pointerLockElement !== canvas || G.mode !== 'play' || G.uiOpen) return;
+  // some browsers occasionally report huge bogus mouse jumps under pointer lock: drop them
+  if (Math.abs(e.movementX) > 220 || Math.abs(e.movementY) > 220) return;
   const s = 0.0021 * settings.sens;
   P.yaw -= e.movementX * s; P.pitch -= e.movementY * s * (settings.invert ? -1 : 1); P.pitch = clamp(P.pitch, -1.45, 1.45);
   P.look.x += e.movementX * s; P.look.y += e.movementY * s;
@@ -1298,6 +1411,8 @@ addEventListener('keydown', e => {
   if (k === 'KeyF' && P.hasFlash) toggleFlash();
   if (k === 'KeyR' && P.hasFlash) swapBattery();
   if (k === 'KeyQ') burst();
+  if (k === 'KeyT') throwBattery();
+  if (k === 'KeyH') showWaypoint(true);
   if (k === 'KeyE') interact();
   if (k === 'KeyJ') openJournal();
   if (creator.unlocked) {
@@ -1311,11 +1426,42 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 function toggleFlash() { P.flashOn = !P.flashOn; Sound.click(); if (handFlashPress) { handFlashPress.reset(); handFlashPress.play(); } if (P.battery <= 0.001 && P.flashOn) { toast('BATTERY DEAD · [R] SWAP'); } }
-function swapBattery() {
+function swapBattery(auto) {
   if (P.spares <= 0) { toast('NO SPARE BATTERIES'); Sound.click(); return; }
   if (P.swapT > 0) return;
-  P.swapT = 1.2; const was = P.flashOn; P.flashOn = false; Sound.click();
-  setTimeout(() => { P.spares--; P.battery = 1; Sound.insertFuse(); P.flashOn = was || true; toast('FRESH BATTERY'); }, 700);
+  if (!auto && P.battery > 0.9) { toast('BATTERY IS STILL FULL'); return; }
+  P.swapT = 1.2; P.flashOn = false; Sound.click();
+  setTimeout(() => { P.spares--; P.battery = 1; Sound.insertFuse(); P.flashOn = true; toast(auto ? 'DEAD BATTERY · SWAPPED AUTOMATICALLY' : 'FRESH BATTERY'); }, 700);
+}
+/* thrown batteries: a lure that lands as a pickup again */
+const thrown = [];
+function throwBattery() {
+  if (!P.hasFlash && P.spares <= 0) return;
+  if (P.spares <= 0) { toast('NO SPARE BATTERIES TO THROW'); Sound.click(); return; }
+  P.spares--; P.recoil = 0.6;
+  const m = makeBattery(); const d = camera.getWorldDirection(new THREE.Vector3());
+  m.position.copy(camera.position).addScaledVector(d, 0.4); scene.add(m);
+  thrown.push({ m, v: d.multiplyScalar(11).add(new THREE.Vector3(0, 2.2, 0)), t: 0, hit: false });
+  Sound.burstNoise(null, { f: 900, q: 0.8, gain: 0.06, a: 0.02, d: 0.18 });
+  hint('throw', 'Thrown! It goes to check the noise, even mid-chase if it cannot see you. Walk over to pick the battery up again.');
+}
+function updateThrown(dt) {
+  for (let i = thrown.length - 1; i >= 0; i--) {
+    const T = thrown[i]; T.t += dt; const p = T.m.position;
+    T.v.y -= 9.8 * dt;
+    const nx = p.x + T.v.x * dt, nz = p.z + T.v.z * dt;
+    let bonk = false;
+    if (isWall(nx, p.z)) { T.v.x *= -0.35; bonk = true; } else p.x = nx;
+    if (isWall(p.x, nz)) { T.v.z *= -0.35; bonk = true; } else p.z = nz;
+    p.y += T.v.y * dt; T.m.rotation.x += dt * 12; T.m.rotation.z += dt * 9;
+    if (p.y < FLOOR_Y + 0.02) { p.y = FLOOR_Y + 0.02; if (Math.abs(T.v.y) > 1.2) bonk = true; T.v.y *= -0.3; T.v.x *= 0.6; T.v.z *= 0.6; }
+    if (bonk) { Sound.burstNoise(null, { f: 2600, q: 3, gain: 0.18, d: 0.06 }); Sound.burstNoise(null, { f: 500, type: 'lowpass', gain: 0.12, d: 0.08, buf: Sound.brown }); if (!T.hit) { T.hit = true; emitNoise(p.x, p.z, 26, true); } }
+    if ((T.t > 0.4 && Math.hypot(T.v.x, T.v.z) < 0.4 && p.y <= FLOOR_Y + 0.03) || T.t > 4) {
+      if (!T.hit) emitNoise(p.x, p.z, 26, true);
+      scene.remove(T.m); thrown.splice(i, 1);
+      placeItem('battery', p.x, p.z, { daily: true });
+    }
+  }
 }
 let aimed = null;
 function interact() { if (aimed) aimed.act(); }
@@ -1356,13 +1502,17 @@ function skipIntro() {
   FX.uBlink.value = 1; FX.uFade.value = 0;
   lockPointer();
   setTimeout(() => subtitleSeq(['…where am I?', 'A flashlight. Still on.']), 3500);
+  setTimeout(() => G.mode === 'play' && !P.hasFlash && hint('start', 'Look down: the flashlight is on the floor. Walk to it and press [E]. Press [H] anytime to mark your objective.'), 7000);
   updateObjective();
 }
 function resetWorld() {
   G.t = 0; G.minutes = START_MIN; G.survived = 0; G.paused = false; G.uiOpen = null; G.visitation = false; G.visitationsSurvived = 0;
   G.stage = 0; G.fusesInBox = 0; G.notesFound = new Set(); G.burstCd = 0; G.sanity = 1; G.danger = 0; G.shake = 0; G.dyingT = 0;
   $('clock').classList.remove('danger');
-  Object.assign(P, { yaw: Math.PI * 0.85, pitch: 1.1, crouch: 0, stamina: 1, hasFlash: false, flashOn: false, battery: 0.6, spares: 0, fuses: 0, alive: true, reach: 0, recoil: 0, swapT: 0 });
+  Object.assign(P, { yaw: Math.PI * 0.85, pitch: 1.1, crouch: 0, stamina: 1, hasFlash: false, flashOn: false, battery: 1, spares: D.spares, fuses: 0, alive: true, reach: 0, recoil: 0, swapT: 0 });
+  for (const T of thrown.splice(0)) scene.remove(T.m);
+  G.hintsShown = new Set(); G.lastProgressT = 0; G.markerT = 0; G.deathCause = '';
+  monster.blind = 0; monster.blindCd = 0;
   P.pos.set(0.3, FLOOR_Y, 1.2); P.vel.set(0, 0, 0);
   for (const it of items.slice()) removeItem(it);
   NOTES.forEach((n, i) => placeItem('note', n.x, n.z, { noteId: i }));
@@ -1376,6 +1526,7 @@ function resetWorld() {
   buildGrids();
 }
 function caught() {
+  G.deathCause = P.exhausted ? 'stamina' : P.flashOn ? 'light' : (keys.ShiftLeft ? 'loud' : '');
   P.alive = false; G.mode = 'dying'; G.dyingT = 0; P.flashOn = true;
   Sound.jumpscare(); G.shake = 1;
   monster.state = 'kill';
@@ -1383,14 +1534,17 @@ function caught() {
 function gameOver() {
   G.mode = 'dead'; document.exitPointerLock?.();
   const d = Math.floor(G.survived / 1440), h = Math.floor(G.survived % 1440 / 60), m = Math.floor(G.survived % 60);
-  const best = LS.get('l0_best', 0); if (G.survived > best) LS.set('l0_best', G.survived);
-  $('overStats').textContent = `You survived ${d} day${d === 1 ? '' : 's'}, ${h} h ${m} min\nVisitations survived: ${G.visitationsSurvived}\nNotes found: ${G.notesFound.size}/${NOTES.length}\n${G.survived > best ? 'NEW RECORD' : 'Best: ' + fmtDur(best)}`;
+  const bk = 'l0_best_' + settings.diff, best = LS.get(bk, 0); if (G.survived > best) LS.set(bk, G.survived);
+  const tipByCause = { stamina: TIPS[4], light: TIPS[5], loud: TIPS[4] };
+  $('overTip').textContent = 'TIP: ' + (tipByCause[G.deathCause] && Math.random() < 0.7 ? tipByCause[G.deathCause] : pick(TIPS));
+  $('overStats').textContent = `${D.name}\nYou survived ${d} day${d === 1 ? '' : 's'}, ${h} h ${m} min\nVisitations survived: ${G.visitationsSurvived}\nNotes found: ${G.notesFound.size}/${NOTES.length}\n${G.survived > best ? 'NEW RECORD' : 'Best: ' + fmtDur(best)}`;
   showScreen('over'); $('hud').classList.add('hidden');
 }
 const fmtDur = m => `${Math.floor(m / 1440)}d ${Math.floor(m % 1440 / 60)}h ${Math.floor(m % 60)}m`;
 function toTitle() {
   G.mode = 'title'; G.paused = false; showScreen('title'); $('hud').classList.add('hidden'); $('creator').classList.add('hidden'); creator.cursor = false;
-  const b = LS.get('l0_best', 0); $('bestTxt').textContent = b ? 'LONGEST SURVIVAL · ' + fmtDur(b) : '';
+  renderDiff();
+  $('titleTip').textContent = 'TIP: ' + pick(TIPS);
   if (Sound.ok) Sound.ctx.resume();
 }
 
@@ -1631,7 +1785,7 @@ function updatePlayer(dt) {
     }
   }
   // stamina
-  if (sprinting) { P.stamina -= dt / 6; if (P.stamina <= 0) { P.exhausted = true; Sound.breath(1); } }
+  if (sprinting) { P.stamina -= dt / D.sprint; if (P.stamina <= 0) { P.exhausted = true; Sound.breath(1); } }
   else P.stamina = Math.min(1, P.stamina + dt / (P.exhausted ? 9 : 5));
   if (P.exhausted && P.stamina > 0.45) P.exhausted = false;
   $('stam').style.opacity = P.stamina < 0.99 ? 1 : 0; $('stamFill').style.width = (P.stamina * 100) + '%'; $('stamFill').style.background = P.exhausted ? '#c44' : '#d7cfae';
@@ -1647,20 +1801,26 @@ function updatePlayer(dt) {
   P.bobAmt = damp(P.bobAmt, fly ? 0 : clamp(hs / 4.4, 0, 1), 6, dt);
   if (P.exhausted && Math.random() < dt * 0.9) Sound.breath(0.7);
   const eye = lerp(1.62, 1.0, P.crouch);
-  const bobY = Math.abs(Math.sin(P.bob)) * 0.055 * P.bobAmt * (sprinting ? 1.5 : 1), bobX = Math.cos(P.bob) * 0.03 * P.bobAmt;
+  const bobK = settings.bob;
+  const bobY = Math.abs(Math.sin(P.bob)) * 0.055 * P.bobAmt * (sprinting ? 1.4 : 1) * bobK, bobX = Math.cos(P.bob) * 0.03 * P.bobAmt * bobK;
   const breathe = Math.sin(G.t * 1.6) * 0.006;
-  P.roll = damp(P.roll, -ix * 0.025 + Math.cos(P.bob) * 0.006 * P.bobAmt, 6, dt);
+  P.roll = damp(P.roll, -ix * 0.02 + Math.cos(P.bob) * 0.004 * P.bobAmt, 4, dt);
   camera.position.set(P.pos.x + Math.cos(P.yaw) * bobX, P.pos.y + (intro ? lerp(0.25, eye, clamp((G.intro - 1.5) / 3, 0, 1)) : eye) + bobY + breathe, P.pos.z - Math.sin(P.yaw) * bobX);
   // shake
   G.shake = Math.max(0, (G.shake || 0) - dt * 1.5);
-  const sh = G.shake * G.shake;
-  camera.rotation.set(P.pitch + (Math.random() - 0.5) * sh * 0.08, P.yaw + (Math.random() - 0.5) * sh * 0.08, P.roll);
+  const sh = G.shake * G.shake * (settings.fx ? 1 : 0.35);
+  const shx = (noise1(G.t * 7.3) - 0.5) * sh * 0.05, shy = (noise1(G.t * 6.1 + 40) - 0.5) * sh * 0.05;
+  camera.rotation.set(P.pitch + shx, P.yaw + shy, P.roll * (settings.bob + 0.2));
   // creator grab: carry object at crosshair
   if (creator.unlocked && creator.grab) { const d = camera.getWorldDirection(_v1); creator.grab.obj.position.copy(camera.position).addScaledVector(d, creator.grabDist); if (creator.grab.type !== 'lamp') creator.grab.obj.position.y = Math.max(FLOOR_Y, creator.grab.obj.position.y); creator.grab.moved = true; creator.grab.onMove && creator.grab.onMove(); }
 }
 function updateFlashlight(dt) {
   const inf = creator.unlocked && creator.infiniteBattery;
-  if (P.flashOn && P.hasFlash && !inf) P.battery = Math.max(0, P.battery - dt / 170);
+  if (P.flashOn && P.hasFlash && !inf) {
+    P.battery = Math.max(0, P.battery - dt * D.drain);
+    if (P.battery <= 0 && P.spares > 0 && P.swapT <= 0) { swapBattery(true); }
+  }
+  updateThrown(dt);
   G.burstCd = Math.max(0, G.burstCd - dt); G.burstT = Math.max(0, (G.burstT || 0) - dt);
   P.swapT = Math.max(0, P.swapT - dt);
   P.reach = Math.max(0, P.reach - dt * 1.6); P.recoil = Math.max(0, P.recoil - dt * 3);
@@ -1701,6 +1861,8 @@ function updateFlashlight(dt) {
   $('batFill').style.width = (P.hasFlash ? pct : 0) + '%'; $('batPct').textContent = P.hasFlash ? pct + '%' : '--'; $('spares').textContent = '+' + P.spares;
   $('batCell').classList.toggle('low', P.hasFlash && pct < 18);
   $('fuseInv').textContent = P.fuses ? `FUSES × ${P.fuses}` : '';
+  const mins = (P.battery / D.drain) / 60 + P.spares / D.drain / 60;
+  $('batTime').textContent = P.hasFlash && !inf ? `~${mins < 1 ? '<1' : Math.round(mins)} min of light` : '';
   $('burstCd').textContent = P.hasFlash ? (G.burstCd > 0 ? `BURST ${G.burstCd.toFixed(0)}s` : 'BURST READY [RMB]') : '';
 }
 function updateInteract() {
@@ -1729,10 +1891,11 @@ function updateAtmos(dt) {
   const dark = pz.cur < 0.25 && !(P.flashOn && P.battery > 0);
   G.sanity = clamp(G.sanity + dt * (ward ? 0.04 : dark ? -0.012 : pz.cur > 0.5 ? 0.01 : -0.002) - dt * G.danger * 0.03, 0, 1);
   const ins = 1 - G.sanity;
-  FX.uTime.value = G.t; FX.uCA.value = 0.25 + G.danger * 1.6 + ins * 0.8; FX.uVig.value = G.danger * 0.6 + ins * 0.4 + (P.exhausted ? 0.3 : 0);
+  const intense = settings.fx === 1;
+  FX.uTime.value = G.t; FX.uCA.value = intense ? 0.25 + G.danger * 1.6 + ins * 0.8 : 0.2 + G.danger * 0.35; FX.uVig.value = G.danger * 0.6 + ins * 0.4 + (P.exhausted ? 0.3 : 0);
   FX.uRed.value = Math.max(G.danger * 0.35 * (0.7 + 0.3 * Math.sin(G.t * 6)), G.visitation ? 0.25 : 0);
-  FX.uDistort.value = ins * ins * 1.2 + G.danger * 0.25; FX.uGrain.value = 0.05 + ins * 0.06 + G.danger * 0.04;
-  FX.uShake.value = (G.shake || 0) * 0.5; FX.uFlash.value = G.burstT > 0 ? G.burstT * 0.5 : 0; FX.uGamma.value = settings.bright;
+  FX.uDistort.value = intense ? ins * ins * 1.2 + G.danger * 0.25 : 0; FX.uGrain.value = 0.05 + ins * 0.05 + G.danger * 0.03;
+  FX.uShake.value = intense ? (G.shake || 0) * 0.5 : 0; FX.uFlash.value = G.burstT > 0 ? G.burstT * 0.5 : 0; FX.uGamma.value = settings.bright;
   if (ins > 0.6 && Math.random() < dt * 0.15 * ins) Sound.whisper();
   // zone name banner
   const zn = zoneAt(P.pos.x, P.pos.z); const sz = safeAt(P.pos.x, P.pos.z);
@@ -1751,6 +1914,8 @@ function updateHUD(dt) {
   $('clockSub').textContent = `DAY ${Math.floor(G.minutes / 1440) - Math.floor(START_MIN / 1440) + 1}` + (G.visitation ? ' · THE HUM HAS STOPPED' : '');
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
   if (subT > 0) { subT -= dt; if (subT <= 0) nextSub(); }
+  if (hintT > 0) { hintT -= dt; if (hintT <= 0) $('hint').style.opacity = 0; }
+  updateMarker(dt); contextHints(dt);
   if (creator.unlocked) { const c = $('cClock'); if (c) c.textContent = clockStr(G.minutes) + (G.visitation ? '  · VISITATION' : ''); }
 }
 function updateItems(dt) {
@@ -1767,9 +1932,9 @@ function updateDying(dt) {
   M.action.timeScale = 3.5; M.mixer.update(dt);
   if (M.bones.Head) { _e.set(rand(-0.3, 0.3), rand(-0.3, 0.3), rand(-0.5, 0.5)); _q.setFromEuler(_e); M.bones.Head.quaternion.multiply(_q); }
   P.pitch = damp(P.pitch, 0.05, 10, dt);
-  G.shake = 1; FX.uCA.value = 3; FX.uRed.value = 0.6; FX.uDistort.value = 1.2; FX.uFlash.value = t < 0.08 ? 0.6 : 0; FX.uShake.value = 1;
+  G.shake = 1; FX.uCA.value = 2; FX.uRed.value = 0.6; FX.uDistort.value = settings.fx ? 1.2 : 0.3; FX.uFlash.value = t < 0.08 ? 0.6 : 0; FX.uShake.value = settings.fx ? 0.8 : 0.3;
   camera.position.set(P.pos.x, P.pos.y + 1.55, P.pos.z);
-  camera.rotation.set(P.pitch + rand(-0.04, 0.04), P.yaw + rand(-0.04, 0.04), rand(-0.1, 0.1));
+  camera.rotation.set(P.pitch + (noise1(t * 30) - 0.5) * 0.05, P.yaw + (noise1(t * 27 + 9) - 0.5) * 0.05, (noise1(t * 20 + 3) - 0.5) * 0.12);
   spot.position.copy(camera.position); spot.target.position.copy(M.pos).setY(1.3); spot.intensity = 30 * (Math.random() < 0.5 ? 1 : 0.1);
   M.model.updateMatrixWorld(true);
   if (t > 1.5) FX.uFade.value = clamp((t - 1.5) * 2, 0, 1);
@@ -1855,10 +2020,22 @@ async function boot() {
   $('sBright').oninput = e => { settings.bright = +e.target.value; saveS(); };
   $('sQual').onchange = e => { settings.quality = +e.target.value; applyQuality(); saveS(); };
   $('sInv').onchange = e => { settings.invert = e.target.checked; saveS(); };
+  $('sFx').value = settings.fx; $('sBob').value = settings.bob; $('sHints').checked = settings.hints; $('sDiff').value = settings.diff;
+  $('sFx').onchange = e => { settings.fx = +e.target.value; saveS(); };
+  $('sBob').oninput = e => { settings.bob = +e.target.value; saveS(); };
+  $('sHints').onchange = e => { settings.hints = e.target.checked; saveS(); };
+  $('sDiff').onchange = e => setDiff(e.target.value);
   toTitle();
   requestAnimationFrame(frame);
 }
 let handLensMat = null;
+function setDiff(k) { settings.diff = k; D = DIFFS[k]; LS.set('l0_settings', settings); renderDiff(); $('sDiff').value = k; }
+function renderDiff() {
+  const row = $('diffRow'); row.innerHTML = '';
+  for (const k in DIFFS) { const b = document.createElement('button'); b.textContent = DIFFS[k].name; if (k === settings.diff) b.className = 'on' + (k === 'nightmare' ? ' nm' : ''); b.onclick = () => { Sound.init(); Sound.click(); setDiff(k); }; row.appendChild(b); }
+  $('diffDesc').textContent = D.desc;
+  const b = LS.get('l0_best_' + settings.diff, 0); $('bestTxt').textContent = b ? `LONGEST SURVIVAL (${D.name}) · ` + fmtDur(b) : '';
+}
 $('bNew').onclick = () => newGame(false);
 $('bCreator').onclick = () => { pendingCreatorStart = true; openCode(); };
 $('bControls').onclick = () => showScreen('controls');
@@ -1874,7 +2051,7 @@ $('bJClose').onclick = () => { $('journal').classList.add('hidden'); G.uiOpen = 
 $('note').onclick = () => { closeNote(); lockPointer(); };
 
 // test / debug hooks
-window.__game = { G, P, monster, Z, creator, scene, camera, renderer, newGame, skipIntro, buildGrids, astar, isWall, get wallGrid() { return wallGrid; }, get navWall() { return navWall; }, setStage, advanceTime, giveFlashlight, enableCreator, armBones, rig, handFlash, spot, spawnThing, burst, simulate, keys, emitNoise, inWard, interact: () => interact(), get aimed() { return aimed; } };
+window.__game = { G, P, monster, Z, creator, scene, camera, renderer, newGame, skipIntro, buildGrids, astar, isWall, get wallGrid() { return wallGrid; }, get navWall() { return navWall; }, setStage, advanceTime, giveFlashlight, enableCreator, armBones, rig, handFlash, spot, spawnThing, burst, simulate, throwBattery, setDiff, get D() { return D; }, showWaypoint, keys, emitNoise, inWard, interact: () => interact(), get aimed() { return aimed; } };
 boot().catch(err => { console.error(err); $('loadmsg').textContent = 'failed to load: ' + err.message; });
 </script>
 </body>
