@@ -98,14 +98,16 @@ Open http://localhost:8000/fps/ with the same local server as above.
   - **Old Town:** a 160 m village with two apartment blocks and about thirty houses you can walk into.
 
   The neon maps get the game's glowing panel shaders. Old Town keeps its own textures.
-- **Old Town Last Stand is a 50-player battle:** you plus 49 bots, one life each.
+- **Respawn pads:** every map has fixed, glowing spawn points (8 to 20 depending on size). When you or a bot respawns, the game picks the pad farthest from enemies that no enemy can currently see, and it flashes as you appear.
+- **Old Town Last Stand is a 50-player battle on a doubled map:** you plus 49 bots, one life each, on a 2×2 mirrored Old Town about 320 m across, with the walls between the copies removed.
+  - Everyone starts in a **dropship** flying across the town. Press **Space** to jump, Space again to open your parachute (it opens by itself near the ground), and steer with WASD. Bots jump along the route and glide toward their landing spots.
   - The first 20 seconds are a scatter phase: bots spread out and don't fight each other.
   - About 60% of the bots are campers. They claim hiding spots in house corners and behind cover, crouch, and watch the door. When someone shows up they duck, lean out the side that has a view, shoot, and duck back.
   - When six or fewer remain, or the clock is nearly out, nobody can hide any more and everyone hunts the nearest survivor.
 - **Tougher bots:**
   - They do much less damage to each other, so the lobby doesn't wipe itself out before you get there.
   - Only a few bots at a time can engage you from range.
-  - They're sturdier: 140 health at Bronze, up to 200 at the top ranks (130–190 by difficulty in Casual). That's about 6 body shots, or a headshot plus 3.
+  - Casual difficulty is gentler: Easy and Normal bots react slower, aim worse and hit softer. Bot health is 90 / 100 / 120 / 140 (Easy to Insane). In Ranked it's 100 at Bronze, rising to 150 at the top.
 - **Visuals:** synthwave sky with a striped sun, neon horizon mountains, an animated glowing floor grid, emissive trims on the walls, holographic crates, shadows, bloom, chromatic aberration, tracers, sparks, bullet holes, ejected brass, muzzle light.
 - **Ranked ladder:** Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster (each with divisions III, II and I), then Legend. Your rank sets bot skill: Bronze III bots play like Easy and Legend bots play like Insane. Past Legend the bots get faster and deadlier still: quicker reactions, tighter aim, more headshots and more damage. You earn or lose RP from where you place, your kills and whether you win; matches with more bots pay more. Leaving a ranked match early costs 20 RP. Your rank is saved in the browser. **Casual** lets you pick the difficulty yourself and doesn't touch RP.
 - **Last Stand mode:** one life each, no respawns. The last one alive wins. If you go down you can spectate the survivors (Space or click to switch, Enter for results). Your placement is locked in when you're eliminated.
