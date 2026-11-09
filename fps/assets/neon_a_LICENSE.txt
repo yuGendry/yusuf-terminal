@@ -1,0 +1,11 @@
+Model Information:
+* title:	FPS warface map neon pvp pve
+* source:	https://sketchfab.com/3d-models/fps-warface-map-neon-pvp-pve-a2398709e28f463aab192aa2a76e8cf7
+* author:	neosearch (https://sketchfab.com/neosearch)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "FPS warface map neon pvp pve" (https://sketchfab.com/3d-models/fps-warface-map-neon-pvp-pve-a2398709e28f463aab192aa2a76e8cf7) by neosearch (https://sketchfab.com/neosearch) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

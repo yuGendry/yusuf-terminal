@@ -90,7 +90,22 @@ Open http://localhost:8000/fps/ with the same local server as above.
 - **Bullets are the only pickups.** Glowing cartridges around the map give +15 rounds and respawn after 10 s. Now and then a **golden round** spawns: whoever grabs it kills anything with their next hit.
 - **Bots with feelings:** the NPC's 4 heads (neutral, shocked, angry, furious) swap live with the bot's mood. They react when they spot you, get hit, take a headshot, run out of ammo, get a kill (they cheer) or hold a grudge against whoever killed them last. Each one also shows emoji and speech bubbles and has a little synthesized voice.
 - **Bot AI:** A* navigation on a grid baked from the map, sight and hearing, reaction time, aim that settles over time, strafing, crouching, hopping, retreating when hurt, hunting ammo, and a pistol whip when they're out of bullets. Bodies are animated procedurally (walk/run cycles, two-handed aim, crouch, jump, flinch, cheer, panic, fall).
-- **Movement:** sprint, jump, crouch, power slide (sprint + C, and you can jump out of it), air control, coyote time.
+- **Movement:** sprint, jump, crouch, power slide (sprint + C, and you can jump out of it), air control, coyote time, and **peeking**: lean left or right with Q / E to look and shoot around corners. You can't lean through walls.
+- **Four maps:**
+  - **Proto Arena:** the original blockout.
+  - **Neon Ramps:** lanes, bridges and ramps.
+  - **Container Yard:** stacked shipping containers.
+  - **Old Town:** a 160 m village with two apartment blocks and about thirty houses you can walk into.
+
+  The neon maps get the game's glowing panel shaders. Old Town keeps its own textures.
+- **Old Town Last Stand is a 50-player battle:** you plus 49 bots, one life each.
+  - The first 20 seconds are a scatter phase: bots spread out and don't fight each other.
+  - About 60% of the bots are campers. They claim hiding spots in house corners and behind cover, crouch, and watch the door. When someone shows up they duck, lean out the side that has a view, shoot, and duck back.
+  - When six or fewer remain, or the clock is nearly out, nobody can hide any more and everyone hunts the nearest survivor.
+- **Tougher bots:**
+  - They do much less damage to each other, so the lobby doesn't wipe itself out before you get there.
+  - Only a few bots at a time can engage you from range.
+  - Their health rises with your rank (in Casual, with difficulty).
 - **Visuals:** synthwave sky with a striped sun, neon horizon mountains, an animated glowing floor grid, emissive trims on the walls, holographic crates, shadows, bloom, chromatic aberration, tracers, sparks, bullet holes, ejected brass, muzzle light.
 - **Ranked ladder:** Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster (each with divisions III, II and I), then Legend. Your rank sets bot skill: Bronze III bots play like Easy and Legend bots play like Insane. Past Legend the bots get faster and deadlier still: quicker reactions, tighter aim, more headshots and more damage. You earn or lose RP from where you place, your kills and whether you win; matches with more bots pay more. Leaving a ranked match early costs 20 RP. Your rank is saved in the browser. **Casual** lets you pick the difficulty yourself and doesn't touch RP.
 - **Last Stand mode:** one life each, no respawns. The last one alive wins. If you go down you can spectate the survivors (Space or click to switch, Enter for results). Your placement is locked in when you're eliminated.
@@ -105,11 +120,14 @@ Open http://localhost:8000/fps/ with the same local server as above.
 | C | crouch, or power slide while sprinting |
 | Shift | sprint |
 | R | reload |
+| Q / E | peek (lean) left / right |
 | V | pistol whip (one-hit from behind) |
 | F | inspect pistol |
 | Tab | scoreboard |
 | M | music on/off |
 | Esc | pause |
+
+**Credits:** Neon Ramps is "FPS warface map neon pvp pve" by neosearch, licensed CC-BY-4.0, from Sketchfab. Old Town was converted from the supplied USDZ, with its binary USD turned into glTF using Pixar's USD library.
 
 `fps/assets/` holds the converted models: the arena (FBX to meshopt GLB, scaled to metres), the arms and Beretta, and the NPC, plus the textures packed into WebP (colour, normal and AO/roughness/metal).
 
