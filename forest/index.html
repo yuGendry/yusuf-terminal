@@ -72,13 +72,13 @@ input[type=range]{accent-color:#a3161d;width:180px}
 /* ---------- HUD ---------- */
 #hud{z-index:20;pointer-events:none;display:none}
 #hud.on{display:block}
-#compass{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:min(560px,80vw);height:34px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+#compass{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:min(560px,80vw);height:46px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
 #compass .strip{position:absolute;inset:0}
 #compass .t{position:absolute;top:4px;transform:translateX(-50%);font-size:11px;color:#bdb6a4;letter-spacing:.1em;font-weight:600}
 #compass .t.minor{width:1px;height:7px;background:#77736a;top:6px}
 #compass .mk{position:absolute;top:18px;transform:translateX(-50%);font-size:10px;letter-spacing:.06em;color:var(--amber);white-space:nowrap}
 #compass::after{content:'';position:absolute;left:50%;top:0;width:1px;height:10px;background:#e33}
-#clock{position:absolute;top:56px;left:50%;transform:translateX(-50%);font-family:Cinzel,serif;font-size:13px;letter-spacing:.3em;color:#d6cfbd;text-shadow:0 1px 6px #000;white-space:nowrap}
+#clock{position:absolute;top:68px;left:50%;transform:translateX(-50%);font-family:Cinzel,serif;font-size:13px;letter-spacing:.3em;color:#d6cfbd;text-shadow:0 1px 6px #000;white-space:nowrap}
 #clock i{font-style:normal;color:var(--amber)}
 #obj{position:absolute;top:24px;left:26px;max-width:340px}
 #obj .h{font-size:10px;letter-spacing:.3em;color:#8d887a;text-transform:uppercase;margin-bottom:6px}
@@ -392,24 +392,36 @@ function fbm(x, z, o = 4) { let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i 
 /* =====================================================================
    WORLD LAYOUT: terrain, trail network, points of interest
    ===================================================================== */
-const EXT = 300;            // terrain half extent (m)
+const EXT = 760;            // terrain half extent (m)
 const GN = EXT * 2 + 1;     // 1 m grid
-const PLAY = 194;           // playable half extent
+const PLAY = 644;           // playable half extent (about 1.3 km across)
 const PATH_HALF = 1.9;      // trail half width
 const HMAP = new Float32Array(GN * GN);
 const DIST = new Float32Array(GN * GN).fill(99);
 const NEAR = new Int32Array(GN * GN).fill(-1);
+const LAKE = { x: 60, z: -350, r: 62, lvl: 0 };
+const inLake = (x, z, pad = 0) => (x - LAKE.x) ** 2 + (z - LAKE.z) ** 2 < (LAKE.r + pad) ** 2;
 
 const TRAILS = {
-  main: [[-158, 176], [-142, 158], [-128, 132], [-136, 102], [-118, 72], [-82, 58], [-46, 70], [-10, 62], [16, 40], [24, 10], [6, -18], [-32, -30], [-72, -38], [-104, -62], [-112, -98], [-88, -128], [-50, -138], [-10, -120], [28, -98], [64, -102], [98, -124], [126, -150], [152, -170]],
-  spur: [[16, 40], [46, 50], [80, 42], [108, 60], [132, 84], [150, 114]],
-  cabin: [[24, 10], [30, 6]],
+  main: [[-520, 515], [-470, 470], [-420, 440], [-340, 410], [-280, 350], [-230, 290], [-160, 250], [-100, 200], [-60, 140], [-30, 70], [-24, 30], [-20, -20], [10, -80], [30, -140], [22, -200], [35, -262], [85, -262], [140, -282], [172, -340], [212, -400], [290, -432], [370, -460], [440, -500], [500, -526], [522, -544]],
+  cabin: [[-24, 30], [-8, 30]],
+  west: [[-60, 140], [-140, 110], [-230, 62], [-320, 22], [-400, -20], [-458, -54]],
+  chapel: [[-458, -54], [-500, -150], [-475, -260], [-425, -370], [-386, -448]],
+  north: [[-386, -448], [-290, -452], [-190, -420], [-100, -380], [-22, -330], [8, -290], [35, -262]],
+  east: [[10, -80], [110, -70], [220, -52], [330, -42], [446, -40]],
+  ridge: [[466, -52], [482, -160], [452, -280], [410, -380], [370, -460]],
+  south: [[-30, 70], [60, 112], [160, 170], [260, 250], [350, 322], [418, 372]],
 };
+
 const POI = {
-  crash: { x: -160, z: 182, r: 13, name: 'Crash site' },
-  cabin: { x: 40, z: 2, r: 15, name: 'Ranger Cabin' },
-  camp: { x: 155, z: 121, r: 12, name: 'Old Campsite' },
-  tower: { x: 158, z: -176, r: 16, name: 'Lookout Tower' },
+  crash: { x: -520, z: 522, r: 13, name: 'Your car', short: 'CAR' },
+  cabin: { x: 0, z: 30, r: 15, name: 'Ranger Cabin', short: 'CABIN' },
+  camp: { x: 466, z: -40, r: 13, name: 'Old Campsite', short: 'CAMPSITE' },
+  tower: { x: 522, z: -556, r: 16, name: 'Lookout Tower', short: 'TOWER' },
+  logging: { x: -474, z: -60, r: 22, name: 'Logging Camp', short: 'LOGGING CAMP' },
+  shack: { x: 432, z: 382, r: 15, name: "Hunter's Shack", short: 'SHACK' },
+  chapel: { x: -380, z: -472, r: 21, name: 'Chapel Ruins', short: 'CHAPEL' },
+  boathouse: { x: 48, z: -280, r: 12, name: 'Boathouse', short: 'BOATHOUSE' },
 };
 const pathPts = []; // {x,z}
 const trailCurves = {};
@@ -446,9 +458,21 @@ function buildTerrainData() {
   for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) {
     const x = i - EXT, z = j - EXT;
     let h = (fbm(x * 0.0055 + 11, z * 0.0055 - 7, 4) - 0.5) * 22 + (fbm(x * 0.026 + 3, z * 0.026 + 9, 3) - 0.5) * 3.2;
+    h += (fbm(x * 0.0016 + 3, z * 0.0016 - 5, 3) - 0.5) * 48; // big valleys and ridges across the whole forest
     const r = Math.max(Math.abs(x), Math.abs(z));
-    h += smooth(200, 290, r) * 10 * fbm(x * 0.01, z * 0.01, 2); // rising hills beyond the forest edge
+    h += smooth(PLAY + 5, PLAY + 95, r) * 14 * fbm(x * 0.01, z * 0.01, 2); // rising hills beyond the forest edge
     HMAP[j * GN + i] = h;
+  }
+  // the lake: a bowl below the lowest point of its shore
+  {
+    let rim = 1e9; for (let a = 0; a < TAU; a += 0.05) rim = Math.min(rim, sampleGrid(HMAP, LAKE.x + Math.cos(a) * (LAKE.r + 4), LAKE.z + Math.sin(a) * (LAKE.r + 4)));
+    LAKE.lvl = rim - 0.8;
+    const R2 = LAKE.r + 32;
+    for (let z = Math.floor(LAKE.z - R2); z <= LAKE.z + R2; z++) for (let x = Math.floor(LAKE.x - R2); x <= LAKE.x + R2; x++) {
+      const k = gi(x, z), d = Math.hypot(x - LAKE.x, z - LAKE.z); if (d > R2) continue;
+      const bowl = d < LAKE.r ? LAKE.lvl - 0.25 - 4 * (1 - (d / LAKE.r) ** 2) : LAKE.lvl + 0.25;
+      HMAP[k] = lerp(bowl, Math.max(HMAP[k], LAKE.lvl + 0.25), smooth(LAKE.r, R2, d));
+    }
   }
   // distance field to trails
   const R = 30;
@@ -468,12 +492,13 @@ function buildTerrainData() {
   // smooth the trail height profile
   const phs = ph.map((_, i) => { let s = 0, n = 0; for (let k = -6; k <= 6; k++) { const j = i + k; if (j >= 0 && j < ph.length && pathPts[j].trail === pathPts[i].trail) { s += ph[j]; n++; } } return s / n; });
   for (let k = 0; k < GN * GN; k++) {
-    const d = DIST[k]; if (d < 7) { const t = smooth(2.5, 7, d); HMAP[k] = lerp(phs[NEAR[k]], HMAP[k], t); }
+    const d = DIST[k]; if (d < 7) { const t = smooth(2.5, 7, d); HMAP[k] = lerp(Math.max(phs[NEAR[k]], LAKE.lvl + 0.4), HMAP[k], t); }
   }
   for (const key in POI) {
     const p = POI[key]; const ph0 = sampleGrid(HMAP, p.x, p.z); p.y = ph0;
     for (let z = Math.floor(p.z - p.r - 8); z <= p.z + p.r + 8; z++) for (let x = Math.floor(p.x - p.r - 8); x <= p.x + p.r + 8; x++) {
       const k = gi(x, z); const d = Math.hypot(x - p.x, z - p.z);
+      if (inLake(x, z, 1)) continue;
       HMAP[k] = lerp(ph0, HMAP[k], smooth(p.r * 0.7, p.r + 8, d));
     }
   }
@@ -676,6 +701,7 @@ function collide(p, r) {
     const dx = p.x - c.x, dz = p.z - c.z, rr = r + c.r, d2 = dx * dx + dz * dz;
     if (d2 < rr * rr && d2 > 1e-8) { const d = Math.sqrt(d2), k = (rr - d) / d; p.x += dx * k; p.z += dz * k; }
   });
+  { const dx = p.x - LAKE.x, dz = p.z - LAKE.z, d = Math.hypot(dx, dz), lim = LAKE.r - 3 - r; if (d < lim && d > 0.01) { p.x = LAKE.x + dx / d * lim; p.z = LAKE.z + dz / d * lim; } }
   for (const b of boxes) {
     const cx = clamp(p.x, b.x0, b.x1), cz = clamp(p.z, b.z0, b.z1), dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
     if (d2 < r * r) {
@@ -699,7 +725,7 @@ function losClear(ax, az, bx, bz) {
   }
   return !blocked;
 }
-function freeSpot(x, z, r) { let ok = true; forNear(x, z, c => { if ((x - c.x) ** 2 + (z - c.z) ** 2 < (r + c.r) ** 2) ok = false; }); for (const b of boxes) if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r) ok = false; return ok; }
+function freeSpot(x, z, r) { if (inLake(x, z, r + 1)) return false; let ok = true; forNear(x, z, c => { if ((x - c.x) ** 2 + (z - c.z) ** 2 < (r + c.r) ** 2) ok = false; }); for (const b of boxes) if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r) ok = false; return ok; }
 
 /* =====================================================================
    WIND-ENABLED MATERIALS
@@ -750,7 +776,7 @@ const GLSL_NOISE = `
   float gh(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
   float gn(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(gh(i),gh(i+vec2(1,0)),f.x),mix(gh(i+vec2(0,1)),gh(i+vec2(1,1)),f.x),f.y); }`;
 function buildGround(groundTex) {
-  const seg = 300;
+  const seg = 608;
   const geo = new THREE.PlaneGeometry(EXT * 2, EXT * 2, seg, seg); geo.rotateX(-Math.PI / 2);
   const P = geo.attributes.position;
   for (let i = 0; i < P.count; i++) P.setY(i, heightAt(P.getX(i), P.getZ(i)));
@@ -761,7 +787,7 @@ function buildGround(groundTex) {
     sh.vertexShader = 'varying vec3 vW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vW=(modelMatrix*vec4(transformed,1.0)).xyz;');
     sh.fragmentShader = 'uniform sampler2D tMask; varying vec3 vW;\n' + GLSL_NOISE + '\n' + sh.fragmentShader.replace('#include <map_fragment>', `
       vec2 wp=vW.xz;
-      vec4 mk=texture2D(tMask,(wp+300.5)/601.0);
+      vec4 mk=texture2D(tMask,(wp+${EXT}.5)/${GN}.0);
       float pd=mk.r*25.5, dens=mk.g, poi=mk.b;
       vec3 t1=texture2D(map,wp*0.23).rgb;
       vec2 rp=vec2(wp.x*0.8-wp.y*0.6,wp.x*0.6+wp.y*0.8);
@@ -854,32 +880,33 @@ function buildForest(gltf) {
     groups.push({ members: [r], bx: r.cx, bz: r.cz, by: r.minY, isTree: false, trunkR: 0, height: Math.max(0.05, r.maxY - r.minY) });
   }
 
+  // plan every tile now (positions, colliders, density); meshes are built only near the camera
   const dens = new Float32Array(GN * GN);
-  const tiles = [];
-  for (let j = -1; j <= 4; j++) for (let i = -1; i <= 4; i++) {
-    const ring = i < 0 || j < 0 || i > 3 || j > 3;
-    tiles.push({ x: -150 + i * TILE, z: -150 + j * TILE, rot: Math.floor(rand() * 4) * Math.PI / 2, ring });
+  const tiles = FOREST.tiles;
+  const NT = 13, half = (NT - 1) / 2;
+  for (let j = -1; j <= NT; j++) for (let i = -1; i <= NT; i++) {
+    const ring = i < 0 || j < 0 || i >= NT || j >= NT;
+    tiles.push({ x: (i - half) * TILE, z: (j - half) * TILE, rot: Math.floor(rand() * 4) * Math.PI / 2, ring, entries: [], meshes: null });
   }
   for (const tile of tiles) {
-    const lists = { bark: [], spruce: [], pine: [], bush1: [], bush2: [], fern: [] };
     const ca = Math.cos(tile.rot), sa = Math.sin(tile.rot);
     for (const G of groups) {
       if (tile.ring && !G.isTree) continue;
       const lx = (G.bx - TC.x) * S, lz = (G.bz - TC.z) * S;
       const wx = tile.x + lx * ca + lz * sa, wz = tile.z - lx * sa + lz * ca;
+      if (Math.abs(wx) > EXT - 2 || Math.abs(wz) > EXT - 2) continue;
       const pd = distToPath(wx, wz);
       if (G.isTree) {
-        if (pd < PATH_HALF + 2.4) continue;
-        if (inPOI(wx, wz, 2)) continue;
+        if (pd < PATH_HALF + 2.4 || inPOI(wx, wz, 2) || inLake(wx, wz, 6)) continue;
         if (tile.ring && Math.abs(wx) < PLAY - 2 && Math.abs(wz) < PLAY - 2) continue;
       } else {
-        if (pd < PATH_HALF + 0.3 || inPOI(wx, wz, -2)) continue;
+        if (pd < PATH_HALF + 0.3 || inPOI(wx, wz, -2) || inLake(wx, wz, 1.5)) continue;
         if (rand() < 0.12) continue;
       }
       const sc = S * (G.isTree ? rand(0.82, 1.3) : rand(0.75, 1.4));
       const ang = rand(0, TAU);
       const wy = heightAt(wx, wz) - 0.12;
-      for (const p of G.members) lists[p.kind].push({ p, G, wx, wy, wz, ang, sc });
+      tile.entries.push({ G, wx, wy, wz, ang, sc });
       if (G.isTree) {
         if (!tile.ring) addCollider(wx, wz, Math.max(0.3, G.trunkR * sc * 0.9), 'tree');
         treeSpots.push({ x: wx, z: wz, h: G.height * sc, r: G.trunkR * sc });
@@ -890,40 +917,60 @@ function buildForest(gltf) {
         }
       }
     }
-    for (const kind in lists) {
-      const L = lists[kind]; if (!L.length) continue;
-      let nv = 0, ni = 0; for (const e of L) { nv += e.p.n; ni += e.p.idx.length; }
-      const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), sw = new Float32Array(nv), idx = new Uint32Array(ni);
-      let vo = 0, io = 0;
-      for (const e of L) {
-        const { p, G } = e, c = Math.cos(e.ang), s = Math.sin(e.ang), h = Math.max(0.01, G.height);
-        for (let i = 0; i < p.n; i++) {
-          const x = p.pos[i * 3] - G.bx, y = p.pos[i * 3 + 1] - G.by, z = p.pos[i * 3 + 2] - G.bz, o = (vo + i) * 3;
-          pos[o] = e.wx + (x * c + z * s) * e.sc; pos[o + 1] = e.wy + y * e.sc; pos[o + 2] = e.wz + (-x * s + z * c) * e.sc;
-          const nx = p.nor[i * 3], ny = p.nor[i * 3 + 1], nz = p.nor[i * 3 + 2];
-          nor[o] = nx * c + nz * s; nor[o + 1] = ny; nor[o + 2] = -nx * s + nz * c;
-          uv[(vo + i) * 2] = p.uv[i * 2]; uv[(vo + i) * 2 + 1] = p.uv[i * 2 + 1];
-          sw[vo + i] = clamp(y / h, 0, 1);
-        }
-        for (let j = 0; j < p.idx.length; j++) idx[io + j] = p.idx[j] + vo;
-        vo += p.n; io += p.idx.length;
-      }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-      geo.setAttribute('aSway', new THREE.BufferAttribute(sw, 1));
-      geo.setIndex(new THREE.BufferAttribute(idx, 1));
-      geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, forestMats[kind]);
-      m.castShadow = kind === 'bark' || kind === 'spruce' || kind === 'pine';
-      m.receiveShadow = true;
-      if (forestMats[kind].userData.depth) m.customDepthMaterial = forestMats[kind].userData.depth;
-      m.matrixAutoUpdate = false;
-      scene.add(m); forestMeshes.push(m);
-    }
   }
   return dens;
+}
+const FOREST = { tiles: [], built: 0 };
+function buildTileMeshes(tile) {
+  const lists = { bark: [], spruce: [], pine: [], bush1: [], bush2: [], fern: [] };
+  for (const e of tile.entries) for (const p of e.G.members) lists[p.kind].push({ p, e });
+  tile.meshes = [];
+  for (const kind in lists) {
+    const L = lists[kind]; if (!L.length) continue;
+    let nv = 0, ni = 0; for (const { p } of L) { nv += p.n; ni += p.idx.length; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), sw = new Float32Array(nv), idx = new Uint32Array(ni);
+    let vo = 0, io = 0;
+    for (const { p, e } of L) {
+      const G = e.G, c = Math.cos(e.ang), s = Math.sin(e.ang), h = Math.max(0.01, G.height);
+      for (let i = 0; i < p.n; i++) {
+        const x = p.pos[i * 3] - G.bx, y = p.pos[i * 3 + 1] - G.by, z = p.pos[i * 3 + 2] - G.bz, o = (vo + i) * 3;
+        pos[o] = e.wx + (x * c + z * s) * e.sc; pos[o + 1] = e.wy + y * e.sc; pos[o + 2] = e.wz + (-x * s + z * c) * e.sc;
+        const nx = p.nor[i * 3], ny = p.nor[i * 3 + 1], nz = p.nor[i * 3 + 2];
+        nor[o] = nx * c + nz * s; nor[o + 1] = ny; nor[o + 2] = -nx * s + nz * c;
+        uv[(vo + i) * 2] = p.uv[i * 2]; uv[(vo + i) * 2 + 1] = p.uv[i * 2 + 1];
+        sw[vo + i] = clamp(y / h, 0, 1);
+      }
+      for (let j = 0; j < p.idx.length; j++) idx[io + j] = p.idx[j] + vo;
+      vo += p.n; io += p.idx.length;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setAttribute('aSway', new THREE.BufferAttribute(sw, 1));
+    geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.computeBoundingSphere();
+    const m = new THREE.Mesh(geo, forestMats[kind]);
+    m.castShadow = kind === 'bark' || kind === 'spruce' || kind === 'pine';
+    m.receiveShadow = true;
+    if (forestMats[kind].userData.depth) m.customDepthMaterial = forestMats[kind].userData.depth;
+    m.matrixAutoUpdate = false;
+    scene.add(m); tile.meshes.push(m);
+  }
+  FOREST.built++;
+}
+function disposeTile(tile) { for (const m of tile.meshes) { scene.remove(m); m.geometry.dispose(); } tile.meshes = null; FOREST.built--; }
+const tileDist = (t, x, z) => Math.hypot(Math.max(0, Math.abs(x - t.x) - TILE / 2), Math.max(0, Math.abs(z - t.z) - TILE / 2));
+// keep the forest within ~240 m of the camera built; the fog hides everything beyond
+function streamForest(pos, sync = false) {
+  const LOAD = 240, UNLOAD = 330;
+  let best = null, bd = 1e9;
+  for (const t of FOREST.tiles) {
+    const d = tileDist(t, pos.x, pos.z);
+    if (t.meshes && d > UNLOAD) disposeTile(t);
+    else if (!t.meshes && d < LOAD) { if (sync) buildTileMeshes(t); else if (d < bd) { bd = d; best = t; } }
+  }
+  if (best) buildTileMeshes(best);
 }
 
 /* =====================================================================
@@ -956,7 +1003,7 @@ function buildGrass() {
       .replace('#include <beginnormal_vertex>', 'vec3 objectNormal=vec3(0.0,1.0,0.0);')
       .replace('#include <begin_vertex>', `
         vec2 wp=uCenter.xz+mod(aOff-uCenter.xz+uR,2.0*uR)-uR;
-        vec2 tuv=(wp+300.5)/601.0;
+        vec2 tuv=(wp+${EXT}.5)/${GN}.0;
         float gy=texture2D(tHeight,tuv).r;
         vec4 mk=texture2D(tMask,tuv);
         float pd=mk.r*25.5;
@@ -1246,13 +1293,269 @@ function buildMarkers() {
     addCollider(x, z, 0.15, 'sign');
   };
   const pc = POI.crash;
-  sign(pc.x + 9, pc.z - 9, ['BLACKWOOD TRAIL', 'Ranger Cabin 4.1 km', 'Lookout Tower 9 km'], -2.2);
-  sign(20, 47, ['← OLD CAMPSITE', 'RANGER CABIN ↓', 'STAY ON THE TRAIL'], 0.6);
+  sign(pc.x + 12, pc.z - 4, ['BLACKWOOD TRAIL', 'Ranger Cabin 0.9 km', 'Lookout Tower 2.4 km'], -2.2);
+  const signAt = (trail, u, side, lines) => {
+    const cu = trailCurves[trail], p = cu.getPointAt(u), tg = cu.getTangentAt(u);
+    const nx = -tg.z * side, nz = tg.x * side, d = PATH_HALF + 1.7;
+    sign(p.x + nx * d, p.z + nz * d, lines, Math.atan2(-nx, -nz));
+  };
+  signAt('west', 0.03, 1, ['← LOGGING CAMP', 'Chapel Ruins', 'RANGER CABIN →']);
+  signAt('south', 0.03, -1, ["HUNTER'S SHACK →", 'L. Marsh — keep out', 'RANGER CABIN ↑']);
+  signAt('east', 0.025, 1, ['OLD CAMPSITE →', 'BOATHOUSE ↑', 'LOOKOUT TOWER ↑']);
+  signAt('chapel', 0.04, 1, ['CHAPEL RUINS ↑', 'St. Agnes, 1888', 'cemetery']);
+  signAt('north', 0.97, 1, ['LAKE MERROW', 'boathouse', 'no swimming']);
+  signAt('ridge', 0.04, -1, ['RIDGE TRAIL', 'Lookout Tower 0.9 km', '']);
+  signAt('main', 0.62, 1, ['LOOKOUT TOWER', '1.0 km', 'stay on the trail']);
   sign(POI.cabin.x - 13, POI.cabin.z + 7, ['RANGER STATION', 'Blackwood N.F.', 'no overnight stay'], -1.4);
-  sign(-112, -92, ['LOOKOUT TOWER →', '3.4 km', ''], 1.2);
   sign(POI.tower.x - 10, POI.tower.z + 12, ['FIRE LOOKOUT', 'Est. 1961', 'KEEP OFF AT NIGHT'], -0.6);
 }
 let markerBand = null;
+
+/* ---------- shared builders for the new locations ---------- */
+const stoneTex = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = '#4a4740'; g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 32) { const off = (y / 32) % 2 ? 32 : 0; for (let x = -off; x < w; x += 64) { const c = 70 + Math.random() * 45; g.fillStyle = `rgb(${c},${c - 4},${c - 12})`; g.fillRect(x + 2, y + 2, 60, 28); for (let i = 0; i < 24; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.18})`; g.fillRect(x + 2 + Math.random() * 58, y + 2 + Math.random() * 26, 3, 3); } } }
+  for (let i = 0; i < 50; i++) { g.fillStyle = `rgba(55,85,35,${Math.random() * 0.3})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 4 + Math.random() * 16, 0, TAU); g.fill(); }
+});
+stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
+const M = {};
+function propMats() {
+  if (M.logs) return M;
+  M.logs = new THREE.MeshStandardMaterial({ map: logTex, roughness: 0.95 });
+  M.planks = new THREE.MeshStandardMaterial({ map: woodTex, color: 0x9a8a7a, roughness: 0.9 });
+  M.stone = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.97 });
+  M.rust = std(0x4a2e1c, 0.95, 0.2); M.dark = std(0x0e0e0e, 0.9); M.metal = std(0x6a6a66, 0.4, 0.8);
+  return M;
+}
+function uvBox(w, h, d, sc = 3) {
+  const geo = new THREE.BoxGeometry(w, h, d), uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.max(w, d) / sc, uv.getY(i) * Math.max(h, 0.3) / sc);
+  return geo;
+}
+function addBox(g, o, w, h, d, mat, x, y, z, opt = {}) {
+  const m = new THREE.Mesh(uvBox(w, h, d, opt.uvs || 3), mat); m.position.set(x, y, z);
+  if (opt.rx) m.rotation.x = opt.rx; if (opt.ry) m.rotation.y = opt.ry; if (opt.rz) m.rotation.z = opt.rz;
+  g.add(m);
+  if (opt.col) boxes.push({ x0: o.x + x - w / 2, x1: o.x + x + w / 2, z0: o.z + z - d / 2, z1: o.z + z + d / 2 });
+  return m;
+}
+function poiGroup(p) { const y0 = heightAt(p.x, p.z); const g = new THREE.Group(); g.position.set(p.x, y0, p.z); return { g, y0, o: { x: p.x, z: p.z } }; }
+// a small wooden hut with a doorway and a gable roof
+function buildHut(g, o, cx, cz, W, Dp, H, door, wallMat, roofMat) {
+  const T = 0.28, gap = 1.3;
+  const sides = { north: [cx, cz - Dp / 2, W, true], south: [cx, cz + Dp / 2, W, true], west: [cx - W / 2, cz, Dp, false], east: [cx + W / 2, cz, Dp, false] };
+  for (const k in sides) {
+    const [x, z, L, alongX] = sides[k];
+    if (k === door) {
+      const seg = (L - gap) / 2;
+      if (alongX) { addBox(g, o, seg, H, T, wallMat, x - L / 2 + seg / 2, H / 2, z, { col: 1 }); addBox(g, o, seg, H, T, wallMat, x + L / 2 - seg / 2, H / 2, z, { col: 1 }); addBox(g, o, gap, 0.5, T, wallMat, x, H - 0.25, z); }
+      else { addBox(g, o, T, H, seg, wallMat, x, H / 2, z - L / 2 + seg / 2, { col: 1 }); addBox(g, o, T, H, seg, wallMat, x, H / 2, z + L / 2 - seg / 2, { col: 1 }); addBox(g, o, T, 0.5, gap, wallMat, x, H - 0.25, z); }
+    } else if (alongX) addBox(g, o, L + T, H, T, wallMat, x, H / 2, z, { col: 1 });
+    else addBox(g, o, T, H, L, wallMat, x, H / 2, z, { col: 1 });
+  }
+  addBox(g, o, W, 0.16, Dp, roofMat, cx, 0.04, cz);
+  const pitch = 0.6, ov = 0.45, rl = (Dp / 2 + ov) / Math.cos(pitch);
+  for (const sd of [-1, 1]) { const r = new THREE.Mesh(new THREE.BoxGeometry(W + 0.8, 0.12, rl), roofMat); r.position.set(cx, H + Math.tan(pitch) * (Dp / 2 + ov) / 2, cz + sd * (Dp / 2 + ov) / 2); r.rotation.x = sd * pitch; g.add(r); }
+  const sh = new THREE.Shape(); sh.moveTo(-Dp / 2, 0); sh.lineTo(Dp / 2, 0); sh.lineTo(0, Math.tan(pitch) * Dp / 2); sh.closePath();
+  const gm = new THREE.MeshStandardMaterial({ map: woodTex, color: 0x8a7a6a, side: THREE.DoubleSide });
+  for (const sd of [-1, 1]) { const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), gm); m.position.set(cx + sd * W / 2, H, cz); m.rotation.y = Math.PI / 2; g.add(m); }
+}
+function hangingLamp(g, x, y, z, color = 0xffa654, inten = 4) {
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 8), new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: color, emissiveIntensity: 3 }));
+  lamp.position.set(x, y, z); g.add(lamp);
+  const L = new THREE.PointLight(color, inten, 13, 1.8); L.position.set(x, y - 0.2, z); g.add(L);
+  updaters.push((dt, t) => { const f = Math.sin(t * 11 + x) * 0.4 + Math.sin(t * 6.3 + z) * 0.3 + (Math.random() < 0.02 ? -1.5 : 0); L.intensity = (inten + f) * (0.35 + U.night.value); });
+  return L;
+}
+function glintItem(mesh, color) { mesh.traverse(o => { if (o.isMesh && o.material && 'emissive' in o.material) { o.material = o.material.clone(); o.material.emissive = new THREE.Color(color); o.material.emissiveIntensity = 0.5; } }); updaters.push((dt, t) => { mesh.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissiveIntensity = 0.25 + 0.35 * Math.max(0, Math.sin(t * 2.6)) + U.night.value * 0.3; }); }); }
+const questItems = {};
+function makeQuestItem(id, mesh, wpos, label) {
+  questItems[id] = { mesh };
+  addInteract({ pos: wpos, r: 2.5, label: () => label, use: () => Game.takeItem(id), active: true, id: 'item_' + id });
+}
+
+/* ---------- logging camp (fuel) ---------- */
+function makeTruck(g, o, x, z, color, loaded) {
+  const t = new THREE.Group(), paint = std(color, 0.8, 0.25), { rust, dark, logs } = propMats();
+  const add = (w, h, d, m, px, py, pz) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(px, py, pz); t.add(b); return b; };
+  add(8, 0.45, 2.1, rust, 0, 0.95, 0);
+  add(2.1, 1.9, 2.3, paint, 2.9, 2.1, 0);
+  add(1.5, 1.1, 2.1, paint, 4.6, 1.65, 0);
+  add(0.05, 0.7, 1.9, dark, 3.96, 2.55, 0);
+  add(1.4, 0.5, 2.2, rust, 4.7, 1.05, 0);
+  for (const wx of [-2.7, -1.4, 3.7]) for (const wz of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.38, 16), dark); w.rotation.x = Math.PI / 2; w.position.set(wx, 0.55, wz); t.add(w); }
+  for (const sx of [-3.8, -1, 1.6]) for (const sz of [-1.05, 1.05]) add(0.12, 1.6, 0.12, rust, sx, 1.95, sz);
+  if (loaded) for (let i = 0; i < 6; i++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 6.4, 12), logs); lg.rotation.z = Math.PI / 2; lg.position.set(-1.1, 1.5 + (i < 3 ? 0 : 0.6) + (i === 5 ? 0.6 : 0), (i % 3 - 1) * 0.68 * (i < 3 ? 1 : 0.5)); t.add(lg); }
+  t.position.set(x, 0, z); t.rotation.z = 0.02; g.add(t);
+  boxes.push({ x0: o.x + x - 4.1, x1: o.x + x + 5.4, z0: o.z + z - 1.25, z1: o.z + z + 1.25 });
+}
+function logPile(g, o, x, z) {
+  const { logs } = propMats();
+  for (let row = 0; row < 3; row++) for (let i = 0; i < 4 - row; i++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.33, 5, 12), logs); lg.rotation.x = Math.PI / 2; lg.position.set(x + (i - (3 - row) / 2) * 0.64, 0.3 + row * 0.55, z); g.add(lg); }
+  boxes.push({ x0: o.x + x - 1.4, x1: o.x + x + 1.4, z0: o.z + z - 2.5, z1: o.z + z + 2.5 });
+}
+function buildLogging() {
+  const p = POI.logging, { g, y0, o } = poiGroup(p), m = propMats();
+  buildHut(g, o, 9, -10, 5, 4, 2.6, 'west', m.logs, m.planks);
+  makeTruck(g, o, -6, -5, 0x55663a, true);
+  makeTruck(g, o, 4, 9, 0x7a5a2a, false);
+  logPile(g, o, -12, 8); logPile(g, o, -15.5, 6); logPile(g, o, 14, 6);
+  for (const [x, z] of [[1, -12], [1.8, -12.6], [-13, -12]]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.95, 14), m.rust); b.position.set(x, 0.47, z); g.add(b); addCollider(p.x + x, p.z + z, 0.35, 'barrel'); }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 5, 8), m.planks); pole.position.set(-1, 2.5, 2); g.add(pole); addCollider(p.x - 1, p.z + 2, 0.15, 'pole');
+  hangingLamp(g, -0.7, 4.6, 2, 0xffc070, 5);
+  // the fuel
+  const can = new THREE.Group();
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.46, 0.17, 2, 0.03), std(0xa8160f, 0.45, 0.2)); body.position.y = 0.23; can.add(body);
+  const hdl = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12, Math.PI), m.dark); hdl.position.set(0, 0.48, 0); can.add(hdl);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.1, 8), m.metal); spout.position.set(0.12, 0.5, 0); spout.rotation.z = -0.5; can.add(spout);
+  can.position.set(-1.2, 0, -3.2); can.rotation.y = 0.4; g.add(can); glintItem(can, 0x551008);
+  shadowAll(g); scene.add(g);
+  makeQuestItem('fuel', can, new THREE.Vector3(p.x - 1.2, y0 + 0.4, p.z - 3.2), 'Take the jerrycan of fuel');
+}
+
+/* ---------- hunter's shack (flare shells) ---------- */
+function buildShack() {
+  const p = POI.shack, { g, y0, o } = poiGroup(p), m = propMats();
+  buildHut(g, o, 0, 0, 5.5, 4.5, 2.6, 'west', m.logs, m.planks);
+  const table = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.07, 0.8), m.planks); top.position.y = 0.8; table.add(top);
+  for (const [x, z] of [[0.55, 0.32], [-0.55, 0.32], [0.55, -0.32], [-0.55, -0.32]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.8, 0.07), m.planks); l.position.set(x, 0.4, z); table.add(l); }
+  table.position.set(1.4, 0.1, 1.2); g.add(table); boxes.push({ x0: o.x + 0.75, x1: o.x + 2.05, z0: o.z + 0.8, z1: o.z + 1.6 });
+  const cot = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.4, 0.8), std(0x3a4a2a, 1)); cot.position.set(1.2, 0.3, -1.6); g.add(cot); boxes.push({ x0: o.x + 0.25, x1: o.x + 2.15, z0: o.z - 2, z1: o.z - 1.2 });
+  for (let i = 0; i < 3; i++) { const pelt = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.1), std(0x3a2a1a + i * 0x080604, 1, 0, { side: THREE.DoubleSide })); pelt.position.set(2.6, 1.5, -1.2 + i * 1.1); pelt.rotation.y = -Math.PI / 2; g.add(pelt); }
+  // antlers above the door
+  const ant = new THREE.Group(); for (const sd of [-1, 1]) for (let i = 0; i < 4; i++) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.025, 0.4 - i * 0.05, 6), std(0xd8ccb0, 0.7)); a.position.set(0, 0.15 + i * 0.12, sd * (0.12 + i * 0.06)); a.rotation.x = sd * (0.6 + i * 0.2); ant.add(a); }
+  ant.position.set(-2.95, 2.1, 0); g.add(ant);
+  const block = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.6, 12), m.logs); block.position.set(-4.5, 0.3, 2.2); g.add(block); addCollider(p.x - 4.5, p.z + 2.2, 0.4, 'block');
+  const axe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 0.05), m.planks); axe.position.set(-4.5, 0.85, 2.2); axe.rotation.z = 0.5; g.add(axe);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.03), m.metal); head.position.set(-4.33, 0.6, 2.2); head.rotation.z = 0.5; g.add(head);
+  logPile(g, o, 4.6, 0);
+  hangingLamp(g, -3.2, 2.3, -1, 0xffa654, 4);
+  // the flare shells
+  const box = new THREE.Group();
+  const b = new THREE.Mesh(new RoundedBoxGeometry(0.3, 0.12, 0.2, 2, 0.015), std(0xd8601a, 0.55)); b.position.y = 0.06; box.add(b);
+  const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.07), std(0xf0e8d0, 0.8)); lab.rotation.x = -Math.PI / 2; lab.position.y = 0.121; box.add(lab);
+  box.position.set(1.25, 0.93, 1.1); box.rotation.y = 0.3; g.add(box); glintItem(box, 0x552008);
+  shadowAll(g); scene.add(g);
+  makeQuestItem('shells', box, new THREE.Vector3(p.x + 1.25, y0 + 1.0, p.z + 1.1), 'Take the box of flare shells');
+}
+
+/* ---------- chapel ruins and graveyard (the tower key, on the ranger's body) ---------- */
+function buildChapel() {
+  const p = POI.chapel, { g, y0, o } = poiGroup(p), m = propMats();
+  const W = 8, L = 14, T = 0.6;
+  const wall = (x0, z0, x1, z1, door) => {
+    const len = Math.hypot(x1 - x0, z1 - z0), n = Math.round(len / 1.4), alongX = Math.abs(x1 - x0) > 0.1;
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n, cx = lerp(x0, x1, t0 + 0.5 / n), cz = lerp(z0, z1, t0 + 0.5 / n);
+      if (door && Math.abs(alongX ? cx : cz) < 1.0) { addBox(g, o, alongX ? len / n : T, 0.6, alongX ? T : len / n, m.stone, cx, 4.0, cz); continue; }
+      const h = 1.2 + vnoise(cx * 0.7 + 3, cz * 0.7) * 3.6 + (i % 5 === 0 ? 0.8 : 0);
+      addBox(g, o, alongX ? len / n + 0.02 : T, h, alongX ? T : len / n + 0.02, m.stone, cx, h / 2, cz, { col: 1, uvs: 2 });
+    }
+  };
+  wall(-W / 2, -L / 2, W / 2, -L / 2); wall(-W / 2, -L / 2, -W / 2, L / 2); wall(W / 2, -L / 2, W / 2, L / 2); wall(-W / 2, L / 2, W / 2, L / 2, true);
+  // bell tower stub
+  addBox(g, o, 2.6, 6.5, 2.6, m.stone, -W / 2 - 1.3, 3.25, -L / 2 + 1.3, { col: 1, uvs: 2 });
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 0.7, 16, 1, true), std(0x5a4a2a, 0.5, 0.9, { side: THREE.DoubleSide })); bell.position.set(-W / 2 - 1.3, 7.1, -L / 2 + 1.3); g.add(bell);
+  const altar = addBox(g, o, 2.4, 1.0, 1.0, m.stone, 0, 0.5, -L / 2 + 1.4, { col: 1 });
+  const cross = new THREE.Group(); const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.6, 0.1), m.planks); c1.position.y = 0.8; const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.12, 0.1), m.planks); c2.position.y = 1.15; cross.add(c1, c2); cross.position.set(0, 1.0, -L / 2 + 1.2); cross.rotation.z = 0.35; g.add(cross);
+  for (let i = 0; i < 9; i++) { const rb = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.35), m.stone); rb.position.set(rand(-3.5, 3.5), 0.15, rand(-6, 6)); rb.rotation.set(rand(0, 3), rand(0, 3), 0); g.add(rb); }
+  // gravestones
+  const gm = new THREE.MeshStandardMaterial({ map: stoneTex, color: 0x9a9890, roughness: 0.95 });
+  for (let i = 0; i < 26; i++) {
+    const sd = i % 2 ? 1 : -1, x = sd * rand(6.5, 15), z = rand(-11, 11);
+    const st = new THREE.Group();
+    if (Math.random() < 0.7) { const s1 = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.9, 0.14, 2, 0.06), gm); s1.position.y = 0.4; st.add(s1); }
+    else { const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), gm); s1.position.y = 0.55; const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.12), gm); s2.position.y = 0.8; st.add(s1, s2); }
+    st.position.set(x, 0, z); st.rotation.set(rand(-0.15, 0.15), rand(-0.3, 0.3), rand(-0.15, 0.15)); g.add(st);
+    addCollider(p.x + x, p.z + z, 0.3, 'grave');
+  }
+  // the ranger's remains in front of the altar, and candles someone keeps lighting
+  const body = new THREE.Group(), jacket = std(0x3b4a2c, 0.95), bone = std(0xcfc4a8, 0.7);
+  const torso = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.18, 0.75, 2, 0.06), jacket); torso.position.set(0, 0.1, 0); body.add(torso);
+  for (const sd of [-1, 1]) { const arm = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.12, 0.6, 2, 0.04), jacket); arm.position.set(sd * 0.36, 0.08, -0.05); arm.rotation.y = sd * 0.25; body.add(arm); const leg = new THREE.Mesh(new RoundedBoxGeometry(0.17, 0.14, 0.8, 2, 0.05), std(0x2a2a24, 0.95)); leg.position.set(sd * 0.13, 0.08, 0.75); body.add(leg); }
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), bone); skull.scale.set(1, 0.9, 1.15); skull.position.set(0.04, 0.12, -0.5); body.add(skull);
+  const hat = new THREE.Group(); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 20), std(0x7a6a44, 0.9)); const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.13, 16), std(0x7a6a44, 0.9)); crown.position.y = 0.07; hat.add(brim, crown); hat.position.set(0.5, 0.02, -0.75); hat.rotation.z = 0.2; body.add(hat);
+  body.position.set(0.3, 0, -L / 2 + 3.1); body.rotation.y = 0.5; g.add(body);
+  const key = new THREE.Group(); const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.01, 6, 14), std(0xc8a040, 0.25, 1)); ring.rotation.x = Math.PI / 2; const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.018), std(0xc8a040, 0.25, 1)); shaft.position.x = 0.08; key.add(ring, shaft);
+  key.position.set(-0.25, 0.03, -L / 2 + 3.6); g.add(key); glintItem(key, 0x806010);
+  const candleMat = new THREE.MeshStandardMaterial({ color: 0xeee0c0, emissive: 0xffa040, emissiveIntensity: 1.5 });
+  for (const [x, z] of [[-0.8, -L / 2 + 1.0], [0.8, -L / 2 + 1.0], [-0.4, -L / 2 + 2.4], [1.2, -L / 2 + 2.6]]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16 + Math.random() * 0.1, 8), candleMat); c.position.set(x, x > -0.9 && z < -L / 2 + 1.5 ? 1.08 : 0.08, z); g.add(c); }
+  const cl = new THREE.PointLight(0xffa040, 2.5, 9, 2); cl.position.set(0, 1.5, -L / 2 + 2); g.add(cl);
+  updaters.push((dt, t) => { cl.intensity = 2 + Math.sin(t * 17) * 0.5 + Math.sin(t * 9.1) * 0.4; });
+  shadowAll(g); scene.add(g);
+  makeQuestItem('key', key, new THREE.Vector3(p.x - 0.25, y0 + 0.4, p.z - L / 2 + 3.6), "Take the tower key from the ranger's body");
+}
+
+/* ---------- Lake Merrow and the boathouse ---------- */
+let waterMat = null;
+function buildLake() {
+  const geo = new THREE.CircleGeometry(LAKE.r + 4, 128); geo.rotateX(-Math.PI / 2);
+  waterMat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uLD: { value: new THREE.Vector3(0, 1, 0) }, uLC: { value: new THREE.Color() }, uCam: { value: new THREE.Vector3() }, uTime: { value: 0 }, uFlash: { value: 0 } }]),
+    fog: true,
+    vertexShader: `varying vec3 vW;
+      #include <fog_pars_vertex>
+      void main(){ vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; vec4 mvPosition=viewMatrix*w; gl_Position=projectionMatrix*mvPosition;
+      #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform vec3 uTop,uHor,uLD,uLC,uCam; uniform float uTime,uFlash; varying vec3 vW;
+      #include <fog_pars_fragment>
+      float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+      float n2(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y); }
+      float wv(vec2 p){ return n2(p*0.35+vec2(uTime*0.08,uTime*0.05))*0.5+n2(p*1.1-vec2(uTime*0.12,-uTime*0.07))*0.3+n2(p*3.3+vec2(uTime*0.3,uTime*0.21))*0.2; }
+      void main(){
+        vec2 p=vW.xz; float e=0.12; float n0=wv(p),nx=wv(p+vec2(e,0.0)),nz=wv(p+vec2(0.0,e));
+        vec3 N=normalize(vec3((n0-nx)*0.42,1.0,(n0-nz)*0.42));
+        vec3 V=normalize(uCam-vW); vec3 Rf=reflect(-V,N);
+        float fres=0.03+0.97*pow(1.0-max(dot(N,V),0.0),5.0);
+        vec3 sky=mix(uHor,uTop,pow(clamp(Rf.y,0.0,1.0),0.5));
+        sky=mix(uHor*0.16+vec3(0.004,0.006,0.005),sky,smoothstep(0.03,0.2,Rf.y));
+        vec3 deep=vec3(0.006,0.014,0.016);
+        vec3 col=mix(deep,sky*0.85,clamp(fres*1.4,0.0,1.0));
+        float sp=pow(max(dot(Rf,uLD),0.0),280.0);
+        col+=uLC*sp*6.0+uLC*pow(max(dot(Rf,uLD),0.0),24.0)*0.06;
+        col+=uFlash*0.4*fres;
+        float edge=smoothstep(${(LAKE.r + 4).toFixed(1)},${(LAKE.r - 1).toFixed(1)},length(p-vec2(${LAKE.x.toFixed(1)},${LAKE.z.toFixed(1)})));
+        gl_FragColor=vec4(col,1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+  });
+  const water = new THREE.Mesh(geo, waterMat); water.position.set(LAKE.x, LAKE.lvl, LAKE.z); water.renderOrder = 1; scene.add(water);
+  updaters.push((dt, t) => {
+    const u = waterMat.uniforms; u.uTime.value = t; u.uTop.value.copy(skyU.uTop.value); u.uHor.value.copy(skyU.uHor.value);
+    if (ENV.ld) u.uLD.value.copy(ENV.ld); u.uLC.value.copy(sun.color).multiplyScalar(ENV.useSun ? 1.2 : 0.9 * (1 - ENV.storm)); u.uCam.value.copy(camera.position); u.uFlash.value = Game.lightning;
+  });
+  // boathouse with a dock and a rowboat
+  const p = POI.boathouse, { g, y0, o } = poiGroup(p), m = propMats();
+  buildHut(g, o, 0, 0, 6, 5, 2.8, 'south', m.planks, m.planks);
+  const wl = LAKE.lvl - y0;
+  const dx = LAKE.x - p.x, dz = LAKE.z - p.z, dl = Math.hypot(dx, dz), ux = dx / dl, uz = dz / dl;
+  const dock = new THREE.Group();
+  for (let i = 0; i < 18; i++) { const pl = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.32), m.planks); pl.position.set(0, wl + 0.45, -i * 0.36); pl.rotation.z = (Math.random() - 0.5) * 0.04; dock.add(pl); }
+  for (const zz of [0, -3, -6]) for (const xx of [-1, 1]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 2.4, 8), m.logs); post.position.set(xx, wl - 0.6, zz); dock.add(post); }
+  dock.position.set(ux * 3.2, 0, uz * 3.2); dock.rotation.y = Math.atan2(-ux, -uz); g.add(dock);
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 3.2, 14, 1, true, 0, Math.PI), std(0x6a3a22, 0.85, 0, { side: THREE.DoubleSide }));
+  hull.rotation.set(Math.PI / 2, 0, Math.PI / 2); hull.scale.set(1, 1, 0.55);
+  const boat = new THREE.Group(); boat.add(hull); boat.position.set(ux * 7 + uz * 2.2, wl + 0.05, uz * 7 - ux * 2.2); boat.rotation.y = Math.atan2(-ux, -uz); g.add(boat);
+  updaters.push((dt, t) => { boat.position.y = wl + 0.05 + Math.sin(t * 0.9) * 0.04; boat.rotation.z = Math.sin(t * 0.7) * 0.03; });
+  const oar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 2.2), m.planks); oar.position.set(2.2, 0.15, 1.2); oar.rotation.y = 0.6; g.add(oar);
+  hangingLamp(g, 0.6, 2.4, 2.9, 0xffb060, 3.5);
+  shadowAll(g); scene.add(g);
+}
+
+/* ---------- the tower's generator ---------- */
+function buildGenerator() {
+  const p = POI.tower, y0 = heightAt(p.x, p.z), g = new THREE.Group(), m = propMats();
+  const box = new THREE.Mesh(new RoundedBoxGeometry(1.4, 0.9, 0.9, 2, 0.06), std(0x5a6a4a, 0.7, 0.3)); box.position.y = 0.55; g.add(box);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8), m.metal); pipe.position.set(0.5, 1.2, 0.2); g.add(pipe);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x220000, emissive: 0xff2010, emissiveIntensity: 0 })); lamp.position.set(-0.5, 1.02, 0.46); g.add(lamp);
+  g.position.set(p.x + 4, y0, p.z + 3); shadowAll(g); scene.add(g); addCollider(p.x + 4, p.z + 3, 0.8, 'generator');
+  tower.genLamp = lamp.material;
+}
+
 
 /* =====================================================================
    ATMOSPHERE PARTICLES
@@ -1270,7 +1573,7 @@ function buildParticles() {
       vertexShader: `attribute float aSeed; uniform float uTime,uPR; uniform vec3 uC; uniform sampler2D tHeight; varying float vA;
         void main(){ vec3 p=position; vec2 wp=uC.xz+mod(p.xz-uC.xz+45.0,90.0)-45.0;
           wp+=vec2(sin(uTime*0.3+aSeed*20.0),cos(uTime*0.27+aSeed*13.0))*2.0;
-          float gy=texture2D(tHeight,(wp+300.5)/601.0).r;
+          float gy=texture2D(tHeight,(wp+${EXT}.5)/${GN}.0).r;
           vec3 w=vec3(wp.x,gy+p.y+sin(uTime*0.5+aSeed*9.0)*0.5,wp.y);
           vec4 mv=viewMatrix*vec4(w,1.0); gl_Position=projectionMatrix*mv;
           vA=pow(max(0.0,sin(uTime*(0.6+aSeed)+aSeed*40.0)),6.0)*smoothstep(45.0,30.0,length(wp-uC.xz));
@@ -1424,17 +1727,19 @@ function placeLoot(type, x, z, extra = {}) {
 }
 function randomOffTrailSpot(minD = 8, maxD = 60) {
   for (let tries = 0; tries < 400; tries++) {
-    const x = rand(-PLAY + 6, PLAY - 6), z = rand(-PLAY + 6, PLAY - 6);
+    const p = pathPts[Math.floor(rand(0, pathPts.length))], a = rand(0, TAU), r = rand(minD, maxD);
+    const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+    if (Math.abs(x) > PLAY - 6 || Math.abs(z) > PLAY - 6) continue;
     const d = distToPath(x, z);
-    if (d < minD || d > maxD || inPOI(x, z, 4)) continue;
+    if (d < minD || inPOI(x, z, 4)) continue;
     if (!freeSpot(x, z, 0.8)) continue;
     return [x, z];
   }
-  return [rand(-150, 150), rand(-150, 150)];
+  return [rand(-300, 300), rand(-300, 300)];
 }
 function spawnFood(day) {
   for (const L of loot) if (!L.taken && ['berries', 'mushroom', 'poison', 'pack', 'battery'].includes(L.type)) { lootGroup.remove(L.mesh); L.taken = true; const it = interactables.find(i => i.loot === L); if (it) it.active = false; }
-  const counts = { berries: 34, mushroom: 26, poison: 12 + day * 2, pack: 18, battery: 9 };
+  const counts = { berries: 130, mushroom: 100, poison: 40 + day * 6, pack: 62, battery: 32 };
   for (const t in counts) for (let i = 0; i < counts[t]; i++) { const [x, z] = randomOffTrailSpot(t === 'pack' ? 14 : 8, t === 'pack' ? 80 : 45); placeLoot(t, x, z); }
   for (let i = interactables.length - 1; i >= 0; i--) if (interactables[i].loot && interactables[i].loot.taken) interactables.splice(i, 1);
   for (let i = loot.length - 1; i >= 0; i--) if (loot[i].taken) loot.splice(i, 1);
@@ -2149,19 +2454,23 @@ const PAGES = [
   { h: 'TORN PAGE', t: 'Saw it again tonight. You can\'t see it from the corner of your eye — it\'s just the trees breathing. But look straight at it and there it is: bones and skin the colour of bark, staring right back.<br><br>When you can see it, it can\'t move.', s: '' },
   { h: 'RANGER LOG · SEPT 19', t: 'Light hurts it. Held the beam on it for a few seconds and it SCREAMED, like a kettle left on the stove, and ran.<br><br>Batteries. Batteries. Batteries. Hikers always pack batteries.', s: '— E.H.' },
   { h: 'SCRAWLED ON A RECEIPT', t: 'ate the purple ones. the glowing ones. saw my mother standing in the ferns and she was smiling with too many teeth.<br><br>DON\'T EAT THE PURPLE ONES', s: '' },
-  { h: 'RANGER LOG · SEPT 23', t: 'The Grin follows the hungry. Leave the trail to forage and it smells you — first the twigs snapping, then the breathing. Then it comes, tall as a door, smiling.<br><br>It will not set one foot on the trail. When you hear it: RUN BACK TO THE TRAIL.', s: '— E.H.' },
+  { h: 'RANGER LOG · SEPT 23', t: 'The Grin follows the hungry. Leave the trail to forage and it smells you — first the twigs snapping, then the breathing. Then it comes, tall as a door, smiling.<br><br>It will not set one foot on the trail, or in any place people built. When you hear it: RUN BACK TO THE TRAIL.', s: '— E.H.' },
   { h: 'RANGER LOG · SEPT 27', t: 'Mornings are quiet. Nothing hunts until the sun is well up. That\'s when I forage.<br><br>The last night is always the worst. The storm comes over the ridge, and the lightning shows you everything that has been standing next to you.', s: '— E.H.' },
-  { h: 'NOTE PINNED TO THE RADIO', t: 'Radio only picks up Ridge Patrol now. They fly the valley at dawn after a storm.<br><br>Flare gun\'s on the desk. Fire it from the lookout tower at the end of the trail and they\'ll see it for miles.', s: '— E.H.' },
-  { h: 'LAST PAGE', t: 'If you\'re reading this I didn\'t make it to the tower. I went off the trail one too many times.<br><br>Don\'t stop walking. Don\'t look away. And don\'t let them see you\'re afraid.', s: '— Elias Holt, Ranger' },
+  { h: 'NOTE PINNED TO THE RADIO', t: 'Ridge Patrol flies the valley at dawn after a storm. Fire a flare from the lookout tower and they\'ll see it for miles — but the tower\'s locked, its generator is dry and this flare gun is EMPTY.<br><br>Lyle keeps flare shells at his hunting shack, south-east. The logging camp out west always had diesel. Key\'s on me. I\'m going to check the old chapel first.', s: '— E.H.' },
+  { h: 'LAST PAGE', t: 'If you\'re reading this I didn\'t make it to the tower. It was waiting for me in the chapel. Things like it like old holy places — they like to sit where people prayed.<br><br>Take my key. Take the shells and the fuel. Don\'t stop walking. Don\'t look away.', s: '— Elias Holt, Ranger' },
+  { h: 'FOREMAN\'S CLIPBOARD · OCT \'79', t: 'Third man off the crew this month. Says something with a smile followed him out of the cut and stood in the trees while he ate his lunch.<br><br>Laid the trail with rock salt and old rail iron like the old man said. We pull out tomorrow. LEAVE THE TRUCKS.', s: '— R. Dunmore, foreman' },
+  { h: 'LYLE\'S TALLY BOOK', t: 'Shot it twice. Didn\'t bleed. Didn\'t fall. Kept smiling.<br><br>Flares won\'t hurt the tall one but they\'ll bring the helicopter. Shells are in the orange box. Keep them dry. Keep the lamp lit. Keep the door shut.', s: '— Lyle' },
+  { h: 'BOATHOUSE LOG', t: 'Water\'s too still at night. Counted the trees reflected in the lake from the dock — forty-one.<br><br>Counted the trees on the shore. Forty.', s: '' },
+  { h: 'CARVED INTO A BIRCH', t: 'Somebody carved arrows into the bark here, pointing deeper into the woods. Dozens of them.<br><br>Don\'t follow them. Something out here learned to carve.', s: '' },
 ];
 
 /* =====================================================================
    GAME
    ===================================================================== */
-const HOUR_SEC = QS.has('fast') ? 3 : 26;
+const HOUR_SEC = QS.has('fast') ? 3 : 40;
 const Game = {
   mode: 'loading', hour: 6.5, day: 1, now: 0, isNight: false, chamTime: false, flashOn: false, lightning: 0, nextLightning: 0,
-  story: { step: 0, flare: false, radio: false, pages: new Set() }, flags: {}, stats: { food: 0, bear: 0, cham: 0, repel: 0, dist: 0 },
+  story: { step: 0, flare: false, radio: false, pages: new Set(), items: { fuel: false, shells: false, key: false }, dawn: false }, flags: {}, stats: { food: 0, bear: 0, cham: 0, repel: 0, dist: 0 },
   snapshot: null, godMode: QS.has('god'), chamInfo: null, mapOpen: false, deathCause: '', hover: null, fear: 0, cineT: 0, endT: 0,
   toast(msg, cls = '') {
     const el = document.createElement('div'); el.className = 'toast ' + cls; el.innerHTML = msg; $('toasts').appendChild(el);
@@ -2171,15 +2480,37 @@ const Game = {
   card(a, b, dur = 3.5) { $('biga').textContent = a; $('bigb').textContent = b; $('bigcard').style.opacity = 1; clearTimeout(this._cardT); this._cardT = setTimeout(() => $('bigcard').style.opacity = 0, dur * 1000); },
   subtitle(text, dur) { const el = $('subtitle'); el.innerHTML = text; el.style.opacity = text ? 1 : 0; clearTimeout(this._subT); if (dur) this._subT = setTimeout(() => el.style.opacity = 0, dur * 1000); },
   objective() {
-    const N = D.nights, s = this.story.step;
-    const o = [
-      ['Find your flashlight in the wrecked car.', 'You left the logging road last night. Your head is pounding.'],
-      ['Follow the trail to the Ranger Cabin.', 'Reflective posts mark the trail. The cabin is in the middle of the forest.'],
-      ['Search the Ranger Cabin.', 'There has to be a radio. Someone must know you\'re out here.'],
-      [`Survive until dawn of Day ${N + 1}.`, 'Food only grows off the trail — but something follows the hungry. Mornings are safe for foraging.'],
-      ['Reach the Lookout Tower and fire the flare.', 'Follow the trail to its end, far to the north-east.'],
-    ][s];
-    $('objt').textContent = o[0]; $('objs').textContent = o[1];
+    const N = D.nights, st = this.story, s = st.step, it = st.items;
+    let t, sub;
+    if (s === 0) { t = 'Find your flashlight in the wrecked car.'; sub = 'You left the logging road last night. Your head is pounding.'; }
+    else if (s === 1) { t = 'Follow the trail to the Ranger Cabin.'; sub = 'It\'s in the middle of the forest, almost a kilometre away. Reflective posts mark the trail.'; }
+    else if (s === 2) { t = 'Search the Ranger Cabin.'; sub = 'There has to be a radio. Someone must know you\'re out here.'; }
+    else {
+      const all = it.fuel && it.shells && it.key;
+      const li = (ok, txt) => `<div style="opacity:${ok ? 0.45 : 1};margin-top:3px">${ok ? '☑' : '☐'} ${txt}</div>`;
+      if (all && st.dawn) { t = 'Get to the Lookout Tower and fire the flare.'; sub = 'The patrol is in the air. The tower is far north-east, at the end of the main trail.'; }
+      else if (all) { t = `Survive until dawn of Day ${N + 1}.`; sub = 'You have everything. When the patrol flies, get to the Lookout Tower (north-east).'; }
+      else {
+        t = st.dawn ? 'The patrol is flying — finish the signal!' : 'Prepare a signal for the rescue patrol.';
+        sub = li(it.key, 'Tower key — on the ranger, at the Chapel Ruins (north-west)') + li(it.fuel, 'Generator fuel — the Logging Camp (west)') + li(it.shells, "Flare shells — the Hunter's Shack (south-east)") + li(st.dawn, `Survive until dawn of Day ${N + 1}`);
+      }
+    }
+    $('objt').textContent = t; $('objs').innerHTML = sub;
+  },
+  objectivePOIs() {
+    const st = this.story, it = st.items;
+    if (st.step <= 2) return st.step === 0 ? ['crash'] : ['cabin'];
+    const out = []; if (!it.key) out.push('chapel'); if (!it.fuel) out.push('logging'); if (!it.shells) out.push('shack');
+    return out.length ? out : ['tower'];
+  },
+  takeItem(id) {
+    const q = questItems[id]; if (!q || this.story.items[id]) return;
+    this.story.items[id] = true; q.mesh.visible = false; AU.pickup();
+    const it = interactables.find(i => i.id === 'item_' + id); if (it) it.active = false;
+    this.toast({ fuel: 'A jerrycan of diesel. Enough to wake the tower\'s generator.', shells: 'Flare shells, still dry. Lyle kept his word.', key: 'Holt\'s key ring. The brass one is stamped TOWER.' }[id]);
+    const I = this.story.items;
+    if (I.fuel && I.shells && I.key) setTimeout(() => this.toast(this.story.dawn ? 'That\'s everything. GET TO THE TOWER.' : 'That\'s everything. Now survive until the patrol flies.'), 3200);
+    this.objective();
   },
   setFlash(on) {
     if (on && (!player.hasLight || player.battery <= 0)) return;
@@ -2250,27 +2581,31 @@ const Game = {
   takeFlare() {
     this.story.flare = true; cabin.flare.visible = false; AU.pickup();
     const it = interactables.find(i => i.id === 'flare'); if (it) it.active = false;
-    this.toast('Flare gun. One shot.'); this.checkCabin();
+    this.toast('Flare gun. It\'s empty.'); this.checkCabin();
   },
   useRadio() {
     AU.radioStatic(13); this.story.radio = true;
     const N = D.nights;
     const lines = ['<i>…kssshh…</i> Ridge Patrol to Blackwood Station, do you copy… <i>kssh</i>…',
       `…storm front coming over the ridge… all aircraft grounded for ${N === 2 ? 'two' : 'three'} days…`,
-      `…we'll fly the valley at first light on day ${N + 1}… if anyone's out there, get up the lookout tower and <b>fire a flare</b>…`,
+      `…we'll fly the valley at first light on day ${N + 1}… if anyone's out there, light up the <b>lookout tower</b> and <b>fire a flare</b>…`,
+      '…Holt, if you can hear this… you\'ve got the only key to that tower…',
       '…and whatever you do… <b>stay on the trail</b>… <i>kssshhhhh</i>'];
     lines.forEach((l, i) => setTimeout(() => this.subtitle(l, 3.4), i * 3300));
     setTimeout(() => this.checkCabin(), lines.length * 3300);
   },
   checkCabin() {
     if (this.story.step === 1) this.story.step = 2;
-    if (this.story.step === 2 && this.story.flare && this.story.radio) { this.story.step = 3; this.objective(); this.toast('Survive. The forest will try to take you.'); }
+    if (this.story.step === 2 && this.story.flare && this.story.radio) { this.story.step = 3; this.objective(); this.toast('Read the note pinned by the radio. Then prepare the signal — and survive.'); }
     else if (this.story.step === 2 && this.story.flare && !this.story.radio) this.toast('Check the radio.');
   },
   climbTower() {
-    if (this.story.step === 4) { startEnding(); return; }
-    if (!this.story.flare) { this.toast('Climbing up there without a way to signal would be pointless.'); return; }
-    this.toast(`The sky is empty. The patrol flies at first light on Day ${D.nights + 1}.`);
+    const st = this.story, it = st.items;
+    if (st.step < 3) { this.toast('The tower is padlocked, and the generator is dry. Find out what\'s going on — try the Ranger Cabin.'); return; }
+    const miss = []; if (!it.key) miss.push('the tower key'); if (!it.fuel) miss.push('fuel for the generator'); if (!it.shells) miss.push('flare shells');
+    if (miss.length) { this.toast('You still need ' + miss.join(', ') + '.'); return; }
+    if (!st.dawn) { this.toast(`Everything is ready. The patrol flies at first light on Day ${D.nights + 1}. Survive until then.`); return; }
+    startEnding();
   },
   damage(amt, src, dir) {
     if (this.godMode || player.dead) return;
@@ -2301,14 +2636,15 @@ const Game = {
   },
   snap() {
     const P = player;
-    this.snapshot = { day: this.day, hour: this.hour, x: P.pos.x, z: P.pos.z, yaw: P.yaw, health: Math.max(P.health, 60), hunger: Math.max(P.hunger, 55), battery: Math.max(P.battery, 40), batteries: P.batteries, cans: P.cans, bandages: P.bandages, hasLight: P.hasLight, story: { step: this.story.step, flare: this.story.flare, radio: this.story.radio, pages: [...this.story.pages] } };
+    this.snapshot = { day: this.day, hour: this.hour, x: P.pos.x, z: P.pos.z, yaw: P.yaw, health: Math.max(P.health, 60), hunger: Math.max(P.hunger, 55), battery: Math.max(P.battery, 40), batteries: P.batteries, cans: P.cans, bandages: P.bandages, hasLight: P.hasLight, story: { step: this.story.step, flare: this.story.flare, radio: this.story.radio, pages: [...this.story.pages], items: { ...this.story.items }, dawn: this.story.dawn } };
   },
   restore() {
     const s = this.snapshot; if (!s) return newGame(true);
     resetWorldState();
     Object.assign(player, { health: s.health, hunger: s.hunger, stamina: 100, battery: s.battery, batteries: s.batteries, cans: s.cans, bandages: s.bandages, hasLight: s.hasLight, dead: false, hurt: 0, shake: 0, hallu: 0, yaw: s.yaw, pitch: 0 });
     player.pos.set(s.x, heightAt(s.x, s.z), s.z); player.y = 0; player.knock.set(0, 0, 0);
-    this.day = s.day; this.hour = s.hour; this.story = { step: s.story.step, flare: s.story.flare, radio: s.story.radio, pages: new Set(s.story.pages) };
+    this.day = s.day; this.hour = s.hour; this.story = { step: s.story.step, flare: s.story.flare, radio: s.story.radio, pages: new Set(s.story.pages), items: { ...s.story.items }, dawn: s.story.dawn };
+    resetQuestItems(this.story.items); streamForest(player.pos, true);
     if (this.story.flare) cabin.flare.visible = false;
     flashModel.visible = player.hasLight; this.flashOn = false;
     const fl = interactables.find(i => i.id === 'flashlight'); if (fl) fl.active = !player.hasLight;
@@ -2330,14 +2666,22 @@ function placePages() {
   const onDesk = placeLoot('page', pc.x + 2.75, pc.z + 1.45, { page: 0, y: y0 + 0.9 }); onDesk.mesh.rotation.set(-Math.PI / 2, 0, 0.3); onDesk.mesh.position.y = y0 + 0.875;
   const onRadio = placeLoot('page', pc.x + 3.9, pc.z + 0.6, { page: 6, y: y0 + 1.6 }); onRadio.mesh.rotation.set(0, -Math.PI / 2, 0.05); onRadio.mesh.position.set(pc.x + 3.82, y0 + 1.6, pc.z + 0.6);
   const cp = POI.camp; const cl = placeLoot('page', cp.x + 1.2, cp.z + 2.0, { page: 1, y: heightAt(cp.x, cp.z) + 0.45 }); cl.mesh.rotation.set(-1.2, 0, 0.4); cl.mesh.position.y = heightAt(cp.x, cp.z) + 0.46;
-  const along = [[2, 0.12], [3, 0.3], [4, 0.5], [5, 0.68], [7, 0.86]];
-  const curve = trailCurves.main;
-  for (const [pi, u] of along) {
+  const ch = POI.chapel, yc = heightAt(ch.x, ch.z);
+  const p7 = placeLoot('page', ch.x + 1.0, ch.z - 3.6, { page: 7, y: yc + 0.03 }); p7.mesh.rotation.set(-Math.PI / 2, 0, 0.8); p7.pos.y = yc + 0.35;
+  const lg = POI.logging, yl = heightAt(lg.x, lg.z);
+  const p8 = placeLoot('page', lg.x + 9, lg.z - 7.83, { page: 8, y: yl + 1.5 }); p8.mesh.rotation.set(0, 0, 0.05); p8.pos.set(lg.x + 9, yl + 1.5, lg.z - 7.4);
+  const sk = POI.shack, ys = heightAt(sk.x, sk.z);
+  const p9 = placeLoot('page', sk.x + 1.65, sk.z + 1.35, { page: 9, y: ys + 0.95 }); p9.mesh.rotation.set(-Math.PI / 2, 0, -0.4);
+  const bh = POI.boathouse, yb = heightAt(bh.x, bh.z);
+  const p10 = placeLoot('page', bh.x - 1.5, bh.z - 2.34, { page: 10, y: yb + 1.5 }); p10.pos.set(bh.x - 1.5, yb + 1.5, bh.z - 1.9);
+  const along = [[2, 'main', 0.08], [3, 'main', 0.3], [4, 'west', 0.5], [5, 'east', 0.55], [11, 'north', 0.45]];
+  for (const [pi, key, u] of along) {
+    const curve = trailCurves[key];
     for (let tries = 0; tries < 60; tries++) {
       const p = curve.getPointAt(clamp(u + rand(-0.03, 0.03), 0, 1)), tg = curve.getTangentAt(u);
       const side = Math.random() < 0.5 ? -1 : 1, off = rand(14, 30);
       const x = p.x - tg.z * side * off, z = p.z + tg.x * side * off;
-      if (distToPath(x, z) < 10 || inPOI(x, z, 3) || Math.abs(x) > PLAY - 5 || Math.abs(z) > PLAY - 5) continue;
+      if (distToPath(x, z) < 10 || inPOI(x, z, 3) || inLake(x, z, 3) || Math.abs(x) > PLAY - 5 || Math.abs(z) > PLAY - 5) continue;
       let best = null, bd = 9;
       forNear(x, z, c => { if (c.tag !== 'tree') return; const d = Math.hypot(c.x - x, c.z - z); if (d < bd) { bd = d; best = c; } });
       if (best) {
@@ -2350,11 +2694,16 @@ function placePages() {
     }
   }
 }
+function resetQuestItems(items) {
+  for (const id in questItems) { const got = !!items[id]; questItems[id].mesh.visible = !got; const it = interactables.find(i => i.id === 'item_' + id); if (it) it.active = !got; }
+  if (tower.genLamp) tower.genLamp.emissiveIntensity = 0;
+}
 function newGame() {
   rng = mulberry32((Math.random() * 1e9) | 0);
   D = DIFF[SETTINGS.difficulty] || DIFF.normal;
   resetWorldState();
-  Game.story = { step: 0, flare: false, radio: false, pages: new Set() };
+  Game.story = { step: 0, flare: false, radio: false, pages: new Set(), items: { fuel: false, shells: false, key: false }, dawn: false };
+  resetQuestItems(Game.story.items);
   Game.stats = { food: 0, bear: 0, cham: 0, repel: 0, dist: 0 };
   Game.day = 1; Game.hour = 6.45;
   Object.assign(player, { health: 100, hunger: 80, stamina: 100, battery: 100, batteries: 0, cans: 0, bandages: 0, hasLight: false, dead: false, hurt: 0, shake: 0, hallu: 0, pitch: -0.1, adren: 0 });
@@ -2365,6 +2714,7 @@ function newGame() {
   cabin.flare.visible = true; flashModel.visible = false; Game.flashOn = false;
   for (const it of interactables) if (['flashlight', 'flare'].includes(it.id)) it.active = true;
   spawnFood(1); placePages();
+  streamForest(player.pos, true);
   Game.snapshot = null; Game.snap();
   beginPlay(true);
 }
@@ -2389,7 +2739,7 @@ function advanceTime(dt) {
   const wrapped = h < before;
   const crossed = x => wrapped ? (x > before || x <= h) : (before < x && h >= x);
   if (crossed(6) && Game.day > 1) {
-    if (Game.day > N) { Game.story.step = Math.max(Game.story.step, 4); Game.objective(); Game.card('DAWN', 'The storm has passed. Get to the tower.', 5); Game.toast('You hear rotors, far away, over the ridge.'); }
+    if (Game.day > N) { Game.story.dawn = true; Game.objective(); Game.card('DAWN', 'The storm has passed. The patrol is flying.', 5); Game.toast('You hear rotors, far away, over the ridge.'); }
     else Game.card('DAY ' + Game.day, 'You survived the night.', 4.5);
     spawnFood(Game.day); Game.snap();
     if (Game.day <= N) setTimeout(() => Game.toast('Morning. The forest sleeps until ten. Forage now.'), 5000);
@@ -2420,7 +2770,7 @@ function buildHUD() {
     const el = document.createElement('div'); const lab = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }[d];
     el.className = 't' + (lab ? '' : ' minor'); if (lab) el.textContent = lab; el.dataset.deg = d; strip.appendChild(el);
   }
-  for (const k of ['cabin', 'tower', 'camp']) { const el = document.createElement('div'); el.className = 'mk'; el.dataset.poi = k; strip.appendChild(el); }
+  for (const k of ['crash', 'cabin', 'logging', 'chapel', 'shack', 'boathouse', 'camp', 'tower']) { const el = document.createElement('div'); el.className = 'mk'; el.dataset.poi = k; strip.appendChild(el); }
   hudEls.ticks = [...strip.children];
   const cells = $('cells'); for (let i = 0; i < 5; i++) cells.appendChild(document.createElement('i'));
 }
@@ -2430,16 +2780,20 @@ function updateHUD(dt) {
   const P = player;
   const heading = ((-P.yaw * 180 / Math.PI) % 360 + 360) % 360;
   const W = $('compass').clientWidth;
+  const objs = Game.objectivePOIs(); const placed = [];
   for (const el of hudEls.ticks) {
     let bearing;
     if (el.dataset.poi) {
       const p = POI[el.dataset.poi]; const dx = p.x - P.pos.x, dz = p.z - P.pos.z; bearing = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360;
-      const isObj = (el.dataset.poi === 'cabin' && Game.story.step <= 2) || (el.dataset.poi === 'tower' && Game.story.step === 4);
-      el.textContent = (isObj ? '◆ ' : '◇ ') + POI[el.dataset.poi].name.split(' ').pop().toUpperCase() + ' ' + Math.round(Math.hypot(dx, dz)) + 'm';
+      const isObj = objs.includes(el.dataset.poi), dist = Math.hypot(dx, dz);
+      el.textContent = (isObj ? '◆ ' : '◇ ') + p.short + ' ' + (dist > 999 ? (dist / 1000).toFixed(1) + 'km' : Math.round(dist) + 'm');
       el.style.color = isObj ? '#e0a84a' : '#8d887a';
+      el.dataset.show = isObj || dist < 260 ? 1 : 0;
     } else bearing = +el.dataset.deg;
     let d = bearing - heading; d = ((d + 540) % 360) - 180;
-    el.style.left = (W / 2 + d / 100 * W / 2) + 'px'; el.style.display = Math.abs(d) < 105 ? '' : 'none';
+    const px = W / 2 + d / 100 * W / 2, vis = Math.abs(d) < 105 && el.dataset.show !== '0';
+    el.style.left = px + 'px'; el.style.display = vis ? '' : 'none';
+    if (el.dataset.poi && vis) { const row = placed.some(q => q.row === 0 && Math.abs(q.x - px) < 100) ? 1 : 0; placed.push({ x: px, row }); el.style.top = row ? '31px' : '18px'; }
   }
   const hh = Math.floor(Game.hour), mm = Math.floor((Game.hour - hh) * 60 / 10) * 10;
   $('clock').innerHTML = `DAY ${Game.day} <i>·</i> ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} <i>${Game.isNight ? '☾' : '☀'}</i>`;
@@ -2453,7 +2807,7 @@ function updateHUD(dt) {
   const cells = $('cells').children; const lit = Math.ceil(P.battery / 20);
   for (let i = 0; i < 5; i++) cells[i].classList.toggle('off', i >= lit || !P.hasLight);
   $('bat').classList.toggle('low', P.battery < 20);
-  $('items').innerHTML = `<span><em>Q</em>FOOD<b>${P.cans}</b></span><span><em>R</em>BATT<b>${P.batteries}</b></span><span><em>H</em>BANDAGE<b>${P.bandages}</b></span><span><em>J</em>PAGES<b>${Game.story.pages.size}/8</b></span>`;
+  $('items').innerHTML = `<span><em>Q</em>FOOD<b>${P.cans}</b></span><span><em>R</em>BATT<b>${P.batteries}</b></span><span><em>H</em>BANDAGE<b>${P.bandages}</b></span><span><em>J</em>PAGES<b>${Game.story.pages.size}/${PAGES.length}</b></span>`;
   if (!Game.flags.offTip && !safe && Game.story.step >= 1) { Game.flags.offTip = 1; Game.toast(morning ? 'You left the trail. It\'s morning — the forest is asleep. For now.' : 'You left the trail. Find what you need, and listen.', 'warn'); }
 }
 function findHover() {
@@ -2485,14 +2839,19 @@ function buildMapBase() {
     img.data[k] = shade * 1.02; img.data[k + 1] = shade * 0.93; img.data[k + 2] = shade * 0.72; img.data[k + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  g.fillStyle = 'rgba(40,60,30,.45)';
-  for (const t of treeSpots) { if (Math.abs(t.x) > PLAY + 8 || Math.abs(t.z) > PLAY + 8) continue; g.beginPath(); g.arc((t.x + ox) * sc, (t.z + ox) * sc, 2.4, 0, TAU); g.fill(); }
-  g.strokeStyle = 'rgba(90,50,20,.9)'; g.lineWidth = 4; g.setLineDash([10, 6]); g.lineCap = 'round';
-  for (const k in trailCurves) { const pts = trailCurves[k].getSpacedPoints(200); g.beginPath(); pts.forEach((p, i) => { const X = (p.x + ox) * sc, Y = (p.z + ox) * sc; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); }
+  g.fillStyle = 'rgba(40,60,30,.4)';
+  for (const t of treeSpots) { if (Math.abs(t.x) > PLAY + 8 || Math.abs(t.z) > PLAY + 8) continue; g.fillRect((t.x + ox) * sc - 0.9, (t.z + ox) * sc - 0.9, 1.8, 1.8); }
+  g.fillStyle = 'rgba(60,90,120,.75)'; g.beginPath(); g.arc((LAKE.x + ox) * sc, (LAKE.z + ox) * sc, LAKE.r * sc, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(30,50,70,.8)'; g.lineWidth = 2; g.stroke();
+  g.font = 'italic 14px Georgia, serif'; g.fillStyle = 'rgba(220,235,245,.9)'; g.textAlign = 'center'; g.fillText('Lake Merrow', (LAKE.x + ox) * sc, (LAKE.z + ox) * sc + 4);
+  g.strokeStyle = 'rgba(90,50,20,.9)'; g.lineWidth = 3; g.setLineDash([7, 5]); g.lineCap = 'round';
+  for (const k in trailCurves) { const pts = trailCurves[k].getSpacedPoints(300); g.beginPath(); pts.forEach((p, i) => { const X = (p.x + ox) * sc, Y = (p.z + ox) * sc; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); }
   g.setLineDash([]);
   g.font = 'bold 18px Georgia, serif'; g.fillStyle = '#3b1f10'; g.textAlign = 'center';
   const icon = (p, label, col) => { const X = (p.x + ox) * sc, Y = (p.z + ox) * sc; g.fillStyle = col; g.beginPath(); g.arc(X, Y, 8, 0, TAU); g.fill(); g.strokeStyle = '#2a160a'; g.lineWidth = 2; g.stroke(); g.fillStyle = '#2a160a'; g.fillText(label, X, Y - 16); };
+  g.font = 'bold 15px Georgia, serif';
   icon(POI.crash, 'Your car', '#8a1a12'); icon(POI.cabin, 'Ranger Cabin', '#c08030'); icon(POI.camp, 'Old Campsite', '#5a7a3a'); icon(POI.tower, 'Lookout Tower', '#c02018');
+  icon(POI.logging, 'Logging Camp', '#7a6a3a'); icon(POI.shack, "Hunter's Shack", '#6a4a2a'); icon(POI.chapel, 'Chapel Ruins', '#6a6a6a'); icon(POI.boathouse, 'Boathouse', '#4a6a8a');
   g.font = 'italic 30px Georgia, serif'; g.fillStyle = 'rgba(50,25,10,.75)'; g.fillText('Blackwood Forest', 450, 50);
   g.font = 'italic 15px Georgia, serif'; g.fillText('— stay on the trail —', 450, 74);
   g.strokeStyle = 'rgba(60,30,10,.6)'; g.lineWidth = 3; g.strokeRect(14, 14, 872, 872);
@@ -2504,6 +2863,8 @@ function buildMapBase() {
 function drawMap() {
   const g = $('mapc').getContext('2d'); g.drawImage(mapBase.c, 0, 0);
   const { sc, ox } = mapBase;
+  const pulse = 12 + Math.sin(performance.now() / 200) * 3;
+  for (const k of Game.objectivePOIs()) { const p = POI[k]; g.strokeStyle = 'rgba(200,120,20,.95)'; g.lineWidth = 3; g.beginPath(); g.arc((p.x + ox) * sc, (p.z + ox) * sc, pulse, 0, TAU); g.stroke(); }
   const X = (player.pos.x + ox) * sc, Y = (player.pos.z + ox) * sc;
   g.save(); g.translate(X, Y); g.rotate(-player.yaw); g.fillStyle = '#b01010'; g.beginPath(); g.moveTo(0, -14); g.lineTo(8, 9); g.lineTo(0, 4); g.lineTo(-8, 9); g.closePath(); g.fill(); g.restore();
   g.font = 'italic 14px Georgia, serif'; g.fillStyle = '#5a0a0a'; g.textAlign = 'center'; g.fillText('you', X, Y + 26);
@@ -2584,6 +2945,7 @@ function startEnding() {
   bearHide(); chamHide(999);
   setTimeout(() => {
     player.pos.copy(tower.top); player.y = tower.top.y + 1.6 - heightAt(tower.top.x, tower.top.z); $('fade').style.opacity = 0;
+    streamForest(tower.top, true); if (tower.genLamp) tower.genLamp.emissiveIntensity = 3;
     player.yaw = Math.PI * 0.75; player.pitch = 0.05;
   }, 1300);
 }
@@ -2663,13 +3025,13 @@ const SHOTS = [
   {
     dur: 9.5, hour: 6.15, place: 'BLACKWOOD FOREST · OREGON',
     sub: ['Blackwood Forest. Four hundred acres of ancient pine… and very little else one would care to meet.', 'This year alone, three hikers have wandered in. None, so far, have wandered out.'],
-    cam(t, c) { c.position.set(lerp(-260, -175, t), lerp(110, 70, t), lerp(250, 170, t)); c.lookAt(lerp(-40, -80, t), 0, lerp(40, 80, t)); },
+    cam(t, c) { c.position.set(lerp(-680, -590, t), lerp(125, 78, t), lerp(680, 610, t)); c.lookAt(lerp(-430, -480, t), 0, lerp(430, 480, t)); },
   },
   {
     dur: 9.5, hour: 8.2,
     sub: ['There is but one trail through this wilderness, cut long ago by the loggers…', '…who, curiously, left in rather a hurry. They never did come back for their trucks.'],
     cam(t, c) {
-      const cu = trailCurves.main, u = lerp(0.18, 0.36, t);
+      const cu = trailCurves.main, u = lerp(0.12, 0.2, t);
       const p = cu.getPointAt(u), a = cu.getPointAt(Math.min(1, u + 0.04));
       c.position.set(p.x, heightAt(p.x, p.z) + 26 - t * 6, p.z); c.lookAt(a.x, heightAt(a.x, a.z), a.z);
     },
@@ -2796,10 +3158,11 @@ function nextShot() {
   if (cine.i >= SHOTS.length) { endCine(); return; }
   const s = SHOTS[cine.i];
   Game.hour = s.hour; s.growled = 0;
+  if (s.setup) s.setup();
+  s.cam(0, camera); streamForest(camera.position, true);
   s.li = -1; s.narrDone = false; s.outAt = null;
   const words = s.sub.join(' ').split(/\s+/).length;
   s.durEff = Math.max(s.dur, words / 2.05 + 2.6);
-  if (s.setup) s.setup();
   $('cplace').textContent = s.place || ''; $('cplace').style.opacity = s.place ? 1 : 0;
   $('csub').textContent = '';
   setTimeout(() => narrateShot(s), 750);
@@ -2941,6 +3304,7 @@ async function boot() {
   buildGround(T.ground);
   buildGrass(); grass.visible = Q.grass > 0;
   buildCar(); buildCabin(); buildTower(); buildCamp(); buildMarkers();
+  buildLogging(); buildShack(); buildChapel(); buildLake(); buildGenerator();
   buildParticles(); buildLootAssets(T);
   setupBear(bearG); setupChameleon(chamG); if (flashG) setupFlashlight(flashG); flashGlow.material.map = softDot;
   buildHUD(); buildMapBase();
@@ -2948,6 +3312,7 @@ async function boot() {
   Game.hour = 22.4; updateEnv(Game.hour, 0);
   camera.position.set(POI.cabin.x + 30, POI.cabin.y + 8, POI.cabin.z); camera.lookAt(POI.cabin.x, POI.cabin.y, POI.cabin.z);
   // warm up shaders, including the chameleon's transmission and the jumpscare paths
+  streamForest(camera.position, true);
   cham.root.visible = true; cham.pos.set(POI.cabin.x + 10, POI.cabin.y, POI.cabin.z); applyChamVisual(0); cham.fade = 1;
   bear.root.visible = true; bear.root.position.set(POI.cabin.x + 8, POI.cabin.y, POI.cabin.z);
   flashModel.visible = true; beam.visible = true; flash.intensity = 1;
@@ -2973,6 +3338,7 @@ async function boot() {
       if (QS.has('yaw')) player.yaw = +QS.get('yaw');
       if (QS.has('pitch')) player.pitch = +QS.get('pitch');
       if (QS.has('light')) Game.takeFlashlight();
+      if (QS.has('items')) { Game.story.step = 3; for (const k of ['fuel', 'shells', 'key']) Game.takeItem(k); }
       if (tq === 'cham') { Game.story.step = 3; if (!QS.has('hour')) Game.hour = 22; chamSpawn(); const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)); const d = +(QS.get('d') || 8); cham.pos.set(player.pos.x + fwd.x * d, 0, player.pos.z + fwd.z * d); cham.pos.y = heightAt(cham.pos.x, cham.pos.z); cham.timer = 99; cham.fade = 1; }
       if (tq === 'bear') { Game.story.step = 3; Game.hour = 14; bear.threat = 100; const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)); bearSpawn(); const d = +(QS.get('d') || 9); bear.pos.set(player.pos.x + fwd.x * d, 0, player.pos.z + fwd.z * d); bear.pos.y = heightAt(bear.pos.x, bear.pos.z); }
       if (QS.has('storm')) ENV.storm = 1;
@@ -2984,7 +3350,7 @@ async function boot() {
     if (QS.has('notitle')) $('title').style.opacity = 0;
     if (tq === 'cine') { startCine(); if (QS.has('shot')) { cine.i = +QS.get('shot') - 1; nextShot(); cine.t = +(QS.get('t') || 3); } }
   }
-  if (TEST) window.__G = { Game, player, bear, cham, ENV, interactables, loot, POI, keys, heightAt, distToPath, isSafe, startEnding, chamSpawn, bearSpawn, D: () => D };
+  if (TEST) window.__G = { Game, player, bear, cham, ENV, interactables, loot, POI, FOREST, questItems, keys, heightAt, distToPath, isSafe, startEnding, chamSpawn, bearSpawn, D: () => D };
   window.__ready = true;
 }
 
@@ -3026,6 +3392,8 @@ function frame() {
   Game.fear += (fear - Game.fear) * Math.min(1, dt * 2.5);
   ENV.fear = Game.fear;
   // environment
+  if (mode === 'title' || mode === 'cine' || mode === 'play' || mode === 'ending' || mode === 'jumpscare') streamForest(camera.getWorldPosition(_v2));
+  if (frameN % 15 === 0) { const c = camera.position; for (const L of loot) L.mesh.visible = !L.taken && (L.pos.x - c.x) ** 2 + (L.pos.z - c.z) ** 2 < 80 * 80; }
   updateEnv(Game.hour, dt);
   updateParticles(dt, camera.getWorldPosition(new THREE.Vector3()), ENV);
   for (const u of updaters) u(dt, Game.now);

@@ -124,16 +124,20 @@ A survival horror in a huge forest, in one `forest/index.html` (three.js, no bui
 Your car left the old logging road last night. You wake at dawn in Blackwood Forest. There is one trail through it, and the old loggers swore nothing that lives between the trees will ever set foot on it.
 
 1. Take your flashlight from the wrecked car.
-2. Follow the trail to the Ranger Cabin. Use the radio and take the flare gun.
-3. Survive 3 nights (2 on Easy).
-4. On the last dawn, reach the Lookout Tower at the end of the trail and fire the flare.
+2. Follow the trail almost a kilometre to the Ranger Cabin. Use the radio and take the (empty) flare gun.
+3. Prepare the signal, in any order:
+   - the **tower key**, still on the missing ranger's body at the **Chapel Ruins** (north-west)
+   - **fuel** for the tower's generator from the **Logging Camp** (west)
+   - **flare shells** from the **Hunter's Shack** (south-east)
+4. Survive 3 nights (2 on Easy).
+5. When the patrol flies on the last dawn, get to the **Lookout Tower** (far north-east) and fire the flare.
 
 - **Mornings (05:30 to 10:00) are safe everywhere.** Nothing hunts. Forage then.
 - **The Grin (the bear):** the trail is safe. Leave it and a threat meter fills (faster at night, faster when you run, slower when you crouch). You hear twigs snap, then breathing, then it comes crashing through the trees. Run back to the trail: it stops at the edge, paces and stares, then leaves. If it catches you, it's over: it knocks you down and its grinning face drops onto yours (driven by the model's own jumpscare animation and camera bone).
 - **The Mimic (the chameleon):** comes at night, anywhere. It's camouflaged (refractive, see-through, shimmering), not invisible, and it's dark and matte, so it doesn't light up in your beam. Look straight at it and it shows itself and freezes; look away and it creeps closer. Hold your flashlight on it to make it scream and flee.
 - **Food only grows off the trail:** berries, mushrooms (never the purple glowing ones, they make you hallucinate) and the backpacks of lost hikers (canned food, batteries, bandages). Hunger drains all the time; food respawns every dawn.
 - **The last night brings a storm:** rain, thunder, and lightning that lights everything up, including whatever is standing next to you.
-- 8 journal pages from the missing ranger tell you what the creatures are. If you die, you can retry from the last dawn.
+- 12 journal pages, left by the missing ranger, the logging foreman, the hunter and others, tell you what the creatures are. Every built place (cabin, camps, chapel, shack, boathouse) is safe from the Grin. If you die, you can retry from the last dawn.
 
 ## Controls
 
@@ -153,8 +157,9 @@ Your car left the old logging road last night. You wake at dawn in Blackwood For
 
 ## The world
 
-- **The supplied forest map copied 16 times (4 x 4) into a 400 x 400 m forest**, with an outer ring of copies for the horizon. Each copy is rotated, and every tree gets its own random scale and rotation so the copies don't look repeated. The trees stand on a new rolling terrain.
-- **One winding trail** runs through the whole forest, from the crash site to the lookout tower, with a side trail to an old campsite. Trees are cleared off it, it's dirt with wheel ruts, and reflective posts mark it. You can walk anywhere there isn't a tree.
+- **The supplied forest map copied 169 times (13 x 13) into a forest about 1.3 x 1.3 km**, with an outer ring of copies for the horizon. Each copy is rotated, and every tree gets its own random scale and rotation so the copies don't look repeated. The trees stand on new terrain with valleys and ridges. Only the forest near you is built: tiles stream in and out as you move, so the huge map still runs smoothly.
+- **A network of trails** (about 4.5 km) links the crash site, Ranger Cabin, Logging Camp, Chapel Ruins and graveyard, Lake Merrow and its boathouse, the Old Campsite, the Hunter's Shack and the Lookout Tower. Trees are cleared off the trails, they're dirt with wheel ruts, reflective posts mark them, and signposts stand at the junctions. You can walk anywhere there isn't a tree or deep water.
+- The map (hold M) shows every place, the lake and pulsing rings around your current objectives; the compass shows objectives and anything nearby.
 - Opening cutscene (aerial flyover, the trail, the Grin in the trees, the Mimic at night, the crash) told by a nature-documentary narrator (your browser's built-in speech voice, picking a British male voice when one is installed), with a skippable letterbox, an animated 3D title screen, and an ending sequence.
 - **Visuals:** a full day/night cycle (sunrise, golden hour, moonlit nights) with sky, clouds, stars, moon, fog and shadows that follow the player. Sun and moon shafts stream through the trees, and leaves glow when the sun is behind them. The flashlight is the supplied tactical flashlight model, with its tail-button press animation, a glowing lens, a beam pattern and moving shadows on medium and high. Wind sways the trees and a GPU grass field. Fireflies, mist, pollen, rain, lightning, a volumetric flashlight beam, bloom, film grain, chromatic aberration, fear and damage effects, hallucinations.
 - **Audio:** all generated live with Web Audio: wind, birds, crickets, owls, footsteps (different on the trail and in the leaves), heartbeat, 3D creature growls, roars, clicks and shrieks, thunder, rain, and dynamic music that turns into chase music.
