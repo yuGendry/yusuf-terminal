@@ -105,7 +105,7 @@ Open http://localhost:8000/fps/ with the same local server as above.
 - **Tougher bots:**
   - They do much less damage to each other, so the lobby doesn't wipe itself out before you get there.
   - Only a few bots at a time can engage you from range.
-  - Their health rises with your rank (in Casual, with difficulty).
+  - They're sturdier: 140 health at Bronze, up to 200 at the top ranks (130–190 by difficulty in Casual). That's about 6 body shots, or a headshot plus 3.
 - **Visuals:** synthwave sky with a striped sun, neon horizon mountains, an animated glowing floor grid, emissive trims on the walls, holographic crates, shadows, bloom, chromatic aberration, tracers, sparks, bullet holes, ejected brass, muzzle light.
 - **Ranked ladder:** Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster (each with divisions III, II and I), then Legend. Your rank sets bot skill: Bronze III bots play like Easy and Legend bots play like Insane. Past Legend the bots get faster and deadlier still: quicker reactions, tighter aim, more headshots and more damage. You earn or lose RP from where you place, your kills and whether you win; matches with more bots pay more. Leaving a ranked match early costs 20 RP. Your rank is saved in the browser. **Casual** lets you pick the difficulty yourself and doesn't touch RP.
 - **Last Stand mode:** one life each, no respawns. The last one alive wins. If you go down you can spectate the survivors (Space or click to switch, Enter for results). Your placement is locked in when you're eliminated.

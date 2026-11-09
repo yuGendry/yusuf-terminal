@@ -1139,7 +1139,7 @@ function spreadCells(n, list = NAV.open) {
    ===================================================================== */
 const PR = 0.32, STAND_H = 1.75, CROUCH_H = 1.15, EYE_STAND = 1.62, EYE_CROUCH = 1.02, GRAV = 22, JUMP_V = 7.4;
 const MAG = 15, P_MAX_RES = 90, BOT_MAX_RES = 60, START_RES = 30;
-const DMG = { head: 80, body: 26, legs: 19 };
+const DMG = { head: 70, body: 26, legs: 19 };
 const DIFF = {
   easy: { react: 0.8, err: 1.4, learn: 1.2, turn: 4.5, fire: [0.5, 0.95], head: 0.04, dmg: 0.55, strafe: 0.6, see: 30, lag: 0.22, jit: 0.35 },
   normal: { react: 0.5, err: 1.0, learn: 2.0, turn: 7, fire: [0.33, 0.65], head: 0.1, dmg: 0.75, strafe: 1, see: 38, lag: 0.16, jit: 0.25 },
@@ -1855,7 +1855,7 @@ function rayEntity(e, o, d, maxT) {
     headPos(e, _pa); t = raySphere(o, d, _pa, 0.2, best); if (t >= 0) { best = t; part = 'head'; }
     _pa.set(e.pos.x, e.pos.y + 0.25, e.pos.z); _pb.set(e.pos.x, camera.position.y - 0.3, e.pos.z); t = rayCapsule(o, d, _pa, _pb, 0.32, best); if (t >= 0) { best = t; part = 'body'; }
   } else {
-    const h = e.hb; t = raySphere(o, d, h.head, 0.27, best); if (t >= 0) { best = t; part = 'head'; }
+    const h = e.hb; t = raySphere(o, d, h.head, 0.23, best); if (t >= 0) { best = t; part = 'head'; }
     t = rayCapsule(o, d, h.b0, h.b1, 0.27, best); if (t >= 0) { best = t; part = 'body'; }
     t = rayCapsule(o, d, h.lL0, h.lL1, 0.11, best); if (t >= 0) { best = t; part = 'legs'; }
     t = rayCapsule(o, d, h.lR0, h.lR1, 0.11, best); if (t >= 0) { best = t; part = 'legs'; }
@@ -2313,7 +2313,7 @@ function activateBots(n) {
 }
 function resetScores() { for (const e of [P, ...BOTS]) { e.kills = 0; e.deaths = 0; e.headshots = 0; e.streak = 0; e.grudge = null; } P.shots = 0; P.hits = 0; }
 function startAttract() {
-  match.state = 'menu'; match.mode = 'dm'; match.ranked = false; match.D = DIFF.normal; match.botHP = 115; P.alive = false; activateBots(Math.max(MAP.big ? 12 : 4, settings.bots)); resetScores(); $('spec').classList.add('hidden');
+  match.state = 'menu'; match.mode = 'dm'; match.ranked = false; match.D = DIFF.normal; match.botHP = 150; P.alive = false; activateBots(Math.max(MAP.big ? 12 : 4, settings.bots)); resetScores(); $('spec').classList.add('hidden');
   for (const b of BOTS) if (b.active) spawnBot(b);
   $('hud').classList.add('hidden'); vmPass.enabled = false; GOLD.t = 20;
 }
@@ -2327,7 +2327,7 @@ async function startMatch() {
   match.mode = settings.mode; match.ranked = settings.ranked; match.pingT = 15; match.resultApplied = false; match.rpResult = null; match.spec = null; P.place = 0; match.pinged = false; match.elapsed = 0;
   match.D = match.ranked ? diffFor(skillOf(RANK.rp)) : DIFF[settings.diff];
   // tougher bots the higher you go: more health on top of better aim and reactions
-  match.botHP = match.ranked ? Math.round(100 + 55 * Math.min(1.3, skillOf(RANK.rp)) / 1.3) : { easy: 100, normal: 115, hard: 130, insane: 150 }[settings.diff];
+  match.botHP = match.ranked ? Math.round(140 + 60 * Math.min(1.3, skillOf(RANK.rp)) / 1.3) : { easy: 130, normal: 150, hard: 170, insane: 190 }[settings.diff];
   if (match.ranked) { RANK.pending = true; RANK.note = ''; saveRank(); }
   match.limit = match.mode === 'ls' ? 999 : settings.killLimit; match.timeLeft = settings.minutes * 60; match.winner = null;
   for (const k of PICKUPS) { k.active = true; k.spin.visible = true; k.beam.visible = true; k.disc.material.opacity = 1; }
