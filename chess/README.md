@@ -24,7 +24,7 @@ Then open http://localhost:8000/chess/. (Opening `index.html` straight from disk
 - book moves recognized from the openings library
 - your key mistakes, which you can add to a spaced-repetition **mistakes deck**
 
-**Learn: 500+ lessons**
+**Learn: 526 lessons**
 
 | Category | What it covers |
 | --- | --- |
@@ -35,7 +35,7 @@ Then open http://localhost:8000/chess/. (Opening `index.html` straight from disk
 | Openings | 168 opening lines and 18 classic traps. Each has a summary, key ideas, move-by-move commentary, a **study** mode, a **drill** mode (play it from memory) and "Name That Opening" quizzes |
 | Strategy | Pawn structures (IQP, doubled, backward, hanging, chains, majorities), outposts, good/bad bishops, open files, the 7th rank, prophylaxis, the minority attack, two weaknesses, plans, converting, defending. Also seven famous games in "guess the move" format |
 | Endgames | KQK, KRK, two rooks, two bishops, bishop + knight, the square, key squares, opposition, triangulation, the Réti manoeuvre, breakthroughs, Lucena, Philidor, wrong-colored bishop, queen vs pawn. You play these against the engine at full strength. Also "convert the win" positions taken from real games |
-| Practice Workouts | Tactics workouts and mate-in-1/2/3/4 sets, sorted by rating |
+| Practice Workouts | 144 sets: tactics workouts and mate-in-1/2/3/4 sets, sorted by rating |
 
 **Openings explorer.** Play moves on a board and see every book continuation, plus the named openings each one leads to.
 
@@ -47,7 +47,7 @@ Then open http://localhost:8000/chess/. (Opening `index.html` straight from disk
 
 **Progress.** Rating history, lessons done per category, and your tactical strengths and weaknesses by theme.
 
-Progress is saved in the browser (localStorage).
+There are 971 verified puzzles in all. Progress is saved in the browser (localStorage).
 
 ## Files
 
