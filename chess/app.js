@@ -28,7 +28,22 @@ function updateMe() {
   bindGo($('#me'));
 }
 function bindGo(root) { $$('[data-go]', root).forEach(b => b.onclick = () => go(b.dataset.go)); }
-function go(route) { if (location.hash === '#/' + route) router(); else location.hash = '#/' + route; }
+let curRoute = null;
+function hashOf(route) { return route ? '#' + route.replace('/', '-') : ''; }
+function go(route) {
+  curRoute = route || '';
+  const h = hashOf(curRoute);
+  try { if (location.hash !== h) { if (h) location.hash = h; else history.replaceState(null, '', location.pathname + location.search); } } catch (e) { }
+  router(curRoute);
+}
+function ask(text, okLabel, danger) {
+  return new Promise(res => {
+    const m = modal(`<p>${text}</p><div class="row end"><button class="btn" id="askNo">Cancel</button><button class="btn ${danger ? 'danger' : 'primary'}" id="askYes">${okLabel || 'OK'}</button></div>`);
+    m.el.onclick = e => { if (e.target === m.el) { m.close(); res(false); } };
+    m.el.querySelector('#askNo').onclick = () => { m.close(); res(false); };
+    m.el.querySelector('#askYes').onclick = () => { m.close(); res(true); };
+  });
+}
 CM.go = go;
 function boardTheme(el) { el.dataset.theme = CM.store.d.settings.board; }
 function makeBoard(el, opts) { boardTheme(el.closest('.board-wrap') || el); const b = new Board(el, Object.assign({ coords: CM.store.d.settings.coords, autoQueen: CM.store.d.settings.autoQueen }, opts)); window.__board = b; return b; }
@@ -335,7 +350,7 @@ function playView(o) {
     d.games.push(rec); if (d.games.length > 40) d.games.shift(); CM.store.save();
     // store explanations collected so far
     rec.ex = {}; for (const k in EX) rec.ex[k] = { k: EX[k].cls.k, loss: Math.round(EX[k].loss * 10) / 10 }; CM.store.save();
-    const title = result === 'win' ? 'You won!' : result === 'loss' ? 'You lost' : 'Draw';
+    const title = reason === 'placement finished early' ? 'Placement complete' : result === 'win' ? 'You won!' : result === 'loss' ? 'You lost' : 'Draw';
     $('#post').innerHTML = `<div class="endbox"><h3>${title}</h3><p class="muted">${esc(reason)}</p>${extra}<div class="row"><button class="btn primary" id="toReport">Game report</button>${mode === 'placement' ? '<button class="btn" data-go="learn">Start learning</button>' : '<button class="btn" id="again">Play again</button>'}</div></div>`;
     $('#toReport').onclick = () => go('report/' + rec.id);
     const ag = $('#again'); if (ag) ag.onclick = () => playView(Object.assign({}, o, { moves: o.moves }));
@@ -345,7 +360,7 @@ function playView(o) {
   $('#bFlip').onclick = () => board.flip();
   $('#bBack').onclick = () => { const cur = viewPly == null ? g.hist.length : viewPly; if (cur > 0) { viewPly = cur - 1; sync(); } };
   $('#bFwd').onclick = () => { if (viewPly == null) return; viewPly++; if (viewPly >= g.hist.length) viewPly = null; sync(); };
-  $('#bResign').onclick = () => { if (over) return; if (confirm('Resign this game?')) finish('loss', 'resignation'); };
+  $('#bResign').onclick = async () => { if (over) return; if (await ask('Resign this game?', 'Resign', true)) finish('loss', 'resignation'); };
   const fin = $('#bFinish'); if (fin) fin.onclick = () => { if (!over) finish('draw', 'placement finished early'); };
   if (coachOn) {
     $('#bHint').onclick = async () => {
@@ -362,8 +377,8 @@ function playView(o) {
       board.setArrows([a.best.slice(0, 4) + 'r']);
       $('#coachTxt').innerHTML = `⚠ If it were your opponent's move, they would play <b>${esc(a.bestSan)}</b>${capt ? ', capturing your ' + CM.PNAME[capt & 7] : ''}. ${Math.abs(a.score) > 150 ? 'That is a real threat!' : 'Nothing serious.'}`;
     };
-    $('#bUndo').onclick = () => {
-      if (over && !confirm('Undo the last move and continue?')) return;
+    $('#bUndo').onclick = async () => {
+      if (over && !(await ask('Undo the last move and continue the game?', 'Undo'))) return;
       gen++; thinking = false; $('#think').textContent = ''; over = false; $('#post').innerHTML = '';
       if (g.hist.length > startPly && g.turn === user) { g.undo(); delete EX[g.hist.length]; }
       if (g.hist.length > startPly && g.turn !== user) { g.undo(); delete EX[g.hist.length]; }
@@ -499,7 +514,7 @@ function learnView(cat) {
   const d = CM.store.d;
   const count = c => CM.lessons.filter(l => l.cat === c).length, done = c => CM.lessons.filter(l => l.cat === c && d.lessons[l.id]).length;
   view().innerHTML = `<section class="learn">
-    <div class="learn-h"><div><h1>Learn</h1><p class="muted">${CM.lessons.length} lessons. ${d.rating ? `Your level: <b>${d.rating}</b> (${levelName(d.rating)}). Lessons marked with a level near yours are the most useful now.` : '<a href="#/placement">Play the placement match</a> to get a personal starting point.'}</p></div>
+    <div class="learn-h"><div><h1>Learn</h1><p class="muted">${CM.lessons.length} lessons. ${d.rating ? `Your level: <b>${d.rating}</b> (${levelName(d.rating)}). Lessons marked with a level near yours are the most useful now.` : '<a href="#placement">Play the placement match</a> to get a personal starting point.'}</p></div>
       <input class="search" id="lsearch" placeholder="Search lessons…"></div>
     <div class="tabs" id="ltabs"><button data-c="path" class="${cat === 'path' ? 'on' : ''}">⭐ My path</button>${cats.map(c => `<button data-c="${c.id}" class="${cat === c.id ? 'on' : ''}">${c.name} <small>${done(c.id)}/${count(c.id)}</small></button>`).join('')}</div>
     <div id="lbody"></div></section>`;
@@ -533,7 +548,7 @@ function lessonView(id) {
   view().innerHTML = `<section class="play lesson">
     <div class="board-col"><div class="board-wrap"><div class="board" id="bd"></div></div></div>
     <aside class="panel">
-      <div class="ptitle"><a class="back" href="#/learn/${L.cat}">← ${esc(L.unit)}</a><span class="lvl">${L.level}</span></div>
+      <div class="ptitle"><a class="back" href="#learn-${L.cat}">← ${esc(L.unit)}</a><span class="lvl">${L.level}</span></div>
       <h2 class="ltitle">${esc(L.title)}</h2>
       <div class="dots" id="dots"></div>
       <div class="stepbox" id="sbox"></div>
@@ -862,8 +877,8 @@ function openingsView(arg) {
       $('#xline').innerHTML = g.hist.map((h, k) => `${k % 2 === 0 ? `<span class="mn">${k / 2 + 1}.</span>` : ''}<span class="mv">${esc(h.san)}</span>`).join('') || '<span class="muted">Play a move…</span>';
       const nx = CM.bookNext(g.moves());
       b.setArrows(nx.slice(0, 4).map((x, i) => x.uci.slice(0, 4) + (i === 0 ? 'g' : 'b')));
-      $('#xnext').innerHTML = nx.length ? `<b>Book moves</b>` + nx.map(x => `<div class="xn"><button class="btn sm" data-u="${x.uci}">${esc(x.san)}</button><span>${x.lines.slice(0, 3).map(o => `<a href="#/openings/${o.id}">${esc(o.family)}: ${esc(o.variation)}</a>`).join(', ')}${x.lines.length > 3 ? ` +${x.lines.length - 3} more` : ''}</span></div>`).join('') :
-        `<p class="muted">No more book moves in the library.${det && det.len === det.o.uci.length ? ` You reached the end of <a href="#/openings/${det.o.id}">${esc(det.o.family)}: ${esc(det.o.variation)}</a>.` : ''}</p>`;
+      $('#xnext').innerHTML = nx.length ? `<b>Book moves</b>` + nx.map(x => `<div class="xn"><button class="btn sm" data-u="${x.uci}">${esc(x.san)}</button><span>${x.lines.slice(0, 3).map(o => `<a href="#openings-${o.id}">${esc(o.family)}: ${esc(o.variation)}</a>`).join(', ')}${x.lines.length > 3 ? ` +${x.lines.length - 3} more` : ''}</span></div>`).join('') :
+        `<p class="muted">No more book moves in the library.${det && det.len === det.o.uci.length ? ` You reached the end of <a href="#openings-${det.o.id}">${esc(det.o.family)}: ${esc(det.o.variation)}</a>.` : ''}</p>`;
       $$('#xnext [data-u]').forEach(x => x.onclick = () => { const r2 = g.playUci(x.dataset.u); CM.sound('move'); upd(r2); });
     };
     $('#xBack').onclick = () => { g.undo(); upd(g.hist[g.hist.length - 1]); };
@@ -997,7 +1012,7 @@ function statsView() {
       <div class="kpis"><div><small>Rating</small><b>${d.rating || '—'}</b><span>${d.rating ? levelName(d.rating) : ''}</span></div><div><small>Puzzle rating</small><b>${d.puzzleRating || '—'}</b><span>${d.puzzleGames} attempts</span></div><div><small>Games</small><b>${g.length}</b><span>${W}W ${D}D ${Lo}L</span></div><div><small>Avg accuracy</small><b>${avgAcc != null ? avgAcc + '%' : '—'}</b><span>from game reports</span></div></div>
       <h3>Rating</h3><div class="spark" id="sp1"></div><h3>Puzzle rating</h3><div class="spark" id="sp2"></div></div>
     <div class="card"><h2>Lessons</h2>${cats.map(c => { const all = CM.lessons.filter(l => l.cat === c.id), dn = all.filter(l => d.lessons[l.id]).length; return `<div class="bar"><span>${c.name}</span><div class="bt"><div style="width:${all.length ? dn / all.length * 100 : 0}%"></div></div><span>${dn}/${all.length}</span></div>`; }).join('')}</div>
-    <div class="card"><h2>Tactical strengths & weaknesses</h2>${th.length ? th.map(t => `<div class="bar"><span>${CM.THEME_NAMES[t.k] || t.k}</span><div class="bt ${t.pct < 50 ? 'weak' : ''}"><div style="width:${t.pct}%"></div></div><span>${t.pct}% (${t.n})</span></div>`).join('') + (th[0] && th[0].pct < 60 ? `<p>Your weakest theme is <b>${CM.THEME_NAMES[th[0].k] || th[0].k}</b>. <a href="#/puzzles/themes">Practice it in Themes</a>.</p>` : '') : '<p class="muted">Solve rated puzzles to see which tactics you find hardest.</p>'}</div>
+    <div class="card"><h2>Tactical strengths & weaknesses</h2>${th.length ? th.map(t => `<div class="bar"><span>${CM.THEME_NAMES[t.k] || t.k}</span><div class="bt ${t.pct < 50 ? 'weak' : ''}"><div style="width:${t.pct}%"></div></div><span>${t.pct}% (${t.n})</span></div>`).join('') + (th[0] && th[0].pct < 60 ? `<p>Your weakest theme is <b>${CM.THEME_NAMES[th[0].k] || th[0].k}</b>. <a href="#puzzles-themes">Practice it in Themes</a>.</p>` : '') : '<p class="muted">Solve rated puzzles to see which tactics you find hardest.</p>'}</div>
     <div class="card"><h2>Settings</h2>
       <label class="set"><input type="checkbox" id="sSound" ${d.settings.sound ? 'checked' : ''}> Sound effects</label>
       <label class="set"><input type="checkbox" id="sCoords" ${d.settings.coords ? 'checked' : ''}> Board coordinates</label>
@@ -1012,14 +1027,17 @@ function statsView() {
   $('#sBoard').onchange = e => { d.settings.board = e.target.value; sv(); };
   $('#redo').onclick = () => go('placement');
   $('#exp').onclick = () => modal(`<h3>Your progress data</h3><p class="muted">Saved in this browser only. Copy it to keep a backup.</p><textarea class="pgnbox" readonly>${esc(JSON.stringify(d))}</textarea><div class="row end"><button class="btn primary" data-close>Close</button></div>`);
-  $('#rst').onclick = () => { if (confirm('Delete your rating, lessons and games?')) { CM.store.reset(); updateMe(); go(''); } };
+  $('#rst').onclick = async () => { if (await ask('Erase your rating, lessons and games? This cannot be undone.', 'Erase everything', true)) { CM.store.reset(); updateMe(); go(''); } };
 }
 
 // =====================================================================
 // ROUTER
-function router() {
+function router(route) {
   leave(); $('#modal').classList.add('hidden');
-  const h = location.hash.replace(/^#\/?/, ''); const [r, a] = [h.split('/')[0], h.split('/').slice(1).join('/')];
+  if (route == null) route = location.hash.replace(/^#\/?/, '').replace('/', '-');
+  const h = route.replace('/', '-'); const i = h.indexOf('-');
+  const r = i < 0 ? h : h.slice(0, i), a = i < 0 ? '' : h.slice(i + 1);
+  curRoute = a ? r + '/' + a : r;
   $$('nav [data-go]').forEach(b => b.classList.toggle('on', b.dataset.go.split('/')[0] === (r || '')));
   window.scrollTo(0, 0);
   if (r === 'placement') placementIntro();
@@ -1033,6 +1051,7 @@ function router() {
   else if (r === 'stats') statsView();
   else home();
 }
-window.addEventListener('hashchange', router);
-document.addEventListener('DOMContentLoaded', () => { bindGo(document.querySelector('header')); updateMe(); router(); });
+CM.rerender = () => { updateMe(); router(curRoute); };
+window.addEventListener('hashchange', () => { const h = location.hash.replace(/^#\/?/, '').replace('/', '-'); if (h !== hashOf(curRoute || '').slice(1)) router(h); });
+document.addEventListener('DOMContentLoaded', () => { bindGo(document.querySelector('header')); updateMe(); router(); CM.store.connectRemote(); });
 })();

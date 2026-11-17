@@ -18,10 +18,47 @@ function defaults() {
     themeStats: {}, puzzlesDone: {}, rushBest: 0, placement: null, settings: { sound: true, board: 'green', coords: true, autoQueen: false, showCoach: true } };
 }
 CM.store = {
-  d: null,
+  d: null, remote: null, writing: false, dirty: false, timer: null,
   load() { let d = null; try { d = JSON.parse(localStorage.getItem(KEY)); } catch (e) { d = null; } this.d = Object.assign(defaults(), d || {}); this.d.settings = Object.assign(defaults().settings, this.d.settings || {}); },
-  save() { try { localStorage.setItem(KEY, JSON.stringify(this.d)); } catch (e) { } },
-  reset() { this.d = defaults(); this.save(); }
+  save() {
+    this.d.savedAt = Date.now();
+    try { localStorage.setItem(KEY, JSON.stringify(this.d)); } catch (e) { }
+    if (this.remote) { this.dirty = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 2000); }
+  },
+  reset() { this.d = defaults(); this.save(); },
+  compact() { // keep the synced document well under the store's size limit
+    const d = JSON.parse(JSON.stringify(this.d));
+    d.games = d.games.slice(-25).map(g => { const x = Object.assign({}, g); x.pgn = undefined; return x; });
+    d.puzzlesDone = Object.fromEntries(Object.entries(d.puzzlesDone).sort((a, b) => b[1] - a[1]).slice(0, 1500));
+    d.mistakes = d.mistakes.slice(-200); d.puzzleHist = d.puzzleHist.slice(-200); d.ratingHist = d.ratingHist.slice(-200);
+    return d;
+  },
+  async flush() {
+    if (!this.remote || this.writing || !this.dirty) return;
+    this.writing = true; this.dirty = false;
+    try { await this.remote.set({ v: 1, json: JSON.stringify(this.compact()) }); } catch (e) { this.dirty = true; }
+    this.writing = false;
+    if (this.dirty) { clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 3000); }
+  },
+  // Optional sync when hosted where a per-person store exists (window.claude). Otherwise localStorage only.
+  async connectRemote() {
+    try {
+      if (!window.claude || typeof window.claude.use !== 'function') return;
+      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      if (!db || !user) return;
+      const id = await user.id(); if (!id) return;
+      const ref = db.doc('data/users/' + id + '/state');
+      const snap = await Promise.race([ref.get(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))]);
+      this.remote = ref;
+      let remoteD = null;
+      if (snap && snap.exists) { try { remoteD = JSON.parse(((typeof snap.data === 'function' ? snap.data() : snap.data) || {}).json || 'null'); } catch (e) { remoteD = null; } }
+      if (remoteD && (remoteD.savedAt || 0) > (this.d.savedAt || 0)) {
+        this.d = Object.assign(defaults(), remoteD); this.d.settings = Object.assign(defaults().settings, this.d.settings || {});
+        try { localStorage.setItem(KEY, JSON.stringify(this.d)); } catch (e) { }
+        if (CM.rerender) CM.rerender();
+      } else if ((this.d.savedAt || 0) > ((remoteD && remoteD.savedAt) || 0)) { this.dirty = true; this.flush(); }
+    } catch (e) { this.remote = null; }
+  }
 };
 CM.store.load();
 

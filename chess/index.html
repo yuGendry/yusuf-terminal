@@ -25,7 +25,8 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,
 a{color:var(--accent)}
 h1{font-size:1.7rem;margin:.2em 0 .4em;letter-spacing:-.01em} h2{font-size:1.2rem;margin:1.2em 0 .5em} h3{font-size:1rem;margin:1em 0 .4em}
 .muted{color:var(--muted)} .sm{font-size:.85rem} .hidden{display:none!important}
-header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg2)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
 .brand{font-weight:800;font-size:1.15rem;white-space:nowrap;cursor:pointer} .brand span{color:var(--accent)}
 nav{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none} nav::-webkit-scrollbar{display:none}
 nav button{background:none;border:0;color:var(--fg);padding:8px 11px;border-radius:8px;font:inherit;cursor:pointer;white-space:nowrap}
@@ -185,7 +186,7 @@ footer{max-width:1280px;margin:20px auto;padding:0 16px 30px;color:var(--muted);
 </head>
 <body>
 <header class="top">
-  <div class="brand" onclick="location.hash='#/'">♞ Chess<span>Mind</span></div>
+  <div class="brand" onclick="CM.go('')">♞ Chess<span>Mind</span></div>
   <nav>
     <button data-go="">Home</button><button data-go="play">Play</button><button data-go="learn">Learn</button><button data-go="openings">Openings</button><button data-go="puzzles">Puzzles</button><button data-go="review">Analyze</button><button data-go="stats">Progress</button>
   </nav>
