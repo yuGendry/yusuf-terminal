@@ -77,8 +77,10 @@ select option{background:var(--coal)}
 .burger::before{top:13px}.burger::after{top:21px}
 
 /* hero */
-.hero{position:relative;isolation:isolate;overflow:hidden;border-bottom:1px solid var(--line);background:radial-gradient(120% 80% at 50% 38%,#131a21 0%,var(--night) 62%)}
-.hero canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.hero{position:relative;isolation:isolate;overflow:hidden;border-bottom:1px solid var(--line);background:var(--night)}
+.hero-bg{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:50% 42%;opacity:.7}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(7,9,11,.55) 0%,rgba(7,9,11,.12) 34%,rgba(7,9,11,.35) 62%,var(--night) 100%)}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:.7}
 .hero-in{display:grid;grid-template-rows:auto 1fr auto;min-height:clamp(540px,80svh,800px);padding-block:20px 28px;gap:20px}
 .hero-top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .hero-top b{font-weight:500;color:var(--frost)}
@@ -117,11 +119,13 @@ select option{background:var(--coal)}
 .sort select{color:var(--frost);font:inherit;letter-spacing:inherit;text-transform:inherit}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 12px}
 .card{min-width:0;display:flex;flex-direction:column;gap:12px}
-.tile{position:relative;display:block;width:100%;aspect-ratio:5/6;max-width:100%;background:radial-gradient(90% 70% at 50% 38%,#e8ecef 0%,var(--tile) 64%,#bdc5cb 100%);color:var(--ink);overflow:hidden;text-align:left}
-.shot{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
-.card:hover .shot{transform:scale(1.05)}
+.tile{position:relative;display:block;width:100%;aspect-ratio:4/5;max-width:100%;background:var(--coal);color:var(--ink);overflow:hidden;text-align:left}
+.shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1),opacity .45s}
+.shot.alt{opacity:0}
+.card:hover .shot{transform:scale(1.03)}
+@media (hover:hover){.card:hover .shot.alt{opacity:1}}
 .is-out .shot{opacity:.5}
-.tile-tag{position:absolute;top:10px;left:12px;right:10px;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:10px;pointer-events:none}
+.tile-tag{position:absolute;top:10px;left:10px;right:10px;z-index:1;display:flex;justify-content:flex-end;align-items:flex-start;gap:8px;font-size:10px;pointer-events:none}
 .badge{padding:4px 7px;background:var(--ink);color:var(--frost)}
 .tile-view{position:absolute;inset:0;z-index:1}
 .quick{position:absolute;left:0;right:0;bottom:0;z-index:2;display:none;padding:10px;gap:4px;background:rgba(238,242,245,.94);flex-wrap:wrap;align-items:center}
@@ -151,6 +155,8 @@ select option{background:var(--coal)}
 .story-quote{font:italic 400 clamp(44px,7vw,104px)/.98 var(--serif);letter-spacing:-.02em;text-wrap:balance}
 .story-quote + p{margin-top:24px;color:var(--mist)}
 .story-copy{display:grid;gap:18px;max-width:52ch;padding-top:8px}
+.story-pic{position:relative;margin-top:32px;aspect-ratio:4/5;max-width:min(100%,440px);overflow:hidden;background:var(--coal)}
+.story-pic figcaption{position:absolute;left:12px;bottom:10px;z-index:1;color:var(--frost)}
 .story-copy p{font-size:17px;line-height:1.6}
 .facts{display:grid;margin-top:10px;border-top:1px solid var(--line)}
 .facts div{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;padding-block:14px;border-bottom:1px solid var(--line)}
@@ -159,16 +165,15 @@ select option{background:var(--coal)}
 /* campaign */
 .look{padding-block:clamp(40px,6vw,72px);border-top:1px solid var(--line)}
 .frames{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,calc((100% - 36px)/4));gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-.frame{position:relative;display:block;aspect-ratio:4/5;max-width:100%;overflow:hidden;scroll-snap-align:start;text-align:left;background:radial-gradient(70% 55% at 50% 40%,#2b3741 0%,#11161b 58%,var(--night) 100%)}
-.frame .shot{inset:-4% -8% 4%;width:116%;height:100%;transform:rotate(var(--tilt,0deg))}
-.frame:hover .shot{transform:rotate(var(--tilt,0deg)) scale(1.04)}
+.frame{position:relative;display:block;aspect-ratio:4/5;max-width:100%;overflow:hidden;scroll-snap-align:start;text-align:left;background:var(--coal)}
+.frame:hover .shot{transform:scale(1.03)}
 .frame::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(7,9,11,.55) 0%,rgba(7,9,11,0) 18%,rgba(7,9,11,0) 60%,rgba(7,9,11,.94) 92%)}
 .frame-top,.frame-bot{position:absolute;left:14px;right:14px;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
 .frame-top{top:12px}.frame-bot{bottom:12px}
 .frame-bot b{font:italic 400 clamp(26px,2.6vw,36px)/.98 var(--serif)}
 .frame-bot small{display:block;margin-top:6px;color:var(--mist)}
 .frame-bot>.mono{white-space:nowrap;padding-bottom:2px}
-.frame .star{position:absolute;z-index:1;color:var(--frost);opacity:.85}
+.frame-bot>.mono{white-space:nowrap}
 
 /* list */
 .list{border-top:1px solid var(--line);background:var(--coal)}
@@ -204,6 +209,8 @@ select option{background:var(--coal)}
 .foot h3{margin-bottom:14px;color:var(--mist)}
 .foot li{padding-block:5px}
 .foot li a:hover{color:var(--ice)}
+.credits{margin-top:32px;max-width:110ch;color:var(--mist);font-size:12.5px;line-height:1.6}
+.credits a{text-decoration:underline;text-underline-offset:3px}
 .foot-bot{display:flex;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--mist)}
 
 /* dialogs */
@@ -214,11 +221,11 @@ dialog::backdrop{background:rgba(3,5,7,.72);backdrop-filter:blur(3px)}
 #pdp{width:min(1080px,calc(100vw - 24px));max-height:calc(100dvh - 24px);margin:auto;overflow:auto}
 .pdp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .gal{position:relative;min-width:0}
-.gal>.tile{aspect-ratio:5/6;position:sticky;top:0}
-.zoomed .shot{transform:scale(var(--zs,2.3));transform-origin:var(--zx,50%) var(--zy,50%)}
+.gal>.tile{aspect-ratio:4/5;position:sticky;top:0}
 .thumbs{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;gap:6px}
-.thumb{position:relative;width:54px;aspect-ratio:5/6;background:var(--tile);overflow:hidden;border:1px solid rgba(11,13,15,.25)}
-.thumb[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.thumb{position:relative;width:54px;aspect-ratio:4/5;background:var(--tile);overflow:hidden;border:1px solid rgba(11,13,15,.25)}
+.thumb{border-color:rgba(238,242,245,.5)}
+.thumb[aria-pressed="true"]{border-color:var(--frost);box-shadow:0 0 0 1px var(--frost)}
 .pdp-info{display:grid;align-content:start;gap:18px;padding:22px clamp(18px,3vw,34px) 28px;min-width:0}
 .pdp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .pdp-info h2{font-size:clamp(26px,3.2vw,38px)}
@@ -316,7 +323,7 @@ th{color:var(--mist);font-weight:500}
   .count div{flex:1;min-width:0}
   .story,.list-in,.help{grid-template-columns:1fr}
   .pdp{grid-template-columns:1fr}
-  .gal>.tile{position:relative;aspect-ratio:1/1}
+  .gal>.tile{position:relative;aspect-ratio:4/5}
   .foot-top{grid-template-columns:1fr 1fr}
   .card-meta h3{font-size:12.5px}
   .facts div{grid-template-columns:104px minmax(0,1fr)}
@@ -354,6 +361,7 @@ th{color:var(--mist);font-weight:500}
 
 <main id="top">
   <section class="hero">
+    <img class="hero-bg" src="img/hero.webp" alt="" width="2400" height="3000" fetchpriority="high">
     <canvas id="sky" aria-hidden="true"></canvas>
     <div class="wrap hero-in">
       <div class="hero-top mono dim">
@@ -407,11 +415,12 @@ th{color:var(--mist);font-weight:500}
     <div>
       <p class="story-quote">Clear sky. No wind. The coldest hour of the night.</p>
       <p class="mono">That hour is what we design for.</p>
+      <figure class="story-pic"><img class="shot" src="img/story.webp" alt="A rail of black garments on black hangers against a white wall" width="1000" height="1250" loading="lazy"><figcaption class="mono">Studio / Winter 26</figcaption></figure>
     </div>
     <div class="story-copy">
       <p>AYAZ makes heavyweight streetwear for people who are still outside when everyone else has gone in. Late buses, empty car parks, the walk home at 3am with your hood up.</p>
       <p>Every piece is cut wide, built heavy and made in one run. We would rather sell out than restock.</p>
-      <dl class="facts">
+      <dl class="facts" id="facts">
         <div><dt class="mono">Based</dt><dd>England</dd></div>
         <div><dt class="mono">Releases</dt><dd>Numbered drops, small runs, no restocks</dd></div>
         <div><dt class="mono">Fabric</dt><dd>Heavyweight cotton from 260 to 480 GSM</dd></div>
@@ -424,7 +433,7 @@ th{color:var(--mist);font-weight:500}
     <div class="sec-head">
       <div>
         <h2 class="display">First Frost, after dark</h2>
-        <p>Four pieces from the drop under studio light. Tap a look to shop it.</p>
+        <p>Six frames from the studio and the streets it was made for. Empty alleys, wet roads, a rail of black.</p>
       </div>
       <span class="mono dim">Scroll &rarr;</span>
     </div>
@@ -479,9 +488,10 @@ th{color:var(--mist);font-weight:500}
     <div><h3 class="mono">Help</h3><ul><li><a href="#help">Delivery</a></li><li><a href="#help">Returns</a></li><li><a href="#help">Sizing</a></li></ul></div>
     <div><h3 class="mono">Follow</h3><ul><li>Instagram <span class="dim">soon</span></li><li>TikTok <span class="dim">soon</span></li></ul></div>
   </div>
+  <p class="credits" id="credits"></p>
   <div class="foot-bot mono">
     <span>&copy; 2026 AYAZ / England</span>
-    <span>Demo storefront. Products, prices and dates are placeholders.</span>
+    <span>Demo storefront. Products, prices and dates are placeholders. The logo is added digitally to stock photos.</span>
   </div>
 </footer>
 
@@ -549,41 +559,50 @@ var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){ret
 var store={get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 
 /* ---------- catalogue ---------- */
-var COL={black:{name:'Night Black',dot:'#17191c'},frost:{name:'Frost White',dot:'#f1f3f5'},slate:{name:'Slate Grey',dot:'#646f79'}};
-var APPAREL=['XS','S','M','L','XL','XXL'], WAIST=['28','30','32','34','36'], ONE=['One size'];
-var CATS=[['all','All'],['tops','Tops'],['outerwear','Outerwear'],['bottoms','Bottoms'],['accessories','Accessories']];
-/* out: sizes sold out per colour, or 'all'. zoom: where the detail shot looks (x%, y%, scale). */
+var COL={black:{name:'Night Black',dot:'#17191c'},frost:{name:'Frost White',dot:'#f1f3f5'},charcoal:{name:'Charcoal',dot:'#3a3c3d'}};
+var APPAREL=['XS','S','M','L','XL','XXL'], ONE=['One size'];
+var CATS=[['all','All'],['tops','Tops'],['outerwear','Outerwear'],['accessories','Accessories']];
+/* img: photos per colour, first is the main shot. out: sizes sold out per colour, or 'all'. */
 var P=[
- {id:'orbit-hoodie',code:'AYZ-001-HD',name:'Orbit Hoodie',cat:'tops',art:'hoodie',price:120,colors:['black','frost'],sizes:APPAREL,rated:-5,out:{black:['XS'],frost:['XL','XXL']},zoom:[50,54,2.4],
+ {id:'orbit-hoodie',code:'AYZ-001-HD',name:'Orbit Hoodie',cat:'tops',price:120,colors:['frost'],sizes:APPAREL,rated:-5,out:{frost:['XL','XXL']},
+  img:{frost:['hoodie-frost-1']},
   blurb:'The one the drop is built around. Heavy, wide and quiet, with the orbit logo across the chest.',
   spec:['480 GSM brushed-back cotton fleece','Boxy fit, dropped shoulder','Double-layer hood, kangaroo pocket','Screen-printed orbit logo']},
- {id:'first-frost-tee',code:'AYZ-001-TS',name:'First Frost Tee',cat:'tops',art:'tee',price:45,colors:['frost','black'],sizes:APPAREL,rated:12,zoom:[50,43,2.3],
+ {id:'first-frost-tee',code:'AYZ-001-TS',name:'First Frost Tee',cat:'tops',price:45,colors:['frost','black'],sizes:APPAREL,rated:12,out:{black:['XS']},
+  img:{frost:['tee-frost-1','tee-frost-2','tee-frost-3'],black:['tee-black-2','tee-black-1']},
   blurb:'A heavyweight tee that holds its shape. Wear it under everything else in the drop.',
-  spec:['260 GSM combed cotton jersey','Boxy fit, mid-length sleeve','Ribbed collar that stays flat','Screen-printed orbit logo']},
- {id:'north-wind-puffer',code:'AYZ-001-PF',name:'North Wind Puffer',cat:'outerwear',art:'puffer',price:260,colors:['black','slate'],sizes:APPAREL,rated:-15,low:true,out:{black:['S','M'],slate:['XS']},zoom:[62,33,3],
-  blurb:'Named after the wind it was built to beat. The warmest piece in the drop by a distance.',
-  spec:['Recycled insulation, matte ripstop shell','Stand collar, two-way zip','Cropped, wide body','Embroidered logo at the chest']},
- {id:'hoarfrost-crewneck',code:'AYZ-001-CR',name:'Hoarfrost Crewneck',cat:'tops',art:'crew',price:95,colors:['slate','black'],sizes:APPAREL,rated:-2,out:{slate:['XXL']},zoom:[50,45,2.3],
+  spec:['260 GSM combed cotton jersey','Boxy fit, mid-length sleeve','Ribbed collar that stays flat','Screen-printed orbit logo, woven neck label']},
+ {id:'north-wind-puffer',code:'AYZ-001-PF',name:'North Wind Puffer',cat:'outerwear',price:260,colors:['frost'],sizes:APPAREL,rated:-15,low:true,out:{frost:['S','M']},
+  img:{frost:['puffer-frost-1','puffer-frost-2']},
+  blurb:'Named after the wind it was built to beat. Deep baffles, a storm hood and a lot of fill.',
+  spec:['Recycled insulation, matte shell','Two-way zip, storm hood','Boxy, hip-length body','Embroidered logo at the chest']},
+ {id:'orbit-longsleeve',code:'AYZ-001-LS',name:'Orbit Longsleeve',cat:'tops',price:60,colors:['black'],sizes:APPAREL,rated:4,
+  img:{black:['longsleeve-black-1','longsleeve-black-2']},
+  blurb:'The tee with sleeves. Same weight, same print, for the nights that need one more layer.',
+  spec:['260 GSM combed cotton jersey','Relaxed fit, ribbed cuffs','Ribbed collar that stays flat','Screen-printed orbit logo']},
+ {id:'hoarfrost-crewneck',code:'AYZ-001-CR',name:'Hoarfrost Crewneck',cat:'tops',price:95,colors:['frost'],sizes:APPAREL,rated:-2,out:{frost:['XXL']},
+  img:{frost:['crew-frost-1']},
   blurb:'Hoarfrost is the white that settles on cars by morning. Same fleece as the hoodie, no hood.',
   spec:['480 GSM brushed-back cotton fleece','Boxy fit, dropped shoulder','Heavy rib at collar, cuffs and hem','Screen-printed orbit logo']},
- {id:'polar-cargo',code:'AYZ-001-CG',name:'Polar Cargo',cat:'bottoms',art:'cargo',price:130,colors:['black','slate'],sizes:WAIST,rated:0,out:{black:['28'],slate:['34','36']},zoom:[67,60,3],
-  blurb:'A wide-leg cargo in stiff cotton twill. It stacks over trainers and takes a beating.',
-  spec:['340 GSM cotton twill','Wide leg, sits at the waist','Two bellows pockets with snap flaps','Embroidered logo on the pocket']},
- {id:'nightwatch-beanie',code:'AYZ-001-BN',name:'Nightwatch Beanie',cat:'accessories',art:'beanie',price:30,colors:['black','frost'],sizes:ONE,rated:-8,out:{frost:'all'},zoom:[50,69,2.6],
+ {id:'night-layers-pack',code:'AYZ-001-PK',name:'Night Layers Pack',cat:'tops',price:140,colors:['black'],sizes:APPAREL,rated:-1,low:true,
+  img:{black:['pack-black-1']},
+  blurb:'Three pieces, one box: a black longsleeve, a black tee and a washed charcoal longsleeve, all with the orbit print.',
+  spec:['Black longsleeve, black tee, washed charcoal longsleeve','260 GSM combed cotton jersey','One size for all three pieces','Saves £25 on buying them separately']},
+ {id:'nightwatch-beanie',code:'AYZ-001-BN',name:'Nightwatch Beanie',cat:'accessories',price:30,colors:['charcoal'],sizes:ONE,rated:-8,
+  img:{charcoal:['beanie-charcoal-1']},
   blurb:'A deep-cuff beanie with a woven label. It covers your ears, which is the point.',
-  spec:['Double-layer rib knit','Deep fold-over cuff','Woven logo label','One size']},
- {id:'terrace-scarf',code:'AYZ-001-SC',name:'Terrace Scarf',cat:'accessories',art:'scarf',price:40,colors:['black','frost'],sizes:ONE,rated:-6,zoom:[47,48,2],
-  blurb:'A terrace scarf, the kind you hold up on a match day. Jacquard knit, logo on both sides.',
-  spec:['Jacquard knit, 150 x 20 cm','Logo woven in, not printed','Fringed ends','One size']},
- {id:'orbit-cap',code:'AYZ-001-CP',name:'Orbit Cap',cat:'accessories',art:'cap',price:35,colors:['black','frost'],sizes:ONE,rated:8,low:true,zoom:[50,45,2.4],
-  blurb:'Unstructured and low profile. For the clear days before the clear nights.',
-  spec:['Washed cotton twill','Unstructured, low profile','Metal clasp strap','Embroidered orbit logo']}
+  spec:['Soft acrylic and wool rib knit','Deep fold-over cuff','Woven logo label','One size']},
+ {id:'orbit-cap',code:'AYZ-001-CP',name:'Orbit Cap',cat:'accessories',price:35,colors:['frost'],sizes:ONE,rated:8,
+  img:{frost:['cap-frost-1','cap-frost-2']},
+  blurb:'A clean white cap with the orbit logo stitched on the front. For the clear days before the clear nights.',
+  spec:['Cotton twill front panels','Structured crown, flat stitched peak','Snap strap at the back','Embroidered orbit logo']}
 ];
 var byId={};P.forEach(function(p){byId[p.id]=p});
 function sizeOut(p,col,size){var o=(p.out||{})[col];return !!o&&(o==='all'||o.indexOf(size)>-1)}
 function colOut(p,col){return (p.out||{})[col]==='all'}
 function badge(p,col){return colOut(p,col)?'Sold out':p.low?'Low stock':''}
-function shot(p,col,eager){return '<img class="shot" src="img/'+p.art+'-'+col+'.webp" alt="'+p.name+' in '+COL[col].name+'" width="900" height="1080" decoding="async"'+(eager?'':' loading="lazy"')+'>'}
+function pics(p,col){return p.img[col]}
+function shot(p,col,eager,i,cls){var n=pics(p,col)[i||0];return '<img class="shot'+(cls?' '+cls:'')+'" src="img/'+n+'.webp" alt="'+p.name+' in '+COL[col].name+(i?', second view':'')+'" width="1000" height="1250" decoding="async"'+(eager?'':' loading="lazy"')+'>'}
 
 /* ---------- money: prices are held in GBP ---------- */
 var RATE={GBP:1,EUR:1.17,USD:1.27}, SYM={GBP:'£',EUR:'€',USD:'$'};
@@ -600,13 +619,13 @@ P.forEach(function(p){picked[p.id]=p.colors[0]});
 function card(p){
   var col=picked[p.id],b=badge(p,col),gone=colOut(p,col);
   return '<article class="card'+(gone?' is-out':'')+'" data-id="'+p.id+'">'+
-    '<div class="tile">'+shot(p,col)+
-      '<div class="tile-tag mono"><span>'+p.code+'</span>'+(b?'<span class="badge">'+b+'</span>':'')+'</div>'+
+    '<div class="tile">'+shot(p,col)+(pics(p,col).length>1?shot(p,col,false,1,'alt'):'')+
+      '<div class="tile-tag mono">'+(b?'<span class="badge">'+b+'</span>':'')+'</div>'+
       '<button class="tile-view" data-view="'+p.id+'" aria-label="View '+p.name+'"></button>'+
       (gone?'':'<div class="quick"><span class="mono">Quick add</span>'+p.sizes.map(function(s){return '<button data-add="'+p.id+'" data-size="'+s+'"'+(sizeOut(p,col,s)?' disabled':'')+' aria-label="Add '+p.name+' size '+s+'">'+s+'</button>'}).join('')+'</div>')+
     '</div>'+
     '<div class="card-meta"><h3>'+p.name+'</h3><span class="price">'+money(p.price)+'</span>'+
-      '<div class="card-sub"><div class="dots">'+p.colors.map(function(k){return '<button class="dot" style="--c:'+COL[k].dot+'" data-col="'+k+'" data-pid="'+p.id+'" aria-pressed="'+(k===col)+'" aria-label="'+COL[k].name+'"></button>'}).join('')+'</div>'+
+      '<div class="card-sub"><div class="dots">'+(p.colors.length<2?'<span class="mono dim" style="font-size:10px">'+COL[col].name+'</span>':'')+(p.colors.length<2?'':p.colors.map(function(k){return '<button class="dot" style="--c:'+COL[k].dot+'" data-col="'+k+'" data-pid="'+p.id+'" aria-pressed="'+(k===col)+'" aria-label="'+COL[k].name+'"></button>'}).join(''))+'</div>'+
       '<span class="rated mono"><i class="star"></i>Rated to '+deg(p.rated)+'</span></div>'+
     '</div></article>';
 }
@@ -630,17 +649,15 @@ var GUIDE={
 };
 function renderPdp(){
   var p=byId[view.id],g=p.sizes===APPAREL?GUIDE.apparel:p.sizes===WAIST?GUIDE.waist:null,gone=colOut(p,view.color),b=badge(p,view.color);
-  var z='--zx:'+p.zoom[0]+'%;--zy:'+p.zoom[1]+'%;--zs:'+p.zoom[2];
-  var others=P.filter(function(o){return o.id!==p.id&&o.art!==p.art}),start=P.indexOf(p)%others.length,rel=[0,1,2].map(function(i){return others[(start+i*2)%others.length]});
+  var ph=pics(p,view.color);if(view.shot>=ph.length)view.shot=0;
+  var others=P.filter(function(o){return o.id!==p.id}),start=P.indexOf(p)%others.length,rel=[0,1,2].map(function(i){return others[(start+i*2)%others.length]});
   $('#pdp-body').innerHTML=
-   '<div class="gal"><div class="tile'+(view.shot==='detail'?' zoomed':'')+'" style="'+z+'">'+shot(p,view.color,true)+
-     '<div class="tile-tag mono"><span>'+p.code+'</span>'+(b?'<span class="badge">'+b+'</span>':'')+'</div>'+
-     '<div class="thumbs">'+
-       '<button class="thumb" data-shot="front" aria-pressed="'+(view.shot==='front')+'" aria-label="Front view">'+shot(p,view.color,true)+'</button>'+
-       '<button class="thumb zoomed" style="'+z+'" data-shot="detail" aria-pressed="'+(view.shot==='detail')+'" aria-label="Logo detail">'+shot(p,view.color,true)+'</button>'+
-     '</div></div></div>'+
+   '<div class="gal"><div class="tile">'+shot(p,view.color,true,view.shot)+
+     '<div class="tile-tag mono">'+(b?'<span class="badge">'+b+'</span>':'')+'</div>'+
+     (ph.length>1?'<div class="thumbs">'+ph.map(function(n,i){return '<button class="thumb" data-shot="'+i+'" aria-pressed="'+(view.shot===i)+'" aria-label="Photo '+(i+1)+'">'+shot(p,view.color,true,i)+'</button>'}).join('')+'</div>':'')+
+   '</div></div>'+
    '<div class="pdp-info">'+
-     '<div class="pdp-top"><div><p class="rated mono"><i class="star"></i>Ayaz rating '+deg(p.rated)+'</p><h2 class="display" style="margin-top:10px">'+p.name+'</h2></div><button class="x" data-close aria-label="Close">&times;</button></div>'+
+     '<div class="pdp-top"><div><p class="rated mono"><i class="star"></i>Ayaz rating '+deg(p.rated)+' <span class="dim">/ '+p.code+'</span></p><h2 class="display" style="margin-top:10px">'+p.name+'</h2></div><button class="x" data-close aria-label="Close">&times;</button></div>'+
      '<p class="pdp-price">'+money(p.price)+'</p>'+
      '<p>'+p.blurb+'</p>'+
      '<div class="opt"><span class="mono dim">Colour / '+COL[view.color].name+'</span><div class="opt-row">'+p.colors.map(function(k){return '<button class="dot" style="--c:'+COL[k].dot+';width:28px;height:28px" data-pcol="'+k+'" aria-pressed="'+(k===view.color)+'" aria-label="'+COL[k].name+'"></button>'}).join('')+'</div></div>'+
@@ -657,7 +674,7 @@ function renderPdp(){
 }
 function openPdp(id,col){
   var p=byId[id];if(col)picked[id]=col;
-  view={id:id,color:picked[id],size:null,shot:'front'};
+  view={id:id,color:picked[id],size:null,shot:0};
   if(p.sizes.length===1&&!sizeOut(p,view.color,p.sizes[0])) view.size=p.sizes[0];
   renderPdp();open(pdp);pdp.scrollTop=0;
 }
@@ -743,9 +760,9 @@ document.addEventListener('click',function(e){
   else if(d.view){openPdp(d.view,d.vcol)}
   else if(d.col){picked[d.pid]=d.col;renderGrid()}
   else if(d.add){addToBag(d.add,picked[d.add],d.size);open(bagEl)}
-  else if(d.pcol){view.color=d.pcol;picked[view.id]=d.pcol;if(view.size&&sizeOut(byId[view.id],view.color,view.size))view.size=null;renderPdp();renderGrid()}
+  else if(d.pcol){view.color=d.pcol;picked[view.id]=d.pcol;view.shot=0;if(view.size&&sizeOut(byId[view.id],view.color,view.size))view.size=null;renderPdp();renderGrid()}
   else if(d.psize){view.size=d.psize;renderPdp()}
-  else if(d.shot){view.shot=d.shot;renderPdp()}
+  else if(d.shot){view.shot=+d.shot;renderPdp()}
   else if(t.id==='pdp-add'){addToBag(view.id,view.color,view.size);shut(pdp);open(bagEl)}
   else if(d.q){var l=bag[+d.i];l.qty+=+d.q;if(l.qty<1)bag.splice(+d.i,1);else if(l.qty>9)l.qty=9;saveBag();renderBag()}
   else if(d.rm){bag.splice(+d.rm,1);saveBag();renderBag()}
@@ -778,20 +795,22 @@ $('#ticker').innerHTML=tick+tick+tick+tick;
 var bandT='<span>First Frost'+S+'<i>Drop 001</i>'+S+'Out now'+S+'<i>No restocks</i>'+S+'</span>';
 $('#band').innerHTML=bandT+bandT+bandT+bandT;
 var FR=[
- {n:'01',id:'orbit-hoodie',col:'frost',tilt:-4,stars:[[80,13,20],[10,56,11]]},
- {n:'02',id:'north-wind-puffer',col:'slate',tilt:3,stars:[[12,15,16],[86,60,12]]},
- {n:'03',id:'nightwatch-beanie',col:'black',tilt:-3,stars:[[82,18,22],[16,66,10],[58,8,9]]},
- {n:'04',id:'hoarfrost-crewneck',col:'slate',tilt:4,stars:[[14,12,18],[88,50,12]]}
+ {n:'01',src:'look-1',title:'Off the rail',meta:'Studio / Winter 26',alt:'Black tees and sweatshirts on hangers in low light'},
+ {n:'02',src:'look-2',title:'Back alley',meta:'02:15 / −3°C',alt:'An empty alley at night lit by a single orange street lamp'},
+ {n:'03',src:'look-3',title:'In black',meta:'Studio / Winter 26',alt:'Black sweatshirts hanging on a dark metal rail'},
+ {n:'04',src:'look-4',title:'Wet roads',meta:'03:30 / −1°C',alt:'An empty city street shining with rain under street lights'},
+ {n:'05',src:'look-5',title:'Folded',meta:'Studio / Winter 26',alt:'A stack of folded black, white and grey clothes on a white chair'},
+ {n:'06',src:'look-6',title:'Stacked',meta:'Studio / Winter 26',alt:'A stack of folded black and white shirts'}
 ];
 function renderFrames(){
   $('#frames').innerHTML=FR.map(function(f){
-    var p=byId[f.id];
-    return '<button class="frame" style="--tilt:'+f.tilt+'deg" data-view="'+f.id+'" data-vcol="'+f.col+'" aria-label="Shop '+p.name+' in '+COL[f.col].name+'">'+shot(p,f.col)+
-      f.stars.map(function(s){return '<i class="star" style="left:'+s[0]+'%;top:'+s[1]+'%;width:'+s[2]+'px;height:'+s[2]+'px"></i>'}).join('')+
-      '<span class="frame-top mono"><span>Look '+f.n+'</span><span>Rated to '+deg(p.rated)+'</span></span>'+
-      '<span class="frame-bot"><span><b>'+p.name+'</b><small class="mono">'+COL[f.col].name+' / '+money(p.price)+'</small></span><span class="mono">Shop &rarr;</span></span></button>';
+    return '<figure class="frame"><img class="shot" src="img/'+f.src+'.webp" alt="'+f.alt+'" width="900" height="1125" loading="lazy">'+
+      '<span class="frame-top mono"><span>Frame '+f.n+'</span><span>'+f.meta+'</span></span>'+
+      '<figcaption class="frame-bot"><b>'+f.title+'</b><span class="mono dim">First Frost</span></figcaption></figure>';
   }).join('');
 }
+var CREDITS=[['Mediamodifier','mediamodifier'],['Avtar Singh','avtar9w'],['mockupbee','mockupbee'],['Ryan Hoffman','ryanhoffman007'],['Md Salman','mohammadsalman'],['CGXL MEDIA','cgxlmedia'],['personalgraphic.com','personal_graphic'],['Hert Niks','hertwashere'],['Morica Pham','moricaphamm'],['Josh Hild','joshhild'],['No Revisions','norevisions'],['Tobias van Schneider','vanschneider'],['Sarah Dorweiler','sarahdorweiler'],['Jonathan Adams','jonathanadamsphoto']];
+$('#credits').innerHTML='Photography from Unsplash by '+CREDITS.map(function(c){return '<a href="https://unsplash.com/@'+c[1]+'" target="_blank" rel="noopener">'+c[0]+'</a>'}).join(', ')+'. The AYAZ logo is added digitally for this demo.';
 
 /* ---------- countdown to Drop 002 ---------- */
 var DROP=Date.UTC(2027,0,15,19,0,0);
