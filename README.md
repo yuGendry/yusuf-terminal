@@ -1,5 +1,7 @@
 # LEVEL 0: THE HUM
 
+> **Also in this repo:** [ChessMind](chess/), a chess app for playing and learning: an adaptive placement match, 500+ lessons, openings, puzzles and a coach. See [chess/README.md](chess/README.md).
+
 A first-person horror survival game in the backrooms, in one `index.html` (three.js, no build step).
 
 ## Run it
