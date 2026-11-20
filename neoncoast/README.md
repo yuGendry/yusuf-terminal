@@ -4,13 +4,15 @@ An open-world crime and driving sandbox in one `index.html` (three.js, no build 
 
 ## Run it
 
-Serve the **repository root** (the game borrows the pistol model from `../fps/assets`):
+Play it online: https://claude.ai/artifact/FS8kAQempqcFdFniLHb8hA
+
+Or serve the folder locally:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000/neoncoast/
+Then open http://localhost:8000/ (run the command inside `neoncoast/`).
 
 ## The world
 
