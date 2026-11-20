@@ -87,7 +87,7 @@ A neon arena shooter: you against up to 11 emotional bots, pistols only. Everyth
 Open http://localhost:8000/fps/ with the same local server as above.
 
 - **One gun for everyone:** a Beretta 92 held in animated first-person arms, with fire, two reloads (tactical, and empty with slide rack) and an inspect animation, all cut from the supplied model's take.
-- **Bullets are the only pickups.** Glowing cartridges around the map give +15 rounds and respawn after 10 s. Now and then a **golden round** spawns: whoever grabs it kills anything with their next hit.
+- **Bullets are the only pickups.** Cartridges around the map give +15 rounds and respawn after 10 s. Now and then a **golden round** spawns: whoever grabs it kills anything with their next hit.
 - **Bots with feelings:** the NPC's 4 heads (neutral, shocked, angry, furious) swap live with the bot's mood. They react when they spot you, get hit, take a headshot, run out of ammo, get a kill (they cheer) or hold a grudge against whoever killed them last. Each one also shows emoji and speech bubbles and has a little synthesized voice.
 - **Bot AI:** A* navigation on a grid baked from the map, sight and hearing, reaction time, aim that settles over time, strafing, crouching, hopping, retreating when hurt, hunting ammo, and a pistol whip when they're out of bullets. Bodies are animated procedurally (walk/run cycles, two-handed aim, crouch, jump, flinch, cheer, panic, fall).
 - **Movement:** sprint, jump, crouch, power slide (sprint + C, and you can jump out of it), air control, coyote time, and **peeking**: lean left or right with Q / E to look and shoot around corners. You can't lean through walls.
@@ -98,15 +98,23 @@ Open http://localhost:8000/fps/ with the same local server as above.
   - **Old Town:** a 160 m village with two apartment blocks and about thirty houses you can walk into.
 
   The neon maps get the game's glowing panel shaders. Old Town keeps its own textures.
-- **Old Town Last Stand is a 50-player battle:** you plus 49 bots, one life each.
+- **Online with friends:** open the ONLINE panel on the menu and press GO ONLINE.
+  - Everyone gets a 6-character code. Give yours to a friend (or copy an invite link); when they join, you become the host of a lobby of up to 8 players.
+  - **Friends list:** add friends by code. It shows who is online and what they're doing, with JOIN and INVITE buttons. The other person gets a prompt to add you back or to join your lobby.
+  - The host picks the map and mode and starts the match. Bots fill the rest of the lobby. Deathmatch and Last Stand both work online, including the 50-player Old Town drop.
+  - Online matches are unranked.
+  - **How it works:** players connect directly to each other (WebRTC, through the free [PeerJS](https://peerjs.com) service). The host's game runs the match: bots, damage, pickups and score. Everyone else sends their movement and the hits they land. If the host closes the game, the match ends for everyone.
+- **Respawn pads:** every map has fixed, glowing spawn points (8 to 20 depending on size). When you or a bot respawns, the game picks the pad farthest from enemies that no enemy can currently see, and it flashes as you appear.
+- **Old Town Last Stand is a 50-player battle on a doubled map:** you plus 49 bots, one life each, on a 2×2 mirrored Old Town about 320 m across, with the walls between the copies removed.
+  - Everyone starts in a **dropship** (the supplied C-17 model, with contrails and blinking navigation lights) flying across the town. Press **Space** to jump, Space again to open your parachute (it opens by itself near the ground), and steer with WASD. Bots jump along the route and glide toward their landing spots.
   - The first 20 seconds are a scatter phase: bots spread out and don't fight each other.
   - About 60% of the bots are campers. They claim hiding spots in house corners and behind cover, crouch, and watch the door. When someone shows up they duck, lean out the side that has a view, shoot, and duck back.
   - When six or fewer remain, or the clock is nearly out, nobody can hide any more and everyone hunts the nearest survivor.
 - **Tougher bots:**
   - They do much less damage to each other, so the lobby doesn't wipe itself out before you get there.
   - Only a few bots at a time can engage you from range.
-  - Their health rises with your rank (in Casual, with difficulty).
-- **Visuals:** synthwave sky with a striped sun, neon horizon mountains, an animated glowing floor grid, emissive trims on the walls, holographic crates, shadows, bloom, chromatic aberration, tracers, sparks, bullet holes, ejected brass, muzzle light.
+  - Casual difficulty is gentler: Easy and Normal bots react slower, aim worse and hit softer. Bot health is 90 / 100 / 120 / 140 (Easy to Insane). In Ranked it's 100 at Bronze, rising to 150 at the top.
+- **Visuals:** drifting sunset clouds and aurora, light shafts streaming from the sun, shockwave rings on kills, a sharpening pass, synthwave sky with a striped sun, neon horizon mountains, an animated glowing floor grid, emissive trims on the walls, holographic crates, shadows, bloom, chromatic aberration, tracers, sparks, bullet holes, ejected brass, muzzle light.
 - **Ranked ladder:** Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster (each with divisions III, II and I), then Legend. Your rank sets bot skill: Bronze III bots play like Easy and Legend bots play like Insane. Past Legend the bots get faster and deadlier still: quicker reactions, tighter aim, more headshots and more damage. You earn or lose RP from where you place, your kills and whether you win; matches with more bots pay more. Leaving a ranked match early costs 20 RP. Your rank is saved in the browser. **Casual** lets you pick the difficulty yourself and doesn't touch RP.
 - **Last Stand mode:** one life each, no respawns. The last one alive wins. If you go down you can spectate the survivors (Space or click to switch, Enter for results). Your placement is locked in when you're eliminated.
 - Deathmatch with kill and time limits, kill feed, multi-kill and spree announcer, radar, hit markers, damage numbers and direction, scoreboard, end-of-match stats, procedural synthwave music.
